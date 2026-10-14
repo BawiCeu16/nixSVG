@@ -1,10 +1,15 @@
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.13)
-project(runner LANGUAGES CXX)
 
-# Include standard C++ library headers and libraries for clang++
-include_directories(SYSTEM "/usr/include/c++/13" "/usr/include/x86_64-linux-gnu/c++/13")
-link_directories("$ENV{HOME}/.local/lib" "/usr/lib/gcc/x86_64-linux-gnu/13")
+# Fix for clang++ selecting GCC 14 when libstdc++-14-dev is missing but GCC 13 is installed
+if(EXISTS "/usr/lib/gcc/x86_64-linux-gnu/13" AND NOT EXISTS "/usr/lib/gcc/x86_64-linux-gnu/14/libstdc++.so")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/13" CACHE STRING "" FORCE)
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/13" CACHE STRING "" FORCE)
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} --gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/13" CACHE STRING "" FORCE)
+  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} --gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/13" CACHE STRING "" FORCE)
+endif()
+
+project(runner LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.

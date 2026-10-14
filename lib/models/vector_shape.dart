@@ -16,6 +16,7 @@ enum ShapeType {
 
 enum EditorMode {
   select,
+  pan,
   drawRectangle,
   drawRoundedRectangle,
   drawEllipse,
@@ -46,6 +47,19 @@ enum LineCapStyle {
   circle,
 }
 
+enum TextVerticalAlign {
+  top,
+  center,
+  bottom,
+}
+
+enum TextCase {
+  original,
+  uppercase,
+  lowercase,
+  titleCase,
+}
+
 class VectorShape {
   final String id;
   String name;
@@ -69,6 +83,14 @@ class VectorShape {
   String fontFamily;
   bool isBold;
   bool isItalic;
+  bool isUnderline;
+  bool isStrikethrough;
+  TextAlign textAlign;
+  TextVerticalAlign textVerticalAlign;
+  double letterSpacing;
+  double lineHeight;
+  TextCase textCase;
+  FontWeight fontWeight;
   bool isVisible;
   bool isLocked;
   Uint8List? imageBytes;
@@ -97,11 +119,19 @@ class VectorShape {
     this.fontFamily = 'Roboto',
     this.isBold = false,
     this.isItalic = false,
+    this.isUnderline = false,
+    this.isStrikethrough = false,
+    this.textAlign = TextAlign.left,
+    this.textVerticalAlign = TextVerticalAlign.top,
+    this.letterSpacing = 0.0,
+    this.lineHeight = 1.2,
+    this.textCase = TextCase.original,
+    FontWeight? fontWeight,
     this.isVisible = true,
     this.isLocked = false,
     this.imageBytes,
     this.decodedImage,
-  });
+  }) : fontWeight = fontWeight ?? (isBold ? FontWeight.bold : FontWeight.normal);
 
   VectorShape copyWith({
     String? id,
@@ -126,11 +156,27 @@ class VectorShape {
     String? fontFamily,
     bool? isBold,
     bool? isItalic,
+    bool? isUnderline,
+    bool? isStrikethrough,
+    TextAlign? textAlign,
+    TextVerticalAlign? textVerticalAlign,
+    double? letterSpacing,
+    double? lineHeight,
+    TextCase? textCase,
+    FontWeight? fontWeight,
     bool? isVisible,
     bool? isLocked,
     Uint8List? imageBytes,
     ui.Image? decodedImage,
   }) {
+    final effectiveIsBold = isBold ??
+        (fontWeight != null
+            ? (fontWeight.value >= FontWeight.w700.value)
+            : this.isBold);
+    final effectiveFontWeight = fontWeight ??
+        (isBold != null
+            ? (isBold ? FontWeight.bold : FontWeight.normal)
+            : this.fontWeight);
     return VectorShape(
       id: id ?? this.id,
       name: name ?? this.name,
@@ -152,8 +198,16 @@ class VectorShape {
       textContent: textContent ?? this.textContent,
       fontSize: fontSize ?? this.fontSize,
       fontFamily: fontFamily ?? this.fontFamily,
-      isBold: isBold ?? this.isBold,
+      isBold: effectiveIsBold,
       isItalic: isItalic ?? this.isItalic,
+      isUnderline: isUnderline ?? this.isUnderline,
+      isStrikethrough: isStrikethrough ?? this.isStrikethrough,
+      textAlign: textAlign ?? this.textAlign,
+      textVerticalAlign: textVerticalAlign ?? this.textVerticalAlign,
+      letterSpacing: letterSpacing ?? this.letterSpacing,
+      lineHeight: lineHeight ?? this.lineHeight,
+      textCase: textCase ?? this.textCase,
+      fontWeight: effectiveFontWeight,
       isVisible: isVisible ?? this.isVisible,
       isLocked: isLocked ?? this.isLocked,
       imageBytes: imageBytes ?? this.imageBytes,
@@ -210,9 +264,60 @@ class VectorShape {
         final points = _generateStarPointsSvg(rect);
         return '  <polygon points="$points" $fillAttr $strokeAttr$transformAttr />';
       case ShapeType.text:
-        final weight = isBold ? ' font-weight="bold"' : '';
+        String displayText = textContent;
+        switch (textCase) {
+          case TextCase.uppercase:
+            displayText = displayText.toUpperCase();
+            break;
+          case TextCase.lowercase:
+            displayText = displayText.toLowerCase();
+            break;
+          case TextCase.titleCase:
+            displayText = _toTitleCase(displayText);
+            break;
+          case TextCase.original:
+            break;
+        }
+
+        final weight = ' font-weight="${fontWeight.value}"';
         final style = isItalic ? ' font-style="italic"' : '';
-        return '  <text x="${rect.left}" y="${rect.top + fontSize}" font-family="$fontFamily" font-size="$fontSize" fill="$fillHex" fill-opacity="$fillOpacity"$weight$style$transformAttr>${_escapeXml(textContent)}</text>';
+
+        // Horizontal text-anchor & position X
+        String textAnchor = 'start';
+        double posX = rect.left;
+        if (textAlign == TextAlign.center) {
+          textAnchor = 'middle';
+          posX = rect.center.dx;
+        } else if (textAlign == TextAlign.right) {
+          textAnchor = 'end';
+          posX = rect.right;
+        }
+        final anchorAttr = ' text-anchor="$textAnchor"';
+
+        // Vertical dominant-baseline & position Y
+        String dominantBaseline = 'hanging';
+        double posY = rect.top;
+        if (textVerticalAlign == TextVerticalAlign.center) {
+          dominantBaseline = 'central';
+          posY = rect.center.dy;
+        } else if (textVerticalAlign == TextVerticalAlign.bottom) {
+          dominantBaseline = 'auto';
+          posY = rect.bottom;
+        }
+        final baselineAttr = ' dominant-baseline="$dominantBaseline"';
+
+        final letterSpacingAttr = letterSpacing != 0.0
+            ? ' letter-spacing="${letterSpacing}px"'
+            : '';
+
+        final decList = <String>[];
+        if (isUnderline) decList.add('underline');
+        if (isStrikethrough) decList.add('line-through');
+        final decAttr = decList.isNotEmpty
+            ? ' text-decoration="${decList.join(' ')}"'
+            : '';
+
+        return '  <text x="$posX" y="$posY" font-family="$fontFamily" font-size="$fontSize" fill="$fillHex" fill-opacity="$fillOpacity"$weight$style$anchorAttr$baselineAttr$letterSpacingAttr$decAttr$transformAttr>${_escapeXml(displayText)}</text>';
       case ShapeType.image:
         if (imageBytes != null) {
           final b64 = base64Encode(imageBytes!);
@@ -250,5 +355,14 @@ class VectorShape {
       pointsList.add('${x.toStringAsFixed(1)},${y.toStringAsFixed(1)}');
     }
     return pointsList.join(' ');
+  }
+
+  static String _toTitleCase(String text) {
+    if (text.isEmpty) return text;
+    return text.split(' ').map((word) {
+      if (word.isEmpty) return word;
+      return word[0].toUpperCase() +
+          (word.length > 1 ? word.substring(1).toLowerCase() : '');
+    }).join(' ');
   }
 }

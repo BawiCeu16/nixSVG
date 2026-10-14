@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+/// Legacy ThemeController to ensure backward compatibility with widgets
+/// while harmonizing with Riverpod's [themeProvider].
 class ThemeController extends ChangeNotifier {
   Color _seedColor = const Color(0xFF6366F1); // Default Indigo
   ThemeMode _themeMode = ThemeMode.dark;
@@ -18,6 +20,21 @@ class ThemeController extends ChangeNotifier {
     Color(0xFF06B6D4), // Cyan
     Color(0xFFF43F5E), // Rose
   ];
+
+  void syncFrom({required Color seed, required ThemeMode mode}) {
+    bool changed = false;
+    if (_seedColor != seed) {
+      _seedColor = seed;
+      changed = true;
+    }
+    if (_themeMode != mode) {
+      _themeMode = mode;
+      changed = true;
+    }
+    if (changed) {
+      notifyListeners();
+    }
+  }
 
   void setSeedColor(Color color) {
     if (_seedColor != color) {

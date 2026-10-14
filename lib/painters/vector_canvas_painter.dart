@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:nixsvg/models/vector_shape.dart';
 
 class VectorCanvasPainter extends CustomPainter {
@@ -36,9 +37,24 @@ class VectorCanvasPainter extends CustomPainter {
     }
 
     // 2. Draw selection overlays for selected shapes
-    for (final shape in shapes) {
-      if (selectedShapeIds.contains(shape.id) && shape.isVisible) {
-        _drawSelectionBox(canvas, shape);
+    if (selectedShapeIds.length > 1) {
+      Rect? combinedBounds;
+      for (final shape in shapes) {
+        if (selectedShapeIds.contains(shape.id) && shape.isVisible) {
+          _drawIndividualSelectionOutline(canvas, shape);
+          combinedBounds = combinedBounds == null
+              ? shape.rect
+              : combinedBounds.expandToInclude(shape.rect);
+        }
+      }
+      if (combinedBounds != null) {
+        _drawMultiSelectionBoundingBox(canvas, combinedBounds);
+      }
+    } else {
+      for (final shape in shapes) {
+        if (selectedShapeIds.contains(shape.id) && shape.isVisible) {
+          _drawSelectionBox(canvas, shape);
+        }
       }
     }
 
@@ -55,6 +71,7 @@ class VectorCanvasPainter extends CustomPainter {
       _drawDraftShape(canvas, draftRect, draftShapeType!);
       _drawDimensionBadge(canvas, draftRect);
     }
+
 
     // 4. Draw marquee selection box if dragging marquee
     if (marqueeRect != null) {
@@ -160,20 +177,74 @@ class VectorCanvasPainter extends CustomPainter {
         break;
 
       case ShapeType.text:
-        final textStyle = TextStyle(
-          color: shape.fillColor.withValues(alpha: shape.fillOpacity),
-          fontSize: shape.fontSize,
-          fontWeight: shape.isBold ? FontWeight.bold : FontWeight.w600,
-          fontStyle: shape.isItalic ? FontStyle.italic : FontStyle.normal,
-          fontFamily: shape.fontFamily,
-        );
-        final textSpan = TextSpan(text: shape.textContent, style: textStyle);
+        String displayText = shape.textContent;
+        switch (shape.textCase) {
+          case TextCase.uppercase:
+            displayText = displayText.toUpperCase();
+            break;
+          case TextCase.lowercase:
+            displayText = displayText.toLowerCase();
+            break;
+          case TextCase.titleCase:
+            displayText = _toTitleCase(displayText);
+            break;
+          case TextCase.original:
+            break;
+        }
+
+        final textDecorations = <TextDecoration>[];
+        if (shape.isUnderline) textDecorations.add(TextDecoration.underline);
+        if (shape.isStrikethrough) textDecorations.add(TextDecoration.lineThrough);
+        final decoration = textDecorations.isNotEmpty
+            ? TextDecoration.combine(textDecorations)
+            : TextDecoration.none;
+
+        final textColor = shape.fillColor.withValues(alpha: shape.fillOpacity);
+        TextStyle textStyle;
+        try {
+          textStyle = GoogleFonts.getFont(
+            shape.fontFamily,
+            color: textColor,
+            fontSize: shape.fontSize,
+            fontWeight: shape.fontWeight,
+            fontStyle: shape.isItalic ? FontStyle.italic : FontStyle.normal,
+            letterSpacing: shape.letterSpacing != 0.0 ? shape.letterSpacing : null,
+            height: shape.lineHeight,
+            decoration: decoration,
+            decorationColor: textColor,
+          );
+        } catch (_) {
+          textStyle = TextStyle(
+            color: textColor,
+            fontSize: shape.fontSize,
+            fontWeight: shape.fontWeight,
+            fontStyle: shape.isItalic ? FontStyle.italic : FontStyle.normal,
+            fontFamily: shape.fontFamily,
+            letterSpacing: shape.letterSpacing != 0.0 ? shape.letterSpacing : null,
+            height: shape.lineHeight,
+            decoration: decoration,
+            decorationColor: textColor,
+          );
+        }
+
+        final textSpan = TextSpan(text: displayText, style: textStyle);
         final textPainter = TextPainter(
           text: textSpan,
+          textAlign: shape.textAlign,
           textDirection: TextDirection.ltr,
         );
-        textPainter.layout(maxWidth: math.max(10, shape.rect.width));
-        textPainter.paint(canvas, shape.rect.topLeft);
+        final layoutWidth = math.max(10.0, shape.rect.width);
+        textPainter.layout(minWidth: layoutWidth, maxWidth: layoutWidth);
+
+        // Vertical alignment calculation within shape.rect
+        double offsetY = shape.rect.top;
+        if (shape.textVerticalAlign == TextVerticalAlign.center) {
+          offsetY = shape.rect.top + math.max(0.0, (shape.rect.height - textPainter.height) / 2);
+        } else if (shape.textVerticalAlign == TextVerticalAlign.bottom) {
+          offsetY = shape.rect.top + math.max(0.0, shape.rect.height - textPainter.height);
+        }
+
+        textPainter.paint(canvas, Offset(shape.rect.left, offsetY));
         break;
 
       case ShapeType.image:
@@ -316,7 +387,80 @@ class VectorCanvasPainter extends CustomPainter {
     canvas.drawCircle(rotCenter, 5, handleFill);
     canvas.drawCircle(rotCenter, 5, handleBorder);
 
+    // Figma-style corner radius handles inside rectangles
+    if ((shape.type == ShapeType.rectangle || shape.type == ShapeType.roundedRectangle) &&
+        rect.width >= 40 &&
+        rect.height >= 40) {
+      final radiusInset = math.min(16.0, math.min(rect.width, rect.height) * 0.2);
+      final radiusHandleFill = Paint()
+        ..color = colorScheme.surface
+        ..style = PaintingStyle.fill;
+      final radiusHandleBorder = Paint()
+        ..color = colorScheme.primary.withValues(alpha: 0.8)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2;
+      final radiusHandles = [
+        Offset(rect.left + radiusInset, rect.top + radiusInset),
+        Offset(rect.right - radiusInset, rect.top + radiusInset),
+        Offset(rect.left + radiusInset, rect.bottom - radiusInset),
+        Offset(rect.right - radiusInset, rect.bottom - radiusInset),
+      ];
+      for (final pt in radiusHandles) {
+        canvas.drawCircle(pt, 3.5, radiusHandleFill);
+        canvas.drawCircle(pt, 3.5, radiusHandleBorder);
+      }
+    }
+
     canvas.restore();
+  }
+
+  void _drawIndividualSelectionOutline(Canvas canvas, VectorShape shape) {
+    canvas.save();
+    final center = shape.rect.center;
+    if (shape.rotation != 0.0) {
+      canvas.translate(center.dx, center.dy);
+      canvas.rotate(shape.rotation * math.pi / 180.0);
+      canvas.translate(-center.dx, -center.dy);
+    }
+    final outlinePaint = Paint()
+      ..color = colorScheme.primary.withValues(alpha: 0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+    canvas.drawRect(shape.rect, outlinePaint);
+    canvas.restore();
+  }
+
+  void _drawMultiSelectionBoundingBox(Canvas canvas, Rect bounds) {
+    final boxPaint = Paint()
+      ..color = colorScheme.primary
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6;
+    canvas.drawRect(bounds, boxPaint);
+
+    final handleFill = Paint()
+      ..color = colorScheme.surface
+      ..style = PaintingStyle.fill;
+    final handleBorder = Paint()
+      ..color = colorScheme.primary
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6;
+
+    final handlePoints = [
+      bounds.topLeft,
+      bounds.topRight,
+      bounds.bottomLeft,
+      bounds.bottomRight,
+      bounds.topCenter,
+      bounds.bottomCenter,
+      bounds.centerLeft,
+      bounds.centerRight,
+    ];
+
+    for (final pt in handlePoints) {
+      final handleRect = Rect.fromCenter(center: pt, width: 9, height: 9);
+      canvas.drawRect(handleRect, handleFill);
+      canvas.drawRect(handleRect, handleBorder);
+    }
   }
 
   void _drawDraftShape(Canvas canvas, Rect rect, ShapeType type) {
@@ -458,15 +602,15 @@ class VectorCanvasPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant VectorCanvasPainter oldDelegate) {
-    return oldDelegate.shapes != shapes ||
-        oldDelegate.selectedShapeIds != selectedShapeIds ||
-        oldDelegate.draftStartPoint != draftStartPoint ||
-        oldDelegate.draftCurrentPoint != draftCurrentPoint ||
-        oldDelegate.draftShapeType != draftShapeType ||
-        oldDelegate.marqueeRect != marqueeRect ||
-        oldDelegate.currentMode != currentMode ||
-        oldDelegate.snapGuidelineX != snapGuidelineX ||
-        oldDelegate.snapGuidelineY != snapGuidelineY ||
-        oldDelegate.colorScheme != colorScheme;
+    return true;
+  }
+
+  static String _toTitleCase(String text) {
+    if (text.isEmpty) return text;
+    return text.split(' ').map((word) {
+      if (word.isEmpty) return word;
+      return word[0].toUpperCase() +
+          (word.length > 1 ? word.substring(1).toLowerCase() : '');
+    }).join(' ');
   }
 }

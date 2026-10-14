@@ -24,6 +24,7 @@ class FloatingToolBar extends StatelessWidget {
       child: M3EHorizontalFloatingToolbar(
         expanded: true,
         decoration: M3EFloatingToolbarDecoration(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
           colors: M3EFloatingToolbarColors(
             toolbarContainerColor: colorScheme.surfaceContainerHigh,
             toolbarContentColor: colorScheme.onSurface,
@@ -46,7 +47,13 @@ class FloatingToolBar extends StatelessWidget {
               context,
               icon: RemixIcons.cursor_line,
               mode: EditorMode.select,
-              tooltip: 'Select, Pan & Zoom (V)',
+              tooltip: 'Select (V)',
+            ),
+            _buildExpressiveToolBtn(
+              context,
+              icon: LucideIcons.hand,
+              mode: EditorMode.pan,
+              tooltip: 'Hand / Pan (H)',
             ),
             const SizedBox(width: 6),
             SizedBox(

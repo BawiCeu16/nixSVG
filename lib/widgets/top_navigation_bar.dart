@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:m3e_buttons/m3e_buttons.dart';
 import 'package:nixsvg/controllers/theme_controller.dart';
+import 'package:nixsvg/theme/components/responsive_layout_tokens.dart';
 import 'package:remixicon/remixicon.dart';
 
 class TopNavigationBar extends StatelessWidget {
@@ -20,6 +21,8 @@ class TopNavigationBar extends StatelessWidget {
   final VoidCallback onZoomIn;
   final VoidCallback onZoomOut;
   final VoidCallback onResetZoom;
+  final VoidCallback? onZoomToFit;
+  final VoidCallback? onZoomToSelection;
   final bool showLayers;
   final ValueChanged<bool>? onToggleLayers;
   final bool showProperties;
@@ -43,6 +46,8 @@ class TopNavigationBar extends StatelessWidget {
     required this.onZoomIn,
     required this.onZoomOut,
     required this.onResetZoom,
+    this.onZoomToFit,
+    this.onZoomToSelection,
     this.showLayers = true,
     this.onToggleLayers,
     this.showProperties = true,
@@ -54,9 +59,10 @@ class TopNavigationBar extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
+    final barHeight = ResponsiveLayoutTokens.getTopBarHeight(context);
 
     return Container(
-      height: 60,
+      height: barHeight,
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainer,
         border: Border(
@@ -98,36 +104,9 @@ class TopNavigationBar extends StatelessWidget {
             const SizedBox(width: 16),
 
             // Expressive M3 File Name Input
-            SizedBox(
-              width: 160,
-              height: 38,
-              child: TextField(
-                controller: TextEditingController(text: fileName),
-                onSubmitted: onFileNameChanged,
-                style: textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurface,
-                  fontWeight: FontWeight.w600,
-                ),
-                decoration: InputDecoration(
-                  isDense: true,
-                  filled: true,
-                  fillColor: colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.6,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  hintText: 'Untitled.svg',
-                  hintStyle: textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                  ),
-                ),
-              ),
+            _FileNameField(
+              fileName: fileName,
+              onFileNameChanged: onFileNameChanged,
             ),
 
             const SizedBox(width: 16),
@@ -211,40 +190,106 @@ class TopNavigationBar extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  InkWell(
-                    onTap: onZoomOut,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(
-                        RemixIcons.subtract_line,
-                        size: 16,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: onResetZoom,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        '${(zoomScale * 100).round()}%',
-                        style: textTheme.labelMedium?.copyWith(
-                          color: colorScheme.onSurface,
-                          fontWeight: FontWeight.bold,
+                  Tooltip(
+                    message: 'Zoom Out',
+                    child: InkWell(
+                      onTap: onZoomOut,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          RemixIcons.subtract_line,
+                          size: 16,
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
                   ),
-                  InkWell(
-                    onTap: onZoomIn,
-                    borderRadius: BorderRadius.circular(8),
+                  PopupMenuButton<String>(
+                    tooltip: 'Zoom Presets',
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    color: colorScheme.surfaceContainerHigh,
+                    padding: EdgeInsets.zero,
                     child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(
-                        RemixIcons.add_line,
-                        size: 16,
-                        color: colorScheme.onSurfaceVariant,
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${(zoomScale * 100).round()}%',
+                            style: textTheme.labelMedium?.copyWith(
+                              color: colorScheme.onSurface,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          Icon(
+                            RemixIcons.arrow_down_s_line,
+                            size: 13,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ],
+                      ),
+                    ),
+                    onSelected: (val) {
+                      switch (val) {
+                        case 'reset':
+                          onResetZoom();
+                          break;
+                        case 'fit':
+                          onZoomToFit?.call();
+                          break;
+                        case 'selection':
+                          onZoomToSelection?.call();
+                          break;
+                        case 'in':
+                          onZoomIn();
+                          break;
+                        case 'out':
+                          onZoomOut();
+                          break;
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'reset',
+                        child: Text('Zoom to 100% (Ctrl+0)'),
+                      ),
+                      if (onZoomToFit != null)
+                        const PopupMenuItem(
+                          value: 'fit',
+                          child: Text('Zoom to Fit (Shift+1)'),
+                        ),
+                      if (onZoomToSelection != null)
+                        const PopupMenuItem(
+                          value: 'selection',
+                          child: Text('Zoom to Selection (Shift+2)'),
+                        ),
+                      const PopupMenuDivider(),
+                      const PopupMenuItem(
+                        value: 'in',
+                        child: Text('Zoom In (Ctrl++)'),
+                      ),
+                      const PopupMenuItem(
+                        value: 'out',
+                        child: Text('Zoom Out (Ctrl+-)'),
+                      ),
+                    ],
+                  ),
+                  Tooltip(
+                    message: 'Zoom In',
+                    child: InkWell(
+                      onTap: onZoomIn,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          RemixIcons.add_line,
+                          size: 16,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
                   ),
@@ -483,3 +528,98 @@ class TopNavigationBar extends StatelessWidget {
     return 'Dynamic Seed';
   }
 }
+
+class _FileNameField extends StatefulWidget {
+  final String fileName;
+  final ValueChanged<String> onFileNameChanged;
+
+  const _FileNameField({
+    required this.fileName,
+    required this.onFileNameChanged,
+  });
+
+  @override
+  State<_FileNameField> createState() => _FileNameFieldState();
+}
+
+class _FileNameFieldState extends State<_FileNameField> {
+  late TextEditingController _controller;
+  late FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.fileName);
+    _focusNode = FocusNode();
+    _focusNode.addListener(() {
+      if (!_focusNode.hasFocus) {
+        if (_controller.text.trim().isNotEmpty &&
+            _controller.text.trim() != widget.fileName) {
+          widget.onFileNameChanged(_controller.text.trim());
+        }
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _FileNameField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_focusNode.hasFocus && _controller.text != widget.fileName) {
+      _controller.text = widget.fileName;
+    }
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+
+    return SizedBox(
+      width: 160,
+      height: 38,
+      child: TextField(
+        controller: _controller,
+        focusNode: _focusNode,
+        textInputAction: TextInputAction.done,
+        onSubmitted: (val) {
+          if (val.trim().isNotEmpty) {
+            widget.onFileNameChanged(val.trim());
+          }
+          _focusNode.unfocus();
+        },
+        style: textTheme.bodyMedium?.copyWith(
+          color: colorScheme.onSurface,
+          fontWeight: FontWeight.w600,
+        ),
+        decoration: InputDecoration(
+          isDense: true,
+          filled: true,
+          fillColor: colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.6,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          hintText: 'Untitled.svg',
+          hintStyle: textTheme.bodyMedium?.copyWith(
+            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
