@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nixsvg/calculations/canvas_transform.dart';
 import 'package:nixsvg/main.dart';
+import 'package:nixsvg/ui/canvas/interactive_canvas.dart';
 
 void main() {
   group('CanvasTransformHelper Focal Point Zoom Math', () {
@@ -153,6 +154,25 @@ void main() {
       expect(controller.value.storage[13].isFinite, isTrue);
     });
 
+    test('zoomToFit mathematically maps targetBounds.center precisely to viewportSize / 2', () {
+      const bounds = Rect.fromLTWH(320, 150, 400, 260);
+      const viewport = Size(800, 600);
+      final matrix = CanvasTransformHelper.zoomToFit(bounds, viewport, padding: 60);
+
+      final scale = matrix.getMaxScaleOnAxis();
+      final tx = matrix.storage[12];
+      final ty = matrix.storage[13];
+
+      // Screen position of the bounds center: S = scale * C + T
+      final boundsCenter = bounds.center;
+      final screenCenterX = boundsCenter.dx * scale + tx;
+      final screenCenterY = boundsCenter.dy * scale + ty;
+
+      // Must equal the viewport center
+      expect(screenCenterX, closeTo(viewport.width / 2, 1e-4));
+      expect(screenCenterY, closeTo(viewport.height / 2, 1e-4));
+    });
+
     testWidgets('Top Navigation Bar zoom in and zoom out updates zoom smoothly without losing canvas', (tester) async {
       await tester.binding.setSurfaceSize(const Size(1280, 800));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -182,5 +202,45 @@ void main() {
 
       expect(controller.value.getMaxScaleOnAxis(), closeTo(initialScale, 1e-4));
     });
+
+    testWidgets('Zoom to Selection (Shift+2) centers selected shape at visible canvas center', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1280, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(const NixSvgApp());
+      await tester.pumpAndSettle();
+
+      final state = tester.state<FigmaWorkspaceState>(find.byType(FigmaWorkspace));
+      // Select the first shape
+      final selectedShape = state.shapes.first;
+      state.selectShape(selectedShape.id);
+      await tester.pumpAndSettle();
+
+      // Trigger Zoom to Selection using shortcut Shift+2
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit2);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pumpAndSettle();
+
+      final ivFinder = find.byType(InteractiveCanvas);
+      final canvasBox = tester.renderObject<RenderBox>(ivFinder);
+      final canvasSize = canvasBox.size;
+
+      final matrix = state.transformationController.value;
+      final scale = matrix.getMaxScaleOnAxis();
+      final tx = matrix.storage[12];
+      final ty = matrix.storage[13];
+
+      // Canvas local coordinate of shape center
+      final shapeCenter = selectedShape.rect.center;
+      // In InteractiveCanvas coordinate space, (x, y) after transformation is:
+      final localCanvasScreenX = shapeCenter.dx * scale + tx;
+      final localCanvasScreenY = shapeCenter.dy * scale + ty;
+
+      // Must be at the center of the InteractiveCanvas RenderBox
+      expect(localCanvasScreenX, closeTo(canvasSize.width / 2, 1.0));
+      expect(localCanvasScreenY, closeTo(canvasSize.height / 2, 1.0));
+    });
   });
 }
+

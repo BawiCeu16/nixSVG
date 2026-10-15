@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -35,18 +37,26 @@ class PropertiesSidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
 
-    return Container(
-      width: width ?? 280,
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        border: Border(
-          left: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-            width: 1,
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          width: width ?? 280,
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerLow.withValues(
+              alpha: isDark ? 0.75 : 0.88,
+            ),
+            border: Border(
+              left: BorderSide(
+                color: colorScheme.outlineVariant.withValues(
+                  alpha: isDark ? 0.25 : 0.35,
+                ),
+                width: 0.8,
+              ),
+            ),
           ),
-        ),
-      ),
       child: selectedShape == null
           ? Center(
               child: Padding(
@@ -1574,6 +1584,8 @@ class PropertiesSidebar extends StatelessWidget {
                 ],
               ],
             ),
+        ),
+      ),
     );
   }
 

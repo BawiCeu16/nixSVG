@@ -65,6 +65,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   // Canvas State
   final TransformationController _transformationController =
       TransformationController();
+  TransformationController get transformationController => _transformationController;
   List<VectorShape> shapes = [];
   final Set<String> selectedShapeIds = {};
   EditorMode currentMode = EditorMode.select;
@@ -96,6 +97,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   bool _isMouseOverCanvas = false;
   Offset? _lastPanPosition;
   Offset? _lastMouseCanvasPosition;
+  final GlobalKey _canvasKey = GlobalKey();
   final FocusNode _workspaceFocusNode = FocusNode(debugLabel: 'WorkspaceFocus');
 
   bool get isSpacePressed =>
@@ -699,14 +701,22 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     _saveHistorySnapshot();
   }
 
+  Size _getCanvasViewportSize() {
+    final canvasBox = _canvasKey.currentContext?.findRenderObject() as RenderBox?;
+    if (canvasBox != null && canvasBox.hasSize && canvasBox.size.width > 0 && canvasBox.size.height > 0) {
+      return canvasBox.size;
+    }
+    final renderBox = context.findRenderObject() as RenderBox?;
+    return renderBox?.size ?? const Size(1280, 800);
+  }
+
   Offset _getViewportCanvasCenter() {
     final matrix = _transformationController.value;
     final scale = matrix.getMaxScaleOnAxis();
     if (scale <= 0.0 || scale.isNaN) return const Offset(1600, 1200);
     final tx = matrix.storage[12];
     final ty = matrix.storage[13];
-    final renderBox = context.findRenderObject() as RenderBox?;
-    final size = renderBox?.size ?? const Size(1280, 800);
+    final size = _getCanvasViewportSize();
     final centerX = (size.width / 2 - tx) / scale;
     final centerY = (size.height / 2 - ty) / scale;
     return Offset(centerX, centerY);
@@ -747,8 +757,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     for (final s in shapes.skip(1)) {
       bounds = bounds.expandToInclude(s.rect);
     }
-    final renderBox = context.findRenderObject() as RenderBox?;
-    final size = renderBox?.size ?? const Size(1280, 800);
+    final size = _getCanvasViewportSize();
     setState(() {
       _transformationController.value = CanvasTransformHelper.zoomToFit(bounds, size);
     });
@@ -765,10 +774,13 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     for (final s in selected.skip(1)) {
       bounds = bounds.expandToInclude(s.rect);
     }
-    final renderBox = context.findRenderObject() as RenderBox?;
-    final size = renderBox?.size ?? const Size(1280, 800);
+    final size = _getCanvasViewportSize();
     setState(() {
-      _transformationController.value = CanvasTransformHelper.zoomToFit(bounds, size);
+      _transformationController.value = CanvasTransformHelper.zoomToFit(
+        bounds,
+        size,
+        padding: 60.0,
+      );
     });
   }
 
@@ -1107,7 +1119,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       autofocus: true,
       onKeyEvent: _handleKeyEvent,
       child: Scaffold(
-        backgroundColor: colorScheme.surface,
+        backgroundColor: colorScheme.surfaceContainerLowest,
         body: Column(
           children: [
             // Dynamic Top Navigation Bar adhering to cross-platform tokens
@@ -1264,6 +1276,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                         child: Stack(
                           children: [
                             InteractiveCanvas(
+                              key: _canvasKey,
                               transformationController:
                                   _transformationController,
                               shapes: shapes,
@@ -1412,6 +1425,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                   onModeChanged: (mode) {
                                     setState(() => currentMode = mode);
                                   },
+                                  onExportSvg: _openExportDialog,
                                 ),
                               ),
                             ),

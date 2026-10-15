@@ -1,9 +1,14 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:m3e_buttons/m3e_buttons.dart';
 import 'package:m3e_segmented_list/m3e_segmented_list.dart';
 import 'package:nixsvg/models/vector_shape.dart';
 import 'package:remixicon/remixicon.dart';
 
+/// Redesigned macOS-style Layers Sidebar.
+/// Features frosted glassmorphism, native macOS sidebar styling,
+/// reorderable segments, layer ordering controls, and micro-interactions.
 class LayersSidebar extends StatelessWidget {
   final List<VectorShape> shapes;
   final Set<String> selectedShapeIds;
@@ -36,171 +41,221 @@ class LayersSidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
 
-    return Container(
-      width: width ?? 270,
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        border: Border(
-          right: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-            width: 1,
-          ),
-        ),
-      ),
-      child: Column(
-        children: [
-          // Sidebar Header M3 Expressive with RemixIcons
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                  width: 1,
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          width: width ?? 270,
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerLow.withValues(
+              alpha: isDark ? 0.75 : 0.88,
+            ),
+            border: Border(
+              right: BorderSide(
+                color: colorScheme.outlineVariant.withValues(
+                  alpha: isDark ? 0.25 : 0.35,
                 ),
+                width: 0.8,
               ),
             ),
-            child: Row(
-              children: [
-                Icon(
-                  RemixIcons.stack_line,
-                  size: 18,
-                  color: colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Layers',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: colorScheme.onSurface,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                Badge.count(
-                  count: shapes.length,
-                  backgroundColor: colorScheme.secondaryContainer,
-                  textColor: colorScheme.onSecondaryContainer,
-                ),
-              ],
-            ),
           ),
-
-          // Quick Layer Actions using M3EButtons
-          // if (selectedShapeIds.isNotEmpty)
-          //   Container(
-          //     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          //     color: colorScheme.surfaceContainer,
-          //     child: Row(
-          //       mainAxisAlignment: MainAxisAlignment.spaceAround,
-          //       children: [
-          //         M3EButton(
-          //           onPressed: onBringForward,
-          //           style: M3EButtonStyle.tonal,
-          //           size: M3EButtonSize.sm,
-          //           tooltip: 'Bring Forward',
-          //           child: Icon(
-          //             RemixIcons.arrow_up_s_line,
-          //             size: 18,
-          //             color: colorScheme.onSecondaryContainer,
-          //           ),
-          //         ),
-          //         M3EButton(
-          //           onPressed: onSendBackward,
-          //           style: M3EButtonStyle.tonal,
-          //           size: M3EButtonSize.sm,
-          //           tooltip: 'Send Backward',
-          //           child: Icon(
-          //             RemixIcons.arrow_down_s_line,
-          //             size: 18,
-          //             color: colorScheme.onSecondaryContainer,
-          //           ),
-          //         ),
-          //       ],
-          //     ),
-          //   ),
-
-          // Layer List View M3 Expressive Cards
-          Expanded(
-            child: shapes.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          RemixIcons.shapes_line,
-                          size: 36,
-                          color: colorScheme.outline.withValues(alpha: 0.4),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'No vector layers',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onSurfaceVariant.withValues(
-                              alpha: 0.6,
-                            ),
-                          ),
-                        ),
-                      ],
+          child: Column(
+            children: [
+              // --- macOS Sidebar Header ---
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: colorScheme.outlineVariant.withValues(
+                        alpha: isDark ? 0.2 : 0.3,
+                      ),
+                      width: 0.8,
                     ),
-                  )
-                : Builder(
-                    builder: (context) {
-                      final items = shapes.reversed.toList();
-                      return M3EReorderableSegmentedList.builder(
-                        keyBuilder: (index) => ValueKey(items[index].id),
-                        itemCount: items.length,
-                        buildDefaultDragHandles: false,
-                        onTap: (index) => onSelectShape(items[index].id),
-                        decoration: M3ESegmentedListDecoration(
-                          outerRadius: 16.0,
-                          innerRadius: 4.0,
-                          pressedRadius: 8.0,
-                          pressedScale: 0.98,
-                          hoveredRadius: 16.0,
-                          dragRadius: 24.0,
-                          dragElevation: 8.0,
-                          dragScale: 1.00,
-                          gap: 2.0,
-                          padding: const EdgeInsets.all(12.0),
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: 12.0,
-                            vertical: 4.0,
-                          ),
-                          hoverColor: colorScheme.onSurfaceVariant.withValues(
-                            alpha: 0.1,
-                          ),
-                          dragPlaceholderColor:
-                              colorScheme.surfaceContainerHighest,
-                          // dragPlaceholderBorder: BorderSide(
-                          //   color: colorScheme.outline.withValues(alpha: 0.8),
-                          //   width: 1,
-                          // ),
-                          color: colorScheme.surfaceContainerHigh.withValues(
-                            alpha: 0.4,
-                          ),
-                          selectedColor: colorScheme.primaryContainer
-                              .withValues(alpha: 0.7),
-                        ),
-                        onReorder: (oldIndex, newIndex) {
-                          if (onReorder != null) {
-                            onReorder!(oldIndex, newIndex);
-                          } else {
-                            if (newIndex > oldIndex) newIndex--;
-                            final item = items.removeAt(oldIndex);
-                            items.insert(newIndex, item);
-                            shapes.clear();
-                            shapes.addAll(items.reversed);
-                          }
-                        },
-                        itemBuilder: (context, index) {
-                          return _buildListItem(context, items[index]);
-                        },
-                      );
-                    },
                   ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      RemixIcons.stack_line,
+                      size: 16,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Layers',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: colorScheme.onSurface,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorScheme.secondaryContainer.withValues(
+                          alpha: 0.7,
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${shapes.length}',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSecondaryContainer,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+
+                    // Layer Ordering Quick Action Buttons (shown when selection active)
+                    if (selectedShapeIds.isNotEmpty) ...[
+                      _MacHeaderAction(
+                        icon: RemixIcons.arrow_up_s_line,
+                        tooltip: 'Bring Forward',
+                        onTap: onBringForward,
+                      ),
+                      const SizedBox(width: 2),
+                      _MacHeaderAction(
+                        icon: RemixIcons.arrow_down_s_line,
+                        tooltip: 'Send Backward',
+                        onTap: onSendBackward,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              // --- Layer List View with M3EReorderableSegmentedList ---
+              Expanded(
+                child: shapes.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: colorScheme.surfaceContainerHighest
+                                      .withValues(alpha: 0.4),
+                                  shape: BoxShape.circle,
+                                ),
+                                alignment: Alignment.center,
+                                child: Icon(
+                                  RemixIcons.shapes_line,
+                                  size: 22,
+                                  color: colorScheme.outline.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                'No vector layers',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: colorScheme.onSurfaceVariant.withValues(
+                                    alpha: 0.7,
+                                  ),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Draw shapes using the dock tools.',
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : Builder(
+                        builder: (context) {
+                          final items = shapes.reversed.toList();
+                          return Theme(
+                            data: theme.copyWith(
+                              scrollbarTheme: ScrollbarThemeData(
+                                radius: const Radius.circular(4),
+                                thickness: const WidgetStatePropertyAll(4),
+                                thumbColor: WidgetStatePropertyAll(
+                                  colorScheme.onSurface.withValues(alpha: 0.18),
+                                ),
+                              ),
+                            ),
+                            child: M3EReorderableSegmentedList.builder(
+                              keyBuilder: (index) => ValueKey(items[index].id),
+                              itemCount: items.length,
+                              buildDefaultDragHandles: false,
+                              onTap: (index) => onSelectShape(items[index].id),
+                              decoration: M3ESegmentedListDecoration(
+                                outerRadius: 10.0,
+                                innerRadius: 6.0,
+                                pressedRadius: 8.0,
+                                pressedScale: 0.98,
+                                hoveredRadius: 10.0,
+                                dragRadius: 12.0,
+                                dragElevation: 4.0,
+                                dragScale: 1.01,
+                                gap: 2.0,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10.0,
+                                  vertical: 8.0,
+                                ),
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 8.0,
+                                  vertical: 2.0,
+                                ),
+                                hoverColor:
+                                    colorScheme.onSurfaceVariant.withValues(
+                                  alpha: 0.08,
+                                ),
+                                dragPlaceholderColor:
+                                    colorScheme.surfaceContainerHighest,
+                                color: isDark
+                                    ? colorScheme.surfaceContainerHigh
+                                        .withValues(alpha: 0.3)
+                                    : colorScheme.surfaceContainerHighest
+                                        .withValues(alpha: 0.25),
+                                selectedColor: colorScheme.primaryContainer
+                                    .withValues(alpha: 0.65),
+                              ),
+                              onReorder: (oldIndex, newIndex) {
+                                if (onReorder != null) {
+                                  onReorder!(oldIndex, newIndex);
+                                } else {
+                                  if (newIndex > oldIndex) newIndex--;
+                                  final item = items.removeAt(oldIndex);
+                                  items.insert(newIndex, item);
+                                  shapes.clear();
+                                  shapes.addAll(items.reversed);
+                                }
+                              },
+                              itemBuilder: (context, index) {
+                                return _buildListItem(context, items[index]);
+                              },
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -212,57 +267,31 @@ class LayersSidebar extends StatelessWidget {
 
     return Row(
       children: [
-        Icon(
-          _getShapeIcon(shape.type),
-          size: 16,
-          color: isSelected
-              ? colorScheme.primary
-              : colorScheme.onSurfaceVariant,
+        // Shape Type Icon with mini container
+        Container(
+          width: 22,
+          height: 22,
+          decoration: BoxDecoration(
+            color: isSelected
+                ? colorScheme.primary.withValues(alpha: 0.15)
+                : colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          alignment: Alignment.center,
+          child: Icon(
+            _getShapeIcon(shape.type),
+            size: 13,
+            color: isSelected
+                ? colorScheme.primary
+                : colorScheme.onSurfaceVariant,
+          ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
 
-        // Layer Name
+        // Layer Name with Double-Tap Rename
         Expanded(
           child: GestureDetector(
-            onDoubleTap: () {
-              showDialog(
-                context: context,
-                builder: (context) {
-                  final controller = TextEditingController(text: shape.name);
-                  return AlertDialog(
-                    title: const Text('Rename Layer'),
-                    content: TextField(
-                      controller: controller,
-                      autofocus: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Layer Name',
-                      ),
-                      onSubmitted: (value) {
-                        if (value.trim().isNotEmpty) {
-                          onRenameShape(shape.id, value.trim());
-                        }
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                    actions: [
-                      M3EFilledButton.tonal(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Cancel'),
-                      ),
-                      M3EFilledButton(
-                        onPressed: () {
-                          if (controller.text.trim().isNotEmpty) {
-                            onRenameShape(shape.id, controller.text.trim());
-                          }
-                          Navigator.of(context).pop();
-                        },
-                        child: const Text('Save'),
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
+            onDoubleTap: () => _showRenameDialog(context, shape),
             child: Text(
               shape.name,
               overflow: TextOverflow.ellipsis,
@@ -271,54 +300,83 @@ class LayersSidebar extends StatelessWidget {
                 color: isSelected
                     ? colorScheme.onPrimaryContainer
                     : colorScheme.onSurface,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 13,
               ),
             ),
           ),
         ),
 
-        // Visibility toggle
-        IconButton(
-          constraints: const BoxConstraints(),
-          padding: const EdgeInsets.all(2),
-          iconSize: 15,
-          icon: Icon(
-            shape.isVisible ? RemixIcons.eye_line : RemixIcons.eye_off_line,
-            color: shape.isVisible
-                ? (isSelected
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant)
-                : colorScheme.outline.withValues(alpha: 0.4),
-          ),
-          onPressed: () => onToggleVisibility(shape.id),
+        // Visibility Toggle
+        _MacLayerActionBtn(
+          tooltip: shape.isVisible ? 'Hide Layer' : 'Show Layer',
+          icon: shape.isVisible ? RemixIcons.eye_line : RemixIcons.eye_off_line,
+          iconColor: shape.isVisible
+              ? (isSelected
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant.withValues(alpha: 0.7))
+              : colorScheme.outline.withValues(alpha: 0.35),
+          onTap: () => onToggleVisibility(shape.id),
         ),
 
-        // Lock toggle
-        IconButton(
-          constraints: const BoxConstraints(),
-          padding: const EdgeInsets.all(2),
-          iconSize: 15,
-          icon: Icon(
-            shape.isLocked ? RemixIcons.lock_line : RemixIcons.lock_unlock_line,
-            color: shape.isLocked
-                ? colorScheme.tertiary
-                : colorScheme.outline.withValues(alpha: 0.4),
-          ),
-          onPressed: () => onToggleLock(shape.id),
+        // Lock Toggle
+        _MacLayerActionBtn(
+          tooltip: shape.isLocked ? 'Unlock Layer' : 'Lock Layer',
+          icon: shape.isLocked ? RemixIcons.lock_line : RemixIcons.lock_unlock_line,
+          iconColor: shape.isLocked
+              ? colorScheme.tertiary
+              : colorScheme.outline.withValues(alpha: 0.35),
+          onTap: () => onToggleLock(shape.id),
         ),
 
-        // Delete button
-        IconButton(
-          constraints: const BoxConstraints(),
-          padding: const EdgeInsets.all(2),
-          iconSize: 15,
-          icon: Icon(
-            RemixIcons.close_line,
-            color: colorScheme.error.withValues(alpha: 0.7),
-          ),
-          onPressed: () => onDeleteShape(shape.id),
+        // Delete Layer
+        _MacLayerActionBtn(
+          tooltip: 'Delete Layer',
+          icon: RemixIcons.close_line,
+          iconColor: colorScheme.error.withValues(alpha: 0.6),
+          onTap: () => onDeleteShape(shape.id),
         ),
       ],
+    );
+  }
+
+  void _showRenameDialog(BuildContext context, VectorShape shape) {
+    final controller = TextEditingController(text: shape.name);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Rename Layer'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Layer Name',
+            ),
+            onSubmitted: (value) {
+              if (value.trim().isNotEmpty) {
+                onRenameShape(shape.id, value.trim());
+              }
+              Navigator.of(context).pop();
+            },
+          ),
+          actions: [
+            M3EFilledButton.tonal(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            M3EFilledButton(
+              onPressed: () {
+                if (controller.text.trim().isNotEmpty) {
+                  onRenameShape(shape.id, controller.text.trim());
+                }
+                Navigator.of(context).pop();
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -339,5 +397,71 @@ class LayersSidebar extends StatelessWidget {
       case ShapeType.image:
         return RemixIcons.image_line;
     }
+  }
+}
+
+class _MacHeaderAction extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  const _MacHeaderAction({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Icon(
+            icon,
+            size: 15,
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MacLayerActionBtn extends StatelessWidget {
+  final String tooltip;
+  final IconData icon;
+  final Color iconColor;
+  final VoidCallback onTap;
+
+  const _MacLayerActionBtn({
+    required this.tooltip,
+    required this.icon,
+    required this.iconColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(5),
+        child: Padding(
+          padding: const EdgeInsets.all(3.5),
+          child: Icon(
+            icon,
+            size: 14,
+            color: iconColor,
+          ),
+        ),
+      ),
+    );
   }
 }

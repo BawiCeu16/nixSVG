@@ -8,11 +8,13 @@ import 'package:remixicon/remixicon.dart';
 class FloatingToolBar extends StatelessWidget {
   final EditorMode currentMode;
   final ValueChanged<EditorMode> onModeChanged;
+  final VoidCallback? onExportSvg;
 
   const FloatingToolBar({
     super.key,
     required this.currentMode,
     required this.onModeChanged,
+    this.onExportSvg,
   });
 
   @override
@@ -21,7 +23,13 @@ class FloatingToolBar extends StatelessWidget {
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      child: M3EHorizontalFloatingToolbar(
+      child: M3EFabHorizontalFloatingToolbar(
+        floatingActionButton: M3EFloatingActionButton(
+          elevation: 0,
+          onPressed: onExportSvg,
+          tooltip: 'Export SVG',
+          child: const Icon(RemixIcons.download_line),
+        ),
         expanded: true,
         decoration: M3EFloatingToolbarDecoration(
           contentPadding: const EdgeInsets.symmetric(horizontal: 12),
@@ -40,6 +48,7 @@ class FloatingToolBar extends StatelessWidget {
           expandedShadowElevation: 0,
           collapsedShadowElevation: 0,
         ),
+
         content: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -127,6 +136,7 @@ class FloatingToolBar extends StatelessWidget {
         onPressed: () => onModeChanged(mode),
         style: isActive ? M3EButtonStyle.filled : M3EButtonStyle.text,
         size: M3EButtonSize.sm,
+
         tooltip: tooltip,
         decoration: M3EButtonDecoration(
           backgroundColor: WidgetStateProperty.resolveWith((states) {

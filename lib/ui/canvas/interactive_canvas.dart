@@ -173,7 +173,9 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
           child: Container(
             width: 3200,
             height: 2400,
-            color: colorScheme.surface,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? colorScheme.surface
+                : colorScheme.surface,
             child: Stack(
               children: [
                 // Grid Background layer with RepaintBoundary
@@ -182,7 +184,9 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
                     size: const Size(3200, 2400),
                     painter: GridPainter(
                       gridSpacing: widget.gridSpacing,
-                      gridColor: colorScheme.onSurface.withValues(alpha: 0.08),
+                      gridColor: colorScheme.onSurface.withValues(
+                        alpha: Theme.of(context).brightness == Brightness.dark ? 0.08 : 0.06,
+                      ),
                       isDotGrid: true,
                     ),
                   ),
