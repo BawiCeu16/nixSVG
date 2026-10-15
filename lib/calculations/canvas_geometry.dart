@@ -287,6 +287,57 @@ class CanvasGeometry {
     );
   }
 
+  /// Returns the axis-aligned bounding box of a shape in canvas space,
+  /// accounting for stroke width and rotation.
+  static Rect getShapeBoundingBox(VectorShape shape) {
+    final rawRect = Rect.fromLTRB(
+      math.min(shape.rect.left, shape.rect.right),
+      math.min(shape.rect.top, shape.rect.bottom),
+      math.max(shape.rect.left, shape.rect.right),
+      math.max(shape.rect.top, shape.rect.bottom),
+    );
+
+    // Padding for stroke width or zero-dimension lines
+    final strokePadding = shape.type == ShapeType.line
+        ? math.max(3.0, shape.strokeWidth / 2)
+        : (shape.isStroked ? shape.strokeWidth / 2 : 0.0);
+    final paddedRect = rawRect.inflate(strokePadding);
+
+    if (shape.rotation == 0.0) {
+      return paddedRect;
+    }
+
+    final center = shape.rect.center;
+    final rad = shape.rotation * math.pi / 180.0;
+    final cosVal = math.cos(rad);
+    final sinVal = math.sin(rad);
+
+    final corners = [
+      paddedRect.topLeft,
+      paddedRect.topRight,
+      paddedRect.bottomRight,
+      paddedRect.bottomLeft,
+    ];
+
+    double minX = double.infinity;
+    double minY = double.infinity;
+    double maxX = -double.infinity;
+    double maxY = -double.infinity;
+
+    for (final corner in corners) {
+      final dx = corner.dx - center.dx;
+      final dy = corner.dy - center.dy;
+      final rx = center.dx + dx * cosVal - dy * sinVal;
+      final ry = center.dy + dx * sinVal + dy * cosVal;
+      if (rx < minX) minX = rx;
+      if (rx > maxX) maxX = rx;
+      if (ry < minY) minY = ry;
+      if (ry > maxY) maxY = ry;
+    }
+
+    return Rect.fromLTRB(minX, minY, maxX, maxY);
+  }
+
   /// Calculates which shape IDs fall inside a marquee selection bounding rectangle.
   static Set<String> calculateMarqueeSelection({
     required Rect marqueeRect,
@@ -299,10 +350,15 @@ class CanvasGeometry {
       math.max(marqueeRect.top, marqueeRect.bottom),
     );
 
+    if (normalizedMarquee.width == 0.0 || normalizedMarquee.height == 0.0) {
+      return const <String>{};
+    }
+
     final result = <String>{};
     for (final shape in shapes) {
       if (shape.isVisible && !shape.isLocked) {
-        if (normalizedMarquee.overlaps(shape.rect.inflate(8.0))) {
+        final shapeBounds = getShapeBoundingBox(shape);
+        if (normalizedMarquee.overlaps(shapeBounds)) {
           result.add(shape.id);
         }
       }

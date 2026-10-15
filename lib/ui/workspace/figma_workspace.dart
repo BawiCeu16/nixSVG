@@ -65,7 +65,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   // Canvas State
   final TransformationController _transformationController =
       TransformationController();
-  TransformationController get transformationController => _transformationController;
+  TransformationController get transformationController =>
+      _transformationController;
   List<VectorShape> shapes = [];
   final Set<String> selectedShapeIds = {};
   EditorMode currentMode = EditorMode.select;
@@ -90,6 +91,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   bool isMovingShapes = false;
   bool isRotatingShape = false;
   Rect? marqueeRect;
+  Set<String> _initialMarqueeSelectedIds = {};
   Offset? snapGuidelineX;
   Offset? snapGuidelineY;
   bool _isPanningWithMouse = false;
@@ -103,8 +105,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   bool get isSpacePressed =>
       _isSpacePressed ||
       (!_isTextInputFocused() &&
-          HardwareKeyboard.instance.logicalKeysPressed
-              .contains(LogicalKeyboardKey.space));
+          HardwareKeyboard.instance.logicalKeysPressed.contains(
+            LogicalKeyboardKey.space,
+          ));
 
   // Creation Draft
   ShapeType? draftShapeType;
@@ -231,10 +234,13 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     FocusManager.instance.primaryFocus?.unfocus();
     _workspaceFocusNode.requestFocus();
     final isMiddleButton = (event.buttons & kMiddleMouseButton) != 0;
-    final isPan = _isSpacePressed ||
+    final isPan =
+        _isSpacePressed ||
         isMiddleButton ||
         currentMode == EditorMode.pan ||
-        HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.space);
+        HardwareKeyboard.instance.logicalKeysPressed.contains(
+          LogicalKeyboardKey.space,
+        );
 
     if (isPan) {
       _isPanningWithMouse = true;
@@ -255,7 +261,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           (s) => s.id == selectedShapeIds.first,
         );
         if (!singleSelected.isLocked) {
-          activeResizeHandle = CanvasHitTester.hitTestHandle(localPos, singleSelected);
+          activeResizeHandle = CanvasHitTester.hitTestHandle(
+            localPos,
+            singleSelected,
+          );
           if (activeResizeHandle != ResizeHandle.none) {
             initialShapeRects = {singleSelected.id: singleSelected.rect};
             if (activeResizeHandle == ResizeHandle.rotation) {
@@ -317,8 +326,20 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       }
 
       // 3. Clicked empty space -> clear selection & start marquee drag select
+      final isShiftPressed =
+          HardwareKeyboard.instance.logicalKeysPressed.contains(
+            LogicalKeyboardKey.shiftLeft,
+          ) ||
+          HardwareKeyboard.instance.logicalKeysPressed.contains(
+            LogicalKeyboardKey.shiftRight,
+          );
       setState(() {
-        selectedShapeIds.clear();
+        if (isShiftPressed) {
+          _initialMarqueeSelectedIds = Set<String>.from(selectedShapeIds);
+        } else {
+          selectedShapeIds.clear();
+          _initialMarqueeSelectedIds.clear();
+        }
         marqueeRect = Rect.fromPoints(localPos, localPos);
       });
     } else {
@@ -359,7 +380,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     if (draftShapeType == ShapeType.line &&
         isShiftPressed &&
         panStartOffset != null) {
-      panCurrentOffset = CanvasGeometry.snapLinePoint(panStartOffset!, localPos);
+      panCurrentOffset = CanvasGeometry.snapLinePoint(
+        panStartOffset!,
+        localPos,
+      );
     } else {
       panCurrentOffset = localPos;
     }
@@ -372,6 +396,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
             marqueeRect: marqueeRect!,
             shapes: shapes,
           );
+          selectedShapeIds.clear();
+          if (isShiftPressed && _initialMarqueeSelectedIds.isNotEmpty) {
+            selectedShapeIds.addAll(_initialMarqueeSelectedIds);
+          }
           selectedShapeIds.addAll(marqueeHits);
         } else if (isRotatingShape && selectedShapeIds.length == 1) {
           final isShift = HardwareKeyboard.instance.isShiftPressed;
@@ -536,6 +564,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       isMovingShapes = false;
       isRotatingShape = false;
       marqueeRect = null;
+      _initialMarqueeSelectedIds.clear();
       draftShapeType = null;
       snapGuidelineX = null;
       snapGuidelineY = null;
@@ -550,6 +579,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       });
       return;
     }
+    _initialMarqueeSelectedIds.clear();
     _onPointerUp(PointerUpEvent(position: event.position));
   }
 
@@ -600,7 +630,11 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   void _bringForward() {
     if (selectedShapeIds.isEmpty) return;
     final sortedIds = selectedShapeIds.toList()
-      ..sort((a, b) => shapes.indexWhere((s) => s.id == b).compareTo(shapes.indexWhere((s) => s.id == a)));
+      ..sort(
+        (a, b) => shapes
+            .indexWhere((s) => s.id == b)
+            .compareTo(shapes.indexWhere((s) => s.id == a)),
+      );
     bool changed = false;
     setState(() {
       for (final id in sortedIds) {
@@ -618,7 +652,11 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   void _sendBackward() {
     if (selectedShapeIds.isEmpty) return;
     final sortedIds = selectedShapeIds.toList()
-      ..sort((a, b) => shapes.indexWhere((s) => s.id == a).compareTo(shapes.indexWhere((s) => s.id == b)));
+      ..sort(
+        (a, b) => shapes
+            .indexWhere((s) => s.id == a)
+            .compareTo(shapes.indexWhere((s) => s.id == b)),
+      );
     bool changed = false;
     setState(() {
       for (final id in sortedIds) {
@@ -677,7 +715,12 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       for (final id in selectedShapeIds) {
         final shape = shapes.firstWhere((s) => s.id == id);
         if (shape.type == ShapeType.line) {
-          shape.rect = Rect.fromLTRB(shape.rect.right, shape.rect.top, shape.rect.left, shape.rect.bottom);
+          shape.rect = Rect.fromLTRB(
+            shape.rect.right,
+            shape.rect.top,
+            shape.rect.left,
+            shape.rect.bottom,
+          );
         } else {
           shape.rotation = (-shape.rotation) % 360;
         }
@@ -692,7 +735,12 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       for (final id in selectedShapeIds) {
         final shape = shapes.firstWhere((s) => s.id == id);
         if (shape.type == ShapeType.line) {
-          shape.rect = Rect.fromLTRB(shape.rect.left, shape.rect.bottom, shape.rect.right, shape.rect.top);
+          shape.rect = Rect.fromLTRB(
+            shape.rect.left,
+            shape.rect.bottom,
+            shape.rect.right,
+            shape.rect.top,
+          );
         } else {
           shape.rotation = (180 - shape.rotation) % 360;
         }
@@ -702,8 +750,12 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   }
 
   Size _getCanvasViewportSize() {
-    final canvasBox = _canvasKey.currentContext?.findRenderObject() as RenderBox?;
-    if (canvasBox != null && canvasBox.hasSize && canvasBox.size.width > 0 && canvasBox.size.height > 0) {
+    final canvasBox =
+        _canvasKey.currentContext?.findRenderObject() as RenderBox?;
+    if (canvasBox != null &&
+        canvasBox.hasSize &&
+        canvasBox.size.width > 0 &&
+        canvasBox.size.height > 0) {
       return canvasBox.size;
     }
     final renderBox = context.findRenderObject() as RenderBox?;
@@ -759,7 +811,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     }
     final size = _getCanvasViewportSize();
     setState(() {
-      _transformationController.value = CanvasTransformHelper.zoomToFit(bounds, size);
+      _transformationController.value = CanvasTransformHelper.zoomToFit(
+        bounds,
+        size,
+      );
     });
   }
 
@@ -768,7 +823,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       _zoomToFit();
       return;
     }
-    final selected = shapes.where((s) => selectedShapeIds.contains(s.id)).toList();
+    final selected = shapes
+        .where((s) => selectedShapeIds.contains(s.id))
+        .toList();
     if (selected.isEmpty) return;
     Rect bounds = selected.first.rect;
     for (final s in selected.skip(1)) {
@@ -921,7 +978,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.escape) {
       FocusManager.instance.primaryFocus?.unfocus();
       _workspaceFocusNode.requestFocus();
       if (selectedShapeIds.isNotEmpty) {
@@ -1106,8 +1164,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final double zoomScale =
-        CanvasTransformHelper.getScale(_transformationController.value);
+    final double zoomScale = CanvasTransformHelper.getScale(
+      _transformationController.value,
+    );
     final selectedShape = selectedShapeIds.length == 1
         ? shapes.firstWhere((s) => s.id == selectedShapeIds.first)
         : null;
@@ -1308,16 +1367,18 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                 top: 0,
                                 bottom: 0,
                                 left: 0,
-                                width: ResponsiveLayoutTokens.getCompactDrawerWidth(
-                                  constraints.maxWidth,
-                                ),
+                                width:
+                                    ResponsiveLayoutTokens.getCompactDrawerWidth(
+                                      constraints.maxWidth,
+                                    ),
                                 child: Material(
                                   elevation: 8,
                                   color: colorScheme.surfaceContainer,
                                   child: LayersSidebar(
-                                    width: ResponsiveLayoutTokens.getCompactDrawerWidth(
-                                      constraints.maxWidth,
-                                    ),
+                                    width:
+                                        ResponsiveLayoutTokens.getCompactDrawerWidth(
+                                          constraints.maxWidth,
+                                        ),
                                     shapes: shapes,
                                     selectedShapeIds: selectedShapeIds,
                                     onSelectShape: (id) {
@@ -1387,16 +1448,18 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                 top: 0,
                                 bottom: 0,
                                 right: 0,
-                                width: ResponsiveLayoutTokens.getCompactDrawerWidth(
-                                  constraints.maxWidth,
-                                ),
+                                width:
+                                    ResponsiveLayoutTokens.getCompactDrawerWidth(
+                                      constraints.maxWidth,
+                                    ),
                                 child: Material(
                                   elevation: 8,
                                   color: colorScheme.surfaceContainer,
                                   child: PropertiesSidebar(
-                                    width: ResponsiveLayoutTokens.getCompactDrawerWidth(
-                                      constraints.maxWidth,
-                                    ),
+                                    width:
+                                        ResponsiveLayoutTokens.getCompactDrawerWidth(
+                                          constraints.maxWidth,
+                                        ),
                                     selectedShape: selectedShape,
                                     onShapeChanged: _onPropertiesShapeChanged,
                                     onShapeChangeEnd:
@@ -1414,9 +1477,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
                             // Center Bottom Dynamic Floating Tool Bar
                             Positioned(
-                              bottom: ResponsiveLayoutTokens.getFloatingToolbarBottomMargin(
-                                context,
-                              ),
+                              bottom:
+                                  ResponsiveLayoutTokens.getFloatingToolbarBottomMargin(
+                                    context,
+                                  ),
                               left: 0,
                               right: 0,
                               child: Center(
@@ -1441,10 +1505,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                 ResponsiveLayoutTokens.getMaxSidebarWidth(
                                   constraints.maxWidth,
                                 );
-                            final next = (propertiesSidebarWidth - deltaDx).clamp(
-                              180.0,
-                              maxWidth,
-                            );
+                            final next = (propertiesSidebarWidth - deltaDx)
+                                .clamp(180.0, maxWidth);
                             setState(() => propertiesSidebarWidth = next);
                             ref
                                 .read(workspaceSettingsProvider.notifier)

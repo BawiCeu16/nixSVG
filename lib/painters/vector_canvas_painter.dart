@@ -37,7 +37,13 @@ class VectorCanvasPainter extends CustomPainter {
     }
 
     // 2. Draw selection overlays for selected shapes
-    if (selectedShapeIds.length > 1) {
+    if (marqueeRect != null) {
+      for (final shape in shapes) {
+        if (selectedShapeIds.contains(shape.id) && shape.isVisible) {
+          _drawIndividualSelectionOutline(canvas, shape);
+        }
+      }
+    } else if (selectedShapeIds.length > 1) {
       Rect? combinedBounds;
       for (final shape in shapes) {
         if (selectedShapeIds.contains(shape.id) && shape.isVisible) {
@@ -75,6 +81,12 @@ class VectorCanvasPainter extends CustomPainter {
 
     // 4. Draw marquee selection box if dragging marquee
     if (marqueeRect != null) {
+      final normalized = Rect.fromLTRB(
+        math.min(marqueeRect!.left, marqueeRect!.right),
+        math.min(marqueeRect!.top, marqueeRect!.bottom),
+        math.max(marqueeRect!.left, marqueeRect!.right),
+        math.max(marqueeRect!.top, marqueeRect!.bottom),
+      );
       final marqueePaint = Paint()
         ..color = colorScheme.primaryContainer.withValues(alpha: 0.3)
         ..style = PaintingStyle.fill;
@@ -82,8 +94,8 @@ class VectorCanvasPainter extends CustomPainter {
         ..color = colorScheme.primary
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.2;
-      canvas.drawRect(marqueeRect!, marqueePaint);
-      canvas.drawRect(marqueeRect!, marqueeBorder);
+      canvas.drawRect(normalized, marqueePaint);
+      canvas.drawRect(normalized, marqueeBorder);
     }
 
     // 5. Draw snap guidelines
