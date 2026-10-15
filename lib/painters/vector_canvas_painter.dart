@@ -121,6 +121,43 @@ class VectorCanvasPainter extends CustomPainter {
     }
   }
 
+  Shader? _createShader(ShapeGradient gradient, Rect bounds, double opacity) {
+    // If width or height is 0 (like a horizontal or vertical line), inflate slightly
+    final safeBounds = bounds.isEmpty
+        ? bounds.inflate(1.0)
+        : bounds;
+
+    final colors = gradient.stops
+        .map((s) => s.color.withValues(alpha: (s.color.a * opacity).clamp(0.0, 1.0)))
+        .toList();
+    final stops = gradient.stops.map((s) => s.offset).toList();
+
+    if (gradient.type == PaintFillType.linearGradient) {
+      // Calculate normalized unit direction vector for the angle
+      final rad = gradient.angle * math.pi / 180.0;
+      final cosA = math.cos(rad);
+      final sinA = math.sin(rad);
+
+      // Begin and end alignments across the bounding box [-1, 1]
+      final begin = Alignment(-cosA, -sinA);
+      final end = Alignment(cosA, sinA);
+
+      return LinearGradient(
+        begin: begin,
+        end: end,
+        colors: colors,
+        stops: stops,
+      ).createShader(safeBounds);
+    } else {
+      return RadialGradient(
+        center: Alignment.center,
+        radius: 0.5,
+        colors: colors,
+        stops: stops,
+      ).createShader(safeBounds);
+    }
+  }
+
   void _drawShape(Canvas canvas, VectorShape shape) {
     canvas.save();
 
@@ -131,43 +168,119 @@ class VectorCanvasPainter extends CustomPainter {
       canvas.translate(-center.dx, -center.dy);
     }
 
-    final fillPaint = Paint()
-      ..color = shape.fillColor.withValues(alpha: shape.fillOpacity)
-      ..style = PaintingStyle.fill;
+    final fillPaint = Paint()..style = PaintingStyle.fill;
+    if (shape.fillType != PaintFillType.solid && shape.fillGradient != null) {
+      fillPaint.shader = _createShader(
+        shape.fillGradient!,
+        shape.rect,
+        shape.fillOpacity,
+      );
+    } else {
+      fillPaint.color = shape.fillColor.withValues(alpha: shape.fillOpacity);
+    }
 
     final strokePaint = Paint()
-      ..color = shape.strokeColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = shape.strokeWidth;
+      ..strokeWidth = shape.strokeWidth
+      ..strokeCap = shape.strokeCap;
+
+    if (shape.strokeType != PaintFillType.solid && shape.strokeGradient != null) {
+      strokePaint.shader = _createShader(
+        shape.strokeGradient!,
+        shape.rect,
+        shape.strokeOpacity,
+      );
+    } else {
+      strokePaint.color = shape.strokeColor.withValues(alpha: shape.strokeOpacity);
+    }
+
+    void drawStrokedPath(Path path, {Path? shapeBoundary}) {
+      if (!shape.isStroked) return;
+
+      void renderStroke(Paint paint) {
+        if (shape.strokeStyle == StrokeStyle.solid) {
+          canvas.drawPath(path, paint);
+        } else {
+          final dashLength = shape.strokeStyle == StrokeStyle.dashed
+              ? shape.strokeDashLength
+              : shape.strokeWidth;
+          final dashGap = shape.strokeStyle == StrokeStyle.dashed
+              ? shape.strokeDashGap
+              : (shape.strokeWidth * 1.5);
+          final dashed = CanvasGeometry.dashPath(
+            path,
+            dashLength: dashLength,
+            dashGap: dashGap,
+          );
+          canvas.drawPath(dashed, paint);
+        }
+      }
+
+      // If closed shape with inside or outside alignment
+      if (shapeBoundary != null && shape.strokeAlign != StrokeAlign.center) {
+        canvas.save();
+        if (shape.strokeAlign == StrokeAlign.inside) {
+          canvas.clipPath(shapeBoundary);
+        } else if (shape.strokeAlign == StrokeAlign.outside) {
+          // Clip to outside of the boundary (inverse clip)
+          final bounds = shape.rect.inflate(shape.strokeWidth * 3 + 10.0);
+          final outerPath = Path()..addRect(bounds);
+          final clipOut = Path.combine(PathOperation.difference, outerPath, shapeBoundary);
+          canvas.clipPath(clipOut);
+        }
+
+        // Draw with 2x stroke width because half will be clipped off
+        final alignedPaint = Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = shape.strokeWidth * 2
+          ..strokeCap = shape.strokeCap;
+        if (strokePaint.shader != null) {
+          alignedPaint.shader = strokePaint.shader;
+        } else {
+          alignedPaint.color = strokePaint.color;
+        }
+
+        renderStroke(alignedPaint);
+        canvas.restore();
+      } else {
+        renderStroke(strokePaint);
+      }
+    }
 
     switch (shape.type) {
       case ShapeType.rectangle:
         if (shape.isFilled) canvas.drawRect(shape.rect, fillPaint);
-        if (shape.isStroked) canvas.drawRect(shape.rect, strokePaint);
+        if (shape.isStroked) {
+          final path = Path()..addRect(shape.rect);
+          drawStrokedPath(path, shapeBoundary: path);
+        }
         break;
 
       case ShapeType.roundedRectangle:
         final rrect = RRect.fromRectAndRadius(shape.rect, Radius.circular(shape.cornerRadius));
         if (shape.isFilled) canvas.drawRRect(rrect, fillPaint);
-        if (shape.isStroked) canvas.drawRRect(rrect, strokePaint);
+        if (shape.isStroked) {
+          final path = Path()..addRRect(rrect);
+          drawStrokedPath(path, shapeBoundary: path);
+        }
         break;
 
       case ShapeType.ellipse:
         if (shape.isFilled) canvas.drawOval(shape.rect, fillPaint);
-        if (shape.isStroked) canvas.drawOval(shape.rect, strokePaint);
+        if (shape.isStroked) {
+          final path = Path()..addOval(shape.rect);
+          drawStrokedPath(path, shapeBoundary: path);
+        }
         break;
 
       case ShapeType.line:
         if (!shape.isStroked) break;
 
-        final linePaint = Paint()
-          ..color = shape.strokeColor
-          ..strokeWidth = shape.strokeWidth
-          ..strokeCap = shape.strokeCap
-          ..style = PaintingStyle.stroke;
         final p1 = shape.rect.topLeft;
         final p2 = shape.rect.bottomRight;
 
+        Path linePath;
+        Offset? markerCtrl;
         if (shape.isCurved || shape.curvature != 0.0) {
           final mid = Offset((p1.dx + p2.dx) / 2, (p1.dy + p2.dy) / 2);
           final dx = p2.dx - p1.dx;
@@ -175,16 +288,23 @@ class VectorCanvasPainter extends CustomPainter {
           final len = math.sqrt(dx * dx + dy * dy);
           final perp = len > 0 ? Offset(-dy / len, dx / len) : Offset.zero;
           final controlPt = mid + perp * shape.curvature;
+          markerCtrl = controlPt;
 
-          final path = Path()
+          linePath = Path()
             ..moveTo(p1.dx, p1.dy)
             ..quadraticBezierTo(controlPt.dx, controlPt.dy, p2.dx, p2.dy);
-          canvas.drawPath(path, linePaint);
-
-          _drawLineCapMarker(canvas, p1, controlPt, shape.startCap, shape);
-          _drawLineCapMarker(canvas, p2, controlPt, shape.endCap, shape);
         } else {
-          canvas.drawLine(p1, p2, linePaint);
+          linePath = Path()
+            ..moveTo(p1.dx, p1.dy)
+            ..lineTo(p2.dx, p2.dy);
+        }
+
+        drawStrokedPath(linePath);
+
+        if (markerCtrl != null) {
+          _drawLineCapMarker(canvas, p1, markerCtrl, shape.startCap, shape);
+          _drawLineCapMarker(canvas, p2, markerCtrl, shape.endCap, shape);
+        } else {
           _drawLineCapMarker(canvas, p1, p2, shape.startCap, shape);
           _drawLineCapMarker(canvas, p2, p1, shape.endCap, shape);
         }
@@ -193,8 +313,9 @@ class VectorCanvasPainter extends CustomPainter {
       case ShapeType.star:
         final path = _generateStarPath(shape.rect);
         if (shape.isFilled) canvas.drawPath(path, fillPaint);
-        if (shape.isStroked) canvas.drawPath(path, strokePaint);
+        if (shape.isStroked) drawStrokedPath(path, shapeBoundary: path);
         break;
+
 
       case ShapeType.text:
         String displayText = shape.textContent;
@@ -219,12 +340,15 @@ class VectorCanvasPainter extends CustomPainter {
             ? TextDecoration.combine(textDecorations)
             : TextDecoration.none;
 
+        final isGradientText =
+            shape.fillType != PaintFillType.solid && shape.fillGradient != null;
         final textColor = shape.fillColor.withValues(alpha: shape.fillOpacity);
         TextStyle textStyle;
         try {
           textStyle = GoogleFonts.getFont(
             shape.fontFamily,
-            color: textColor,
+            color: isGradientText ? null : textColor,
+            foreground: isGradientText ? fillPaint : null,
             fontSize: shape.fontSize,
             fontWeight: shape.fontWeight,
             fontStyle: shape.isItalic ? FontStyle.italic : FontStyle.normal,
@@ -235,7 +359,8 @@ class VectorCanvasPainter extends CustomPainter {
           );
         } catch (_) {
           textStyle = TextStyle(
-            color: textColor,
+            color: isGradientText ? null : textColor,
+            foreground: isGradientText ? fillPaint : null,
             fontSize: shape.fontSize,
             fontWeight: shape.fontWeight,
             fontStyle: shape.isItalic ? FontStyle.italic : FontStyle.normal,

@@ -60,6 +60,112 @@ enum TextCase {
   titleCase,
 }
 
+enum PaintFillType {
+  solid,
+  linearGradient,
+  radialGradient,
+}
+
+enum StrokeStyle {
+  solid,
+  dashed,
+  dotted,
+}
+
+enum StrokeAlign {
+  inside,
+  center,
+  outside,
+}
+
+class GradientColorStop {
+  final double offset;
+  final Color color;
+
+  const GradientColorStop({
+    required this.offset,
+    required this.color,
+  });
+
+  GradientColorStop copyWith({
+    double? offset,
+    Color? color,
+  }) {
+    return GradientColorStop(
+      offset: offset ?? this.offset,
+      color: color ?? this.color,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'offset': offset,
+        'color': color.toARGB32(),
+      };
+
+  factory GradientColorStop.fromJson(Map<String, dynamic> json) =>
+      GradientColorStop(
+        offset: (json['offset'] as num?)?.toDouble() ?? 0.0,
+        color: json['color'] != null
+            ? Color(json['color'] as int)
+            : const Color(0xFF6366F1),
+      );
+}
+
+class ShapeGradient {
+  final PaintFillType type; // linearGradient or radialGradient
+  final List<GradientColorStop> stops;
+  final double angle; // in degrees (for linear gradient, e.g. 0 to 360)
+
+  const ShapeGradient({
+    this.type = PaintFillType.linearGradient,
+    this.stops = const [
+      GradientColorStop(offset: 0.0, color: Color(0xFF6366F1)),
+      GradientColorStop(offset: 1.0, color: Color(0xFF38BDF8)),
+    ],
+    this.angle = 90.0,
+  });
+
+  ShapeGradient copyWith({
+    PaintFillType? type,
+    List<GradientColorStop>? stops,
+    double? angle,
+  }) {
+    return ShapeGradient(
+      type: type ?? this.type,
+      stops: stops ?? this.stops,
+      angle: angle ?? this.angle,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'type': type.name,
+        'stops': stops.map((s) => s.toJson()).toList(),
+        'angle': angle,
+      };
+
+  factory ShapeGradient.fromJson(Map<String, dynamic> json) {
+    final typeStr = json['type'] as String? ?? 'linearGradient';
+    final type = PaintFillType.values.firstWhere(
+      (e) => e.name == typeStr,
+      orElse: () => PaintFillType.linearGradient,
+    );
+    final stopsRaw = json['stops'] as List<dynamic>? ?? [];
+    final stops = stopsRaw
+        .map((s) => GradientColorStop.fromJson(s as Map<String, dynamic>))
+        .toList();
+    return ShapeGradient(
+      type: type,
+      stops: stops.isNotEmpty
+          ? stops
+          : const [
+              GradientColorStop(offset: 0.0, color: Color(0xFF6366F1)),
+              GradientColorStop(offset: 1.0, color: Color(0xFF38BDF8)),
+            ],
+      angle: (json['angle'] as num?)?.toDouble() ?? 90.0,
+    );
+  }
+}
+
 class VectorShape {
   final String id;
   String name;
@@ -68,8 +174,17 @@ class VectorShape {
   double rotation; // In degrees
   Color fillColor;
   double fillOpacity;
+  PaintFillType fillType;
+  ShapeGradient? fillGradient;
   Color strokeColor;
   double strokeWidth;
+  double strokeOpacity;
+  StrokeStyle strokeStyle;
+  StrokeAlign strokeAlign;
+  double strokeDashLength;
+  double strokeDashGap;
+  PaintFillType strokeType;
+  ShapeGradient? strokeGradient;
   StrokeCap strokeCap;
   LineCapStyle startCap;
   LineCapStyle endCap;
@@ -104,8 +219,17 @@ class VectorShape {
     this.rotation = 0.0,
     this.fillColor = const Color(0xFF6366F1),
     this.fillOpacity = 1.0,
+    this.fillType = PaintFillType.solid,
+    this.fillGradient,
     this.strokeColor = const Color(0xFF38BDF8),
     this.strokeWidth = 2.0,
+    this.strokeOpacity = 1.0,
+    this.strokeStyle = StrokeStyle.solid,
+    this.strokeAlign = StrokeAlign.center,
+    this.strokeDashLength = 8.0,
+    this.strokeDashGap = 6.0,
+    this.strokeType = PaintFillType.solid,
+    this.strokeGradient,
     this.strokeCap = StrokeCap.butt,
     this.startCap = LineCapStyle.none,
     this.endCap = LineCapStyle.none,
@@ -141,8 +265,17 @@ class VectorShape {
     double? rotation,
     Color? fillColor,
     double? fillOpacity,
+    PaintFillType? fillType,
+    ShapeGradient? fillGradient,
     Color? strokeColor,
     double? strokeWidth,
+    double? strokeOpacity,
+    StrokeStyle? strokeStyle,
+    StrokeAlign? strokeAlign,
+    double? strokeDashLength,
+    double? strokeDashGap,
+    PaintFillType? strokeType,
+    ShapeGradient? strokeGradient,
     StrokeCap? strokeCap,
     LineCapStyle? startCap,
     LineCapStyle? endCap,
@@ -185,8 +318,17 @@ class VectorShape {
       rotation: rotation ?? this.rotation,
       fillColor: fillColor ?? this.fillColor,
       fillOpacity: fillOpacity ?? this.fillOpacity,
+      fillType: fillType ?? this.fillType,
+      fillGradient: fillGradient ?? this.fillGradient,
       strokeColor: strokeColor ?? this.strokeColor,
       strokeWidth: strokeWidth ?? this.strokeWidth,
+      strokeOpacity: strokeOpacity ?? this.strokeOpacity,
+      strokeStyle: strokeStyle ?? this.strokeStyle,
+      strokeAlign: strokeAlign ?? this.strokeAlign,
+      strokeDashLength: strokeDashLength ?? this.strokeDashLength,
+      strokeDashGap: strokeDashGap ?? this.strokeDashGap,
+      strokeType: strokeType ?? this.strokeType,
+      strokeGradient: strokeGradient ?? this.strokeGradient,
       strokeCap: strokeCap ?? this.strokeCap,
       startCap: startCap ?? this.startCap,
       endCap: endCap ?? this.endCap,
@@ -229,8 +371,17 @@ class VectorShape {
       'rotation': rotation,
       'fillColor': fillColor.toARGB32(),
       'fillOpacity': fillOpacity,
+      'fillType': fillType.name,
+      'fillGradient': fillGradient?.toJson(),
       'strokeColor': strokeColor.toARGB32(),
       'strokeWidth': strokeWidth,
+      'strokeOpacity': strokeOpacity,
+      'strokeStyle': strokeStyle.name,
+      'strokeAlign': strokeAlign.name,
+      'strokeDashLength': strokeDashLength,
+      'strokeDashGap': strokeDashGap,
+      'strokeType': strokeType.name,
+      'strokeGradient': strokeGradient?.toJson(),
       'strokeCap': strokeCap.name,
       'startCap': startCap.name,
       'endCap': endCap.name,
@@ -272,6 +423,34 @@ class VectorShape {
       (e) => e.name == typeStr,
       orElse: () => ShapeType.rectangle,
     );
+
+    final fillTypeStr = json['fillType'] as String? ?? 'solid';
+    final fillType = PaintFillType.values.firstWhere(
+      (e) => e.name == fillTypeStr,
+      orElse: () => PaintFillType.solid,
+    );
+    final fillGradMap = json['fillGradient'] as Map<String, dynamic>?;
+    final fillGradient =
+        fillGradMap != null ? ShapeGradient.fromJson(fillGradMap) : null;
+
+    final strokeStyleStr = json['strokeStyle'] as String? ?? 'solid';
+    final strokeStyle = StrokeStyle.values.firstWhere(
+      (e) => e.name == strokeStyleStr,
+      orElse: () => StrokeStyle.solid,
+    );
+    final strokeAlignStr = json['strokeAlign'] as String? ?? 'center';
+    final strokeAlign = StrokeAlign.values.firstWhere(
+      (e) => e.name == strokeAlignStr,
+      orElse: () => StrokeAlign.center,
+    );
+    final strokeTypeStr = json['strokeType'] as String? ?? 'solid';
+    final strokeType = PaintFillType.values.firstWhere(
+      (e) => e.name == strokeTypeStr,
+      orElse: () => PaintFillType.solid,
+    );
+    final strokeGradMap = json['strokeGradient'] as Map<String, dynamic>?;
+    final strokeGradient =
+        strokeGradMap != null ? ShapeGradient.fromJson(strokeGradMap) : null;
 
     final strokeCapStr = json['strokeCap'] as String? ?? 'butt';
     final strokeCap = StrokeCap.values.firstWhere(
@@ -337,10 +516,19 @@ class VectorShape {
           ? Color(json['fillColor'] as int)
           : const Color(0xFF6366F1),
       fillOpacity: (json['fillOpacity'] as num?)?.toDouble() ?? 1.0,
+      fillType: fillType,
+      fillGradient: fillGradient,
       strokeColor: json['strokeColor'] != null
           ? Color(json['strokeColor'] as int)
           : const Color(0xFF38BDF8),
       strokeWidth: (json['strokeWidth'] as num?)?.toDouble() ?? 2.0,
+      strokeOpacity: (json['strokeOpacity'] as num?)?.toDouble() ?? 1.0,
+      strokeStyle: strokeStyle,
+      strokeAlign: strokeAlign,
+      strokeDashLength: (json['strokeDashLength'] as num?)?.toDouble() ?? 8.0,
+      strokeDashGap: (json['strokeDashGap'] as num?)?.toDouble() ?? 6.0,
+      strokeType: strokeType,
+      strokeGradient: strokeGradient,
       strokeCap: strokeCap,
       startCap: startCap,
       endCap: endCap,
@@ -368,18 +556,80 @@ class VectorShape {
     );
   }
 
+  /// Returns SVG `<defs>` elements if this shape utilizes gradients for fill or stroke.
+  String toSvgDefs() {
+    if (!isVisible) return '';
+    final defs = StringBuffer();
+
+    if (isFilled && fillType != PaintFillType.solid && fillGradient != null) {
+      defs.writeln(_gradientToSvgDef('grad-$id-fill', fillGradient!));
+    }
+    if (isStroked && strokeType != PaintFillType.solid && strokeGradient != null) {
+      defs.writeln(_gradientToSvgDef('grad-$id-stroke', strokeGradient!));
+    }
+
+    return defs.toString();
+  }
+
+  static String _gradientToSvgDef(String gradId, ShapeGradient grad) {
+    final sb = StringBuffer();
+    if (grad.type == PaintFillType.linearGradient) {
+      // Convert angle to x1, y1, x2, y2 percentages
+      final rad = grad.angle * math.pi / 180.0;
+      final x1 = (0.5 - 0.5 * math.cos(rad)) * 100;
+      final y1 = (0.5 - 0.5 * math.sin(rad)) * 100;
+      final x2 = (0.5 + 0.5 * math.cos(rad)) * 100;
+      final y2 = (0.5 + 0.5 * math.sin(rad)) * 100;
+      sb.writeln('    <linearGradient id="$gradId" x1="${x1.toStringAsFixed(1)}%" y1="${y1.toStringAsFixed(1)}%" x2="${x2.toStringAsFixed(1)}%" y2="${y2.toStringAsFixed(1)}%">');
+      for (final stop in grad.stops) {
+        sb.writeln('      <stop offset="${(stop.offset * 100).toStringAsFixed(1)}%" stop-color="${_colorToHex(stop.color)}" stop-opacity="${(stop.color.a).toStringAsFixed(2)}" />');
+      }
+      sb.write('    </linearGradient>');
+    } else {
+      sb.writeln('    <radialGradient id="$gradId" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">');
+      for (final stop in grad.stops) {
+        sb.writeln('      <stop offset="${(stop.offset * 100).toStringAsFixed(1)}%" stop-color="${_colorToHex(stop.color)}" stop-opacity="${(stop.color.a).toStringAsFixed(2)}" />');
+      }
+      sb.write('    </radialGradient>');
+    }
+    return sb.toString();
+  }
+
   // Generate SVG string representation for this shape
   String toSvgElement() {
     if (!isVisible) return '';
 
-    final fillHex = _colorToHex(fillColor);
-    final strokeHex = _colorToHex(strokeColor);
-    final fillAttr = isFilled
-        ? 'fill="$fillHex" fill-opacity="$fillOpacity"'
-        : 'fill="none"';
-    final strokeAttr = isStroked
-        ? 'stroke="$strokeHex" stroke-width="$strokeWidth"'
-        : 'stroke="none"';
+    String fillAttr;
+    if (!isFilled) {
+      fillAttr = 'fill="none"';
+    } else if (fillType != PaintFillType.solid && fillGradient != null) {
+      fillAttr = 'fill="url(#grad-$id-fill)" fill-opacity="$fillOpacity"';
+    } else {
+      final fillHex = _colorToHex(fillColor);
+      fillAttr = 'fill="$fillHex" fill-opacity="$fillOpacity"';
+    }
+
+    String strokeAttr;
+    if (!isStroked) {
+      strokeAttr = 'stroke="none"';
+    } else {
+      String strokeSource;
+      if (strokeType != PaintFillType.solid && strokeGradient != null) {
+        strokeSource = 'url(#grad-$id-stroke)';
+      } else {
+        strokeSource = _colorToHex(strokeColor);
+      }
+
+      var dashAttr = '';
+      if (strokeStyle == StrokeStyle.dashed) {
+        dashAttr = ' stroke-dasharray="${strokeDashLength.toStringAsFixed(1)} ${strokeDashGap.toStringAsFixed(1)}"';
+      } else if (strokeStyle == StrokeStyle.dotted) {
+        dashAttr = ' stroke-dasharray="${strokeWidth.toStringAsFixed(1)} ${(strokeWidth * 1.5).toStringAsFixed(1)}"';
+      }
+
+      strokeAttr =
+          'stroke="$strokeSource" stroke-width="$strokeWidth" stroke-opacity="$strokeOpacity"$dashAttr';
+    }
 
     final transformAttr = rotation != 0.0
         ? ' transform="rotate($rotation ${rect.center.dx} ${rect.center.dy})"'
@@ -410,9 +660,9 @@ class VectorShape {
           final len = math.sqrt(dx * dx + dy * dy);
           final perp = len > 0 ? Offset(-dy / len, dx / len) : Offset.zero;
           final ctrl = mid + perp * curvature;
-          return '  <path d="M ${p1.dx} ${p1.dy} Q ${ctrl.dx} ${ctrl.dy} ${p2.dx} ${p2.dy}" fill="none" stroke="$strokeHex" stroke-width="$strokeWidth" stroke-linecap="$capStr"$transformAttr />';
+          return '  <path d="M ${p1.dx} ${p1.dy} Q ${ctrl.dx} ${ctrl.dy} ${p2.dx} ${p2.dy}" fill="none" $strokeAttr stroke-linecap="$capStr"$transformAttr />';
         }
-        return '  <line x1="${rect.left}" y1="${rect.top}" x2="${rect.right}" y2="${rect.bottom}" stroke="$strokeHex" stroke-width="$strokeWidth" stroke-linecap="$capStr"$transformAttr />';
+        return '  <line x1="${rect.left}" y1="${rect.top}" x2="${rect.right}" y2="${rect.bottom}" $strokeAttr stroke-linecap="$capStr"$transformAttr />';
       case ShapeType.star:
         final points = _generateStarPointsSvg(rect);
         return '  <polygon points="$points" $fillAttr $strokeAttr$transformAttr />';
@@ -470,7 +720,7 @@ class VectorShape {
             ? ' text-decoration="${decList.join(' ')}"'
             : '';
 
-        return '  <text x="$posX" y="$posY" font-family="$fontFamily" font-size="$fontSize" fill="$fillHex" fill-opacity="$fillOpacity"$weight$style$anchorAttr$baselineAttr$letterSpacingAttr$decAttr$transformAttr>${_escapeXml(displayText)}</text>';
+        return '  <text x="$posX" y="$posY" font-family="$fontFamily" font-size="$fontSize" $fillAttr$weight$style$anchorAttr$baselineAttr$letterSpacingAttr$decAttr$transformAttr>${_escapeXml(displayText)}</text>';
       case ShapeType.image:
         if (imageBytes != null) {
           final b64 = base64Encode(imageBytes!);

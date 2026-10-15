@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/services.dart';
 import 'package:nixsvg/models/vector_shape.dart';
@@ -511,5 +512,39 @@ class CanvasGeometry {
       );
       return Rect.fromPoints(start, endPoint);
     }
+  }
+
+  /// Converts a [Path] into a dashed or dotted path given [dashLength] and [dashGap].
+  static Path dashPath(
+    Path source, {
+    required double dashLength,
+    required double dashGap,
+  }) {
+    final dest = Path();
+    for (final metric in source.computeMetrics()) {
+      double distance = 0.0;
+      bool draw = true;
+      while (distance < metric.length) {
+        final length = draw ? dashLength : dashGap;
+        if (distance + length > metric.length) {
+          if (draw) {
+            dest.addPath(
+              metric.extractPath(distance, metric.length),
+              Offset.zero,
+            );
+          }
+          break;
+        }
+        if (draw) {
+          dest.addPath(
+            metric.extractPath(distance, distance + length),
+            Offset.zero,
+          );
+        }
+        distance += length;
+        draw = !draw;
+      }
+    }
+    return dest;
   }
 }

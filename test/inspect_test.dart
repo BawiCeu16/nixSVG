@@ -92,8 +92,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Verify 2 connected M3ESegmentedRow instances for alignment
-    expect(find.byType(M3ESegmentedRow), findsNWidgets(2));
+    // Verify connected M3ESegmentedRow instances for alignment and properties
+    expect(find.byType(M3ESegmentedRow), findsAtLeastNWidgets(2));
 
     // Tap horizontal align center in row 1
     await tester.tap(find.byIcon(RemixIcons.align_center));

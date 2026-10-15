@@ -94,6 +94,11 @@ class _NixSvgAppView extends ConsumerWidget {
       title: 'nixSVG - Vector Studio',
       debugShowCheckedModeBanner: false,
       supportedLocales: const [Locale('en', 'US')],
+      localizationsDelegates: const [
+        DefaultMaterialLocalizations.delegate,
+        DefaultWidgetsLocalizations.delegate,
+        mui.DefaultMaterialLocalizations.delegate,
+      ],
       themeMode: themeState.themeMode,
       theme: AppTheme.buildTheme(
         brightness: Brightness.light,

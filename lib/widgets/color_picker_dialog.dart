@@ -5,11 +5,13 @@ import 'package:remixicon/remixicon.dart';
 class ColorPickerDialog extends StatefulWidget {
   final Color initialColor;
   final ValueChanged<Color> onColorSelected;
+  final String title;
 
   const ColorPickerDialog({
     super.key,
     required this.initialColor,
     required this.onColorSelected,
+    this.title = 'Select Color',
   });
 
   @override
@@ -63,7 +65,7 @@ class _ColorPickerDialogState extends State<ColorPickerDialog> {
           Icon(RemixIcons.palette_line, color: colorScheme.primary),
           const SizedBox(width: 10),
           Text(
-            'Select Color',
+            widget.title,
             style: theme.textTheme.titleLarge?.copyWith(
               color: colorScheme.onSurface,
               fontWeight: FontWeight.bold,
