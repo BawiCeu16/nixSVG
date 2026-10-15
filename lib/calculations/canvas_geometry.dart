@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+
 import 'package:flutter/services.dart';
 import 'package:nixsvg/models/vector_shape.dart';
 
@@ -101,16 +102,30 @@ class CanvasGeometry {
     }
 
     // For corner handles with Shift pressed: preserve aspect ratio
-    final bool isCornerHandle = handle == ResizeHandle.topLeft ||
+    final bool isCornerHandle =
+        handle == ResizeHandle.topLeft ||
         handle == ResizeHandle.topRight ||
         handle == ResizeHandle.bottomLeft ||
         handle == ResizeHandle.bottomRight;
 
-    if (isCornerHandle && isShiftPressed && initial.height > 0 && initial.width > 0) {
+    if (isCornerHandle &&
+        isShiftPressed &&
+        initial.height > 0 &&
+        initial.width > 0) {
       final double aspect = initial.width / initial.height;
-      final double rawW = initial.width + (handle == ResizeHandle.topLeft || handle == ResizeHandle.bottomLeft ? -dx : dx);
-      final double rawH = initial.height + (handle == ResizeHandle.topLeft || handle == ResizeHandle.topRight ? -dy : dy);
-      final double dominantDelta = (rawW.abs() > rawH.abs() * aspect) ? (rawW - initial.width) : (rawH - initial.height) * aspect;
+      final double rawW =
+          initial.width +
+          (handle == ResizeHandle.topLeft || handle == ResizeHandle.bottomLeft
+              ? -dx
+              : dx);
+      final double rawH =
+          initial.height +
+          (handle == ResizeHandle.topLeft || handle == ResizeHandle.topRight
+              ? -dy
+              : dy);
+      final double dominantDelta = (rawW.abs() > rawH.abs() * aspect)
+          ? (rawW - initial.width)
+          : (rawH - initial.height) * aspect;
 
       if (handle == ResizeHandle.bottomRight) {
         dx = dominantDelta;
@@ -230,7 +245,9 @@ class CanvasGeometry {
     if (selectedShapeIds.isEmpty) {
       return const SnapGuidelinesResult();
     }
-    final selectedShapes = shapes.where((s) => selectedShapeIds.contains(s.id)).toList();
+    final selectedShapes = shapes
+        .where((s) => selectedShapeIds.contains(s.id))
+        .toList();
     if (selectedShapes.isEmpty) return const SnapGuidelinesResult();
 
     Rect targetBounds = selectedShapes.first.rect;
@@ -243,8 +260,16 @@ class CanvasGeometry {
     double snapDx = 0.0;
     double snapDy = 0.0;
 
-    final targetXPositions = [targetBounds.left, targetBounds.center.dx, targetBounds.right];
-    final targetYPositions = [targetBounds.top, targetBounds.center.dy, targetBounds.bottom];
+    final targetXPositions = [
+      targetBounds.left,
+      targetBounds.center.dx,
+      targetBounds.right,
+    ];
+    final targetYPositions = [
+      targetBounds.top,
+      targetBounds.center.dy,
+      targetBounds.bottom,
+    ];
 
     for (final s in shapes) {
       if (selectedShapeIds.contains(s.id) || !s.isVisible) continue;
@@ -376,7 +401,9 @@ class CanvasGeometry {
     Rect canvasFrame = const Rect.fromLTWH(0, 0, 1920, 1080),
   }) {
     if (selectedIds.isEmpty) return;
-    final selectedShapes = shapes.where((s) => selectedIds.contains(s.id)).toList();
+    final selectedShapes = shapes
+        .where((s) => selectedIds.contains(s.id))
+        .toList();
     if (selectedShapes.isEmpty) return;
 
     Rect bounds;
@@ -419,6 +446,70 @@ class CanvasGeometry {
         shape.rect.width,
         shape.rect.height,
       );
+    }
+  }
+
+  /// Calculates the [Rect] for drawing a shape on the canvas:
+  /// - If [isShiftPressed] is true, shapes constrain to a 1:1 square/circle bounding box,
+  ///   or lines snap to 45° angle increments.
+  /// - If [isAltPressed] is true, shapes expand symmetrically from [start] as the center point.
+  static Rect calculateDrawRect({
+    required Offset start,
+    required Offset current,
+    required ShapeType shapeType,
+    required bool isShiftPressed,
+    required bool isAltPressed,
+  }) {
+    if (shapeType == ShapeType.line) {
+      final endPos = isShiftPressed ? snapLinePoint(start, current) : current;
+      if (isAltPressed) {
+        // Expand symmetrically around start point
+        final delta = endPos - start;
+        return Rect.fromPoints(start - delta, start + delta);
+      } else {
+        return Rect.fromPoints(start, endPos);
+      }
+    }
+
+    if (shapeType == ShapeType.text) {
+      if (isAltPressed) {
+        final halfWidth = (current.dx - start.dx).abs();
+        final halfHeight = (current.dy - start.dy).abs();
+        return Rect.fromCenter(
+          center: start,
+          width: math.max(halfWidth * 2, 2.0),
+          height: math.max(halfHeight * 2, 2.0),
+        );
+      }
+      return Rect.fromPoints(start, current);
+    }
+
+    // Shapes: rectangle, roundedRectangle, ellipse, star
+    double rawWidth = (current.dx - start.dx).abs();
+    double rawHeight = (current.dy - start.dy).abs();
+
+    if (isShiftPressed) {
+      final maxSide = math.max(rawWidth, rawHeight);
+      rawWidth = maxSide;
+      rawHeight = maxSide;
+    }
+
+    if (isAltPressed) {
+      // Shape centered at start point
+      return Rect.fromCenter(
+        center: start,
+        width: rawWidth * 2,
+        height: rawHeight * 2,
+      );
+    } else {
+      // Shape anchored at start corner
+      final signX = current.dx >= start.dx ? 1.0 : -1.0;
+      final signY = current.dy >= start.dy ? 1.0 : -1.0;
+      final endPoint = Offset(
+        start.dx + signX * rawWidth,
+        start.dy + signY * rawHeight,
+      );
+      return Rect.fromPoints(start, endPoint);
     }
   }
 }

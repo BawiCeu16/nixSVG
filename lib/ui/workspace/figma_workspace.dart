@@ -10,8 +10,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nixsvg/calculations/canvas_geometry.dart';
 import 'package:nixsvg/calculations/canvas_hit_test.dart';
 import 'package:nixsvg/calculations/canvas_transform.dart';
+import 'package:nixsvg/models/project_model.dart';
 import 'package:nixsvg/models/undo_redo_manager.dart';
 import 'package:nixsvg/models/vector_shape.dart';
+import 'package:nixsvg/providers/project_provider.dart';
 import 'package:nixsvg/providers/workspace_settings_provider.dart';
 import 'package:nixsvg/services/svg_export_service.dart';
 import 'package:nixsvg/theme/components/responsive_layout_tokens.dart';
@@ -55,7 +57,10 @@ void ensureFilePickerInitialized() {
 }
 
 class FigmaWorkspace extends ConsumerStatefulWidget {
-  const FigmaWorkspace({super.key});
+  final ProjectModel? initialProject;
+  final VoidCallback? onGoToHome;
+
+  const FigmaWorkspace({super.key, this.initialProject, this.onGoToHome});
 
   @override
   ConsumerState<FigmaWorkspace> createState() => FigmaWorkspaceState();
@@ -116,7 +121,12 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   @override
   void initState() {
     super.initState();
-    _loadSampleDemoShapes();
+    if (widget.initialProject != null) {
+      fileName = widget.initialProject!.name;
+      shapes = widget.initialProject!.shapes.map((s) => s.copyWith()).toList();
+    } else {
+      _loadSampleDemoShapes();
+    }
     _saveHistorySnapshot();
 
     // Initialize persisted workspace settings from Riverpod
@@ -129,8 +139,11 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         propertiesSidebarWidth = wsSettings.propertiesSidebarWidth;
         isLayersPanelOpen = wsSettings.isLayersPanelOpen;
         isPropertiesPanelOpen = wsSettings.isPropertiesPanelOpen;
-        fileName = wsSettings.fileName;
+        if (widget.initialProject == null) {
+          fileName = wsSettings.fileName;
+        }
       });
+      _persistCurrentProject();
     });
   }
 
@@ -207,6 +220,27 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
   void _saveHistorySnapshot() {
     _undoRedoManager.saveState(shapes);
+    _persistCurrentProject();
+  }
+
+  void _persistCurrentProject() {
+    final project =
+        (widget.initialProject ?? ProjectModel.createNew(name: fileName))
+            .copyWith(
+              name: fileName,
+              lastModified: DateTime.now(),
+              shapes: shapes.map((s) => s.copyWith()).toList(),
+            );
+    ref.read(projectsProvider.notifier).updateActiveProject(project);
+  }
+
+  void _handleGoToHome() {
+    _persistCurrentProject();
+    if (widget.onGoToHome != null) {
+      widget.onGoToHome!();
+    } else {
+      ref.read(projectsProvider.notifier).closeActiveProject();
+    }
   }
 
   void _undo() {
@@ -376,17 +410,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         HardwareKeyboard.instance.logicalKeysPressed.contains(
           LogicalKeyboardKey.shiftRight,
         );
-
-    if (draftShapeType == ShapeType.line &&
-        isShiftPressed &&
-        panStartOffset != null) {
-      panCurrentOffset = CanvasGeometry.snapLinePoint(
-        panStartOffset!,
-        localPos,
-      );
-    } else {
-      panCurrentOffset = localPos;
-    }
+    panCurrentOffset = localPos;
 
     setState(() {
       if (currentMode == EditorMode.select) {
@@ -472,9 +496,6 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     final localPos = event.localPosition;
 
     if (currentMode != EditorMode.select && draftShapeType != null) {
-      Rect finalRect;
-      bool isValidShape = false;
-
       final isShiftPressed =
           HardwareKeyboard.instance.logicalKeysPressed.contains(
             LogicalKeyboardKey.shiftLeft,
@@ -482,29 +503,30 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           HardwareKeyboard.instance.logicalKeysPressed.contains(
             LogicalKeyboardKey.shiftRight,
           );
+      final isAltPressed = HardwareKeyboard.instance.isAltPressed;
+
+      final rect = CanvasGeometry.calculateDrawRect(
+        start: panStartOffset!,
+        current: localPos,
+        shapeType: draftShapeType!,
+        isShiftPressed: isShiftPressed,
+        isAltPressed: isAltPressed,
+      );
+
+      Rect finalRect = rect;
+      bool isValidShape = false;
 
       if (draftShapeType == ShapeType.line) {
-        final endPos = isShiftPressed
-            ? CanvasGeometry.snapLinePoint(panStartOffset!, localPos)
-            : localPos;
-        if ((endPos - panStartOffset!).distance <= 5) {
+        if ((rect.bottomRight - rect.topLeft).distance <= 5) {
           finalRect = Rect.fromLTRB(
             panStartOffset!.dx,
             panStartOffset!.dy,
             panStartOffset!.dx + 100,
             panStartOffset!.dy,
           );
-        } else {
-          finalRect = Rect.fromLTRB(
-            panStartOffset!.dx,
-            panStartOffset!.dy,
-            endPos.dx,
-            endPos.dy,
-          );
         }
         isValidShape = true;
       } else if (draftShapeType == ShapeType.text) {
-        finalRect = Rect.fromPoints(panStartOffset!, localPos);
         if (finalRect.width <= 5 || finalRect.height <= 5) {
           finalRect = Rect.fromLTWH(
             panStartOffset!.dx,
@@ -515,17 +537,6 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         }
         isValidShape = true;
       } else {
-        var rect = Rect.fromPoints(panStartOffset!, localPos);
-        if (isShiftPressed) {
-          final side = math.max(rect.width, rect.height);
-          final dx = (localPos.dx >= panStartOffset!.dx) ? side : -side;
-          final dy = (localPos.dy >= panStartOffset!.dy) ? side : -side;
-          rect = Rect.fromPoints(
-            panStartOffset!,
-            Offset(panStartOffset!.dx + dx, panStartOffset!.dy + dy),
-          );
-        }
-        finalRect = rect;
         isValidShape = finalRect.width > 5 && finalRect.height > 5;
       }
 
@@ -963,16 +974,21 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   bool _isTextInputFocused() {
     final focus = FocusManager.instance.primaryFocus;
     if (focus == null || focus.context == null) return false;
-    final context = focus.context!;
-    if (context.widget is EditableText ||
-        context.widget is TextField ||
-        context.widget is TextFormField) {
-      return true;
-    }
-    if (context.findAncestorWidgetOfExactType<EditableText>() != null ||
-        context.findAncestorWidgetOfExactType<TextField>() != null ||
-        context.findAncestorWidgetOfExactType<TextFormField>() != null) {
-      return true;
+    final ctx = focus.context!;
+    if (!ctx.mounted) return false;
+    try {
+      if (ctx.widget is EditableText ||
+          ctx.widget is TextField ||
+          ctx.widget is TextFormField) {
+        return true;
+      }
+      if (ctx.findAncestorWidgetOfExactType<EditableText>() != null ||
+          ctx.findAncestorWidgetOfExactType<TextField>() != null ||
+          ctx.findAncestorWidgetOfExactType<TextFormField>() != null) {
+        return true;
+      }
+    } catch (_) {
+      return false;
     }
     return false;
   }
@@ -1000,6 +1016,15 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           setState(() => _isSpacePressed = false);
         }
         return KeyEventResult.handled;
+      }
+    }
+
+    if (event.logicalKey == LogicalKeyboardKey.shiftLeft ||
+        event.logicalKey == LogicalKeyboardKey.shiftRight ||
+        event.logicalKey == LogicalKeyboardKey.altLeft ||
+        event.logicalKey == LogicalKeyboardKey.altRight) {
+      if (panStartOffset != null && draftShapeType != null) {
+        setState(() {});
       }
     }
 
@@ -1187,7 +1212,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
               onFileNameChanged: (val) {
                 setState(() => fileName = val);
                 ref.read(workspaceSettingsProvider.notifier).setFileName(val);
+                _persistCurrentProject();
               },
+              onGoToHome: _handleGoToHome,
               onUndo: _undo,
               onRedo: _redo,
               canUndo: _undoRedoManager.canUndo,
@@ -1342,6 +1369,13 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                               selectedShapeIds: selectedShapeIds,
                               currentMode: currentMode,
                               draftShapeType: draftShapeType,
+                              draftIsShiftPressed: HardwareKeyboard
+                                      .instance.logicalKeysPressed
+                                      .contains(LogicalKeyboardKey.shiftLeft) ||
+                                  HardwareKeyboard.instance.logicalKeysPressed
+                                      .contains(LogicalKeyboardKey.shiftRight),
+                              draftIsAltPressed:
+                                  HardwareKeyboard.instance.isAltPressed,
                               panStartOffset: panStartOffset,
                               panCurrentOffset: panCurrentOffset,
                               marqueeRect: marqueeRect,
@@ -1350,6 +1384,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                               gridSpacing: gridSpacing,
                               isPanningWithMouse: _isPanningWithMouse,
                               isSpacePressed: isSpacePressed,
+                              isResizing: activeResizeHandle != ResizeHandle.none,
                               onPointerDown: _onPointerDown,
                               onPointerMove: _onPointerMove,
                               onPointerUp: _onPointerUp,

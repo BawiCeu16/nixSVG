@@ -14,6 +14,8 @@ class InteractiveCanvas extends StatefulWidget {
   final Set<String> selectedShapeIds;
   final EditorMode currentMode;
   final ShapeType? draftShapeType;
+  final bool? draftIsShiftPressed;
+  final bool? draftIsAltPressed;
   final Offset? panStartOffset;
   final Offset? panCurrentOffset;
   final Rect? marqueeRect;
@@ -22,6 +24,7 @@ class InteractiveCanvas extends StatefulWidget {
   final double gridSpacing;
   final bool isPanningWithMouse;
   final bool isSpacePressed;
+  final bool isResizing;
   final PointerDownEventListener onPointerDown;
   final PointerMoveEventListener onPointerMove;
   final PointerUpEventListener onPointerUp;
@@ -37,6 +40,8 @@ class InteractiveCanvas extends StatefulWidget {
     required this.selectedShapeIds,
     required this.currentMode,
     required this.draftShapeType,
+    this.draftIsShiftPressed,
+    this.draftIsAltPressed,
     required this.panStartOffset,
     required this.panCurrentOffset,
     required this.marqueeRect,
@@ -45,6 +50,7 @@ class InteractiveCanvas extends StatefulWidget {
     required this.gridSpacing,
     required this.isPanningWithMouse,
     required this.isSpacePressed,
+    this.isResizing = false,
     required this.onPointerDown,
     required this.onPointerMove,
     required this.onPointerUp,
@@ -202,8 +208,11 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
                       draftStartPoint: widget.panStartOffset,
                       draftCurrentPoint: widget.panCurrentOffset,
                       draftShapeType: widget.draftShapeType,
+                      draftIsShiftPressed: widget.draftIsShiftPressed,
+                      draftIsAltPressed: widget.draftIsAltPressed,
                       marqueeRect: widget.marqueeRect,
                       currentMode: widget.currentMode,
+                      isResizing: widget.isResizing,
                       snapGuidelineX: widget.snapGuidelineX,
                       snapGuidelineY: widget.snapGuidelineY,
                       colorScheme: colorScheme,

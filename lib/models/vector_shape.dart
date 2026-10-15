@@ -215,6 +215,159 @@ class VectorShape {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'type': type.name,
+      'rect': {
+        'left': rect.left,
+        'top': rect.top,
+        'width': rect.width,
+        'height': rect.height,
+      },
+      'rotation': rotation,
+      'fillColor': fillColor.toARGB32(),
+      'fillOpacity': fillOpacity,
+      'strokeColor': strokeColor.toARGB32(),
+      'strokeWidth': strokeWidth,
+      'strokeCap': strokeCap.name,
+      'startCap': startCap.name,
+      'endCap': endCap.name,
+      'isCurved': isCurved,
+      'curvature': curvature,
+      'isFilled': isFilled,
+      'isStroked': isStroked,
+      'cornerRadius': cornerRadius,
+      'textContent': textContent,
+      'fontSize': fontSize,
+      'fontFamily': fontFamily,
+      'isBold': isBold,
+      'isItalic': isItalic,
+      'isUnderline': isUnderline,
+      'isStrikethrough': isStrikethrough,
+      'textAlign': textAlign.name,
+      'textVerticalAlign': textVerticalAlign.name,
+      'letterSpacing': letterSpacing,
+      'lineHeight': lineHeight,
+      'textCase': textCase.name,
+      'fontWeight': fontWeight.value,
+      'isVisible': isVisible,
+      'isLocked': isLocked,
+      'imageBytes': imageBytes != null ? base64Encode(imageBytes!) : null,
+    };
+  }
+
+  factory VectorShape.fromJson(Map<String, dynamic> json) {
+    final rectMap = json['rect'] as Map<String, dynamic>? ?? {};
+    final rect = Rect.fromLTWH(
+      (rectMap['left'] as num?)?.toDouble() ?? 0.0,
+      (rectMap['top'] as num?)?.toDouble() ?? 0.0,
+      (rectMap['width'] as num?)?.toDouble() ?? 100.0,
+      (rectMap['height'] as num?)?.toDouble() ?? 100.0,
+    );
+
+    final typeStr = json['type'] as String? ?? 'rectangle';
+    final type = ShapeType.values.firstWhere(
+      (e) => e.name == typeStr,
+      orElse: () => ShapeType.rectangle,
+    );
+
+    final strokeCapStr = json['strokeCap'] as String? ?? 'butt';
+    final strokeCap = StrokeCap.values.firstWhere(
+      (e) => e.name == strokeCapStr,
+      orElse: () => StrokeCap.butt,
+    );
+
+    final startCapStr = json['startCap'] as String? ?? 'none';
+    final startCap = LineCapStyle.values.firstWhere(
+      (e) => e.name == startCapStr,
+      orElse: () => LineCapStyle.none,
+    );
+
+    final endCapStr = json['endCap'] as String? ?? 'none';
+    final endCap = LineCapStyle.values.firstWhere(
+      (e) => e.name == endCapStr,
+      orElse: () => LineCapStyle.none,
+    );
+
+    final textAlignStr = json['textAlign'] as String? ?? 'left';
+    final textAlign = TextAlign.values.firstWhere(
+      (e) => e.name == textAlignStr,
+      orElse: () => TextAlign.left,
+    );
+
+    final textVerticalAlignStr =
+        json['textVerticalAlign'] as String? ?? 'top';
+    final textVerticalAlign = TextVerticalAlign.values.firstWhere(
+      (e) => e.name == textVerticalAlignStr,
+      orElse: () => TextVerticalAlign.top,
+    );
+
+    final textCaseStr = json['textCase'] as String? ?? 'original';
+    final textCase = TextCase.values.firstWhere(
+      (e) => e.name == textCaseStr,
+      orElse: () => TextCase.original,
+    );
+
+    final fontWeightVal = json['fontWeight'] as int?;
+    final fontWeight = fontWeightVal != null
+        ? FontWeight.values.firstWhere(
+            (w) => w.value == fontWeightVal,
+            orElse: () => FontWeight.normal,
+          )
+        : null;
+
+    final imageBytesStr = json['imageBytes'] as String?;
+    Uint8List? imageBytes;
+    if (imageBytesStr != null && imageBytesStr.isNotEmpty) {
+      try {
+        imageBytes = base64Decode(imageBytesStr);
+      } catch (_) {}
+    }
+
+    return VectorShape(
+      id: json['id'] as String? ??
+          'shape-${DateTime.now().millisecondsSinceEpoch}',
+      name: json['name'] as String? ?? 'Shape',
+      type: type,
+      rect: rect,
+      rotation: (json['rotation'] as num?)?.toDouble() ?? 0.0,
+      fillColor: json['fillColor'] != null
+          ? Color(json['fillColor'] as int)
+          : const Color(0xFF6366F1),
+      fillOpacity: (json['fillOpacity'] as num?)?.toDouble() ?? 1.0,
+      strokeColor: json['strokeColor'] != null
+          ? Color(json['strokeColor'] as int)
+          : const Color(0xFF38BDF8),
+      strokeWidth: (json['strokeWidth'] as num?)?.toDouble() ?? 2.0,
+      strokeCap: strokeCap,
+      startCap: startCap,
+      endCap: endCap,
+      isCurved: json['isCurved'] as bool? ?? false,
+      curvature: (json['curvature'] as num?)?.toDouble() ?? 0.0,
+      isFilled: json['isFilled'] as bool? ?? true,
+      isStroked: json['isStroked'] as bool? ?? false,
+      cornerRadius: (json['cornerRadius'] as num?)?.toDouble() ?? 12.0,
+      textContent: json['textContent'] as String? ?? 'Text Element',
+      fontSize: (json['fontSize'] as num?)?.toDouble() ?? 24.0,
+      fontFamily: json['fontFamily'] as String? ?? 'Roboto',
+      isBold: json['isBold'] as bool? ?? false,
+      isItalic: json['isItalic'] as bool? ?? false,
+      isUnderline: json['isUnderline'] as bool? ?? false,
+      isStrikethrough: json['isStrikethrough'] as bool? ?? false,
+      textAlign: textAlign,
+      textVerticalAlign: textVerticalAlign,
+      letterSpacing: (json['letterSpacing'] as num?)?.toDouble() ?? 0.0,
+      lineHeight: (json['lineHeight'] as num?)?.toDouble() ?? 1.2,
+      textCase: textCase,
+      fontWeight: fontWeight,
+      isVisible: json['isVisible'] as bool? ?? true,
+      isLocked: json['isLocked'] as bool? ?? false,
+      imageBytes: imageBytes,
+    );
+  }
+
   // Generate SVG string representation for this shape
   String toSvgElement() {
     if (!isVisible) return '';

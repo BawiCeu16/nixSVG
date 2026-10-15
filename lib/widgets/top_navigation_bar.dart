@@ -34,6 +34,7 @@ class TopNavigationBar extends ConsumerWidget {
   final ValueChanged<bool>? onToggleLayers;
   final bool showProperties;
   final ValueChanged<bool>? onToggleProperties;
+  final VoidCallback? onGoToHome;
 
   const TopNavigationBar({
     super.key,
@@ -59,6 +60,7 @@ class TopNavigationBar extends ConsumerWidget {
     this.onToggleLayers,
     this.showProperties = true,
     this.onToggleProperties,
+    this.onGoToHome,
   });
 
   @override
@@ -107,44 +109,73 @@ class TopNavigationBar extends ConsumerWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             // --- App Brand Logo & Title ---
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 28,
-                                  height: 28,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [colorScheme.primary, colorScheme.tertiary],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    borderRadius: BorderRadius.circular(8),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: colorScheme.primary.withValues(alpha: 0.3),
-                                        blurRadius: 6,
-                                        offset: const Offset(0, 2),
+                            // --- App Brand Logo & Title with Home Action ---
+                            InkWell(
+                              onTap: onGoToHome,
+                              borderRadius: BorderRadius.circular(10),
+                              child: Tooltip(
+                                message: onGoToHome != null
+                                    ? 'Back to Home Screen'
+                                    : 'nixSVG Vector Studio',
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 4,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 28,
+                                        height: 28,
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              colorScheme.primary,
+                                              colorScheme.tertiary
+                                            ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: colorScheme.primary
+                                                  .withValues(alpha: 0.3),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: Icon(
+                                          RemixIcons.shapes_line,
+                                          color: colorScheme.onPrimary,
+                                          size: 16,
+                                        ),
                                       ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'nixSVG',
+                                        style: textTheme.titleMedium?.copyWith(
+                                          color: colorScheme.onSurface,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                      if (onGoToHome != null) ...[
+                                        const SizedBox(width: 6),
+                                        Icon(
+                                          RemixIcons.home_4_line,
+                                          size: 14,
+                                          color: colorScheme.primary,
+                                        ),
+                                      ],
                                     ],
                                   ),
-                                  alignment: Alignment.center,
-                                  child: Icon(
-                                    RemixIcons.shapes_line,
-                                    color: colorScheme.onPrimary,
-                                    size: 16,
-                                  ),
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'nixSVG',
-                                  style: textTheme.titleMedium?.copyWith(
-                                    color: colorScheme.onSurface,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
 
                             const SizedBox(width: 14),

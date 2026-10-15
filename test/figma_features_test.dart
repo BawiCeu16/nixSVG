@@ -5,6 +5,7 @@ import 'package:nixsvg/calculations/canvas_geometry.dart';
 import 'package:nixsvg/calculations/canvas_transform.dart';
 import 'package:nixsvg/main.dart';
 import 'package:nixsvg/models/vector_shape.dart';
+import 'package:nixsvg/ui/canvas/interactive_canvas.dart';
 
 void main() {
   group('Figma Geometry & Transform Calculations', () {
@@ -23,6 +24,83 @@ void main() {
       );
       expect(unconstrained.width, 250);
       expect(unconstrained.height, 160);
+    });
+
+    test('calculateDrawRect produces perfect 1:1 shapes when Shift is held', () {
+      const start = Offset(100, 100);
+      const current = Offset(250, 180); // width 150, height 80
+
+      // Regular draw without modifiers
+      final normalRect = CanvasGeometry.calculateDrawRect(
+        start: start,
+        current: current,
+        shapeType: ShapeType.rectangle,
+        isShiftPressed: false,
+        isAltPressed: false,
+      );
+      expect(normalRect.width, 150);
+      expect(normalRect.height, 80);
+
+      // With Shift held: max(150, 80) = 150, perfect square
+      final shiftRect = CanvasGeometry.calculateDrawRect(
+        start: start,
+        current: current,
+        shapeType: ShapeType.rectangle,
+        isShiftPressed: true,
+        isAltPressed: false,
+      );
+      expect(shiftRect.width, 150);
+      expect(shiftRect.height, 150);
+      expect(shiftRect.topLeft, start);
+
+      // With Ellipse and Shift: perfect circle
+      final circleRect = CanvasGeometry.calculateDrawRect(
+        start: start,
+        current: current,
+        shapeType: ShapeType.ellipse,
+        isShiftPressed: true,
+        isAltPressed: false,
+      );
+      expect(circleRect.width, 150);
+      expect(circleRect.height, 150);
+    });
+
+    test('calculateDrawRect centers shape at mouse start point when Alt is held', () {
+      const start = Offset(200, 200);
+      const current = Offset(250, 230); // delta: dx=50, dy=30
+
+      final altRect = CanvasGeometry.calculateDrawRect(
+        start: start,
+        current: current,
+        shapeType: ShapeType.rectangle,
+        isShiftPressed: false,
+        isAltPressed: true,
+      );
+      // Centered at start (200, 200) with width = 100, height = 60
+      expect(altRect.center, start);
+      expect(altRect.width, 100);
+      expect(altRect.height, 60);
+      expect(altRect.left, 150);
+      expect(altRect.top, 170);
+    });
+
+    test('calculateDrawRect creates perfect 1:1 shape centered at start when Shift and Alt are both held', () {
+      const start = Offset(300, 300);
+      const current = Offset(380, 340); // dx=80, dy=40 -> maxSide = 80
+
+      final shiftAltRect = CanvasGeometry.calculateDrawRect(
+        start: start,
+        current: current,
+        shapeType: ShapeType.rectangle,
+        isShiftPressed: true,
+        isAltPressed: true,
+      );
+      // Centered at start (300, 300) with width = 160, height = 160
+      expect(shiftAltRect.center, start);
+      expect(shiftAltRect.width, 160);
+      expect(shiftAltRect.height, 160);
+      expect(shiftAltRect.left, 220);
+      expect(shiftAltRect.top, 220);
     });
 
     test('alignShapes aligns multiple shapes to selection union bounds like Figma', () {
@@ -192,6 +270,61 @@ void main() {
 
       // Shape is still selected - we did NOT need to unselect it to restore canvas responsiveness!
       expect(state.selectedShapeIds.length, 1);
+    });
+
+    testWidgets('Resizing a circle shape activates isResizing badge with dimensions and radius', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1280, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(const NixSvgApp());
+      await tester.pumpAndSettle();
+
+      final state = tester.state<FigmaWorkspaceState>(find.byType(FigmaWorkspace));
+
+      // Add a circle (ellipse with width == height)
+      final circle = VectorShape(
+        id: 'test-circle',
+        name: 'Test Circle',
+        type: ShapeType.ellipse,
+        rect: const Rect.fromLTWH(400, 300, 100, 100),
+      );
+      state.shapes.add(circle);
+      state.selectShape(circle.id);
+      await tester.pumpAndSettle();
+
+      expect(state.selectedShapeIds.contains('test-circle'), isTrue);
+
+      // Verify InteractiveCanvas is rendered with isResizing = false initially
+      final canvasWidgetBefore = tester.widget<InteractiveCanvas>(find.byType(InteractiveCanvas));
+      expect(canvasWidgetBefore.isResizing, isFalse);
+
+      // Start resize from bottomRight handle (400+100, 300+100) -> (500, 400)
+      final containerFinder = find.byWidgetPredicate(
+        (w) => w is Container && w.constraints?.maxWidth == 3200,
+      );
+      final RenderBox renderBox = tester.renderObject(containerFinder);
+      final handlePos = renderBox.localToGlobal(const Offset(500, 400));
+
+      final gesture = await tester.startGesture(handlePos);
+      await tester.pump();
+      await gesture.moveBy(const Offset(40, 40));
+      await tester.pump();
+
+      // State is now resizing
+      expect(state.activeResizeHandle, isNot(ResizeHandle.none));
+      final canvasWidgetDuring = tester.widget<InteractiveCanvas>(find.byType(InteractiveCanvas));
+      expect(canvasWidgetDuring.isResizing, isTrue);
+
+      // Circle was resized to 140x140 (radius 70)
+      expect(circle.rect.width, 140);
+      expect(circle.rect.height, 140);
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(state.activeResizeHandle, ResizeHandle.none);
+      final canvasWidgetAfter = tester.widget<InteractiveCanvas>(find.byType(InteractiveCanvas));
+      expect(canvasWidgetAfter.isResizing, isFalse);
     });
   });
 }

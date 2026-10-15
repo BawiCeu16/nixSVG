@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart' as mui;
 import 'package:nixsvg/providers/preferences_provider.dart';
+import 'package:nixsvg/providers/project_provider.dart';
 import 'package:nixsvg/providers/theme_provider.dart';
 import 'package:nixsvg/services/preferences_service.dart';
 import 'package:nixsvg/theme/app_theme.dart';
 import 'package:nixsvg/theme/components/mui_component_theme.dart';
+import 'package:nixsvg/ui/home/home_screen.dart';
 import 'package:nixsvg/ui/workspace/figma_workspace.dart';
 import 'package:responsive_scaler/responsive_scaler.dart';
 
+export 'package:nixsvg/models/project_model.dart';
+export 'package:nixsvg/ui/home/home_screen.dart';
 export 'package:nixsvg/ui/workspace/figma_workspace.dart';
 
 Future<void> main() async {
@@ -38,11 +42,21 @@ Future<void> main() async {
 
 /// The root application widget subscribing dynamically to Riverpod [themeProvider].
 class NixSvgApp extends StatelessWidget {
-  const NixSvgApp({super.key});
+  final Widget? home;
+  final bool? startInWorkspace;
+
+  const NixSvgApp({
+    super.key,
+    this.home,
+    this.startInWorkspace,
+  });
 
   @override
   Widget build(BuildContext context) {
-    Widget app = const _NixSvgAppView();
+    Widget app = _NixSvgAppView(
+      home: home,
+      startInWorkspace: startInWorkspace,
+    );
     try {
       ProviderScope.containerOf(context, listen: false);
     } catch (_) {
@@ -53,7 +67,13 @@ class NixSvgApp extends StatelessWidget {
 }
 
 class _NixSvgAppView extends ConsumerWidget {
-  const _NixSvgAppView();
+  final Widget? home;
+  final bool? startInWorkspace;
+
+  const _NixSvgAppView({
+    this.home,
+    this.startInWorkspace,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -97,7 +117,38 @@ class _NixSvgAppView extends ConsumerWidget {
           ),
         );
       },
-      home: const SafeArea(child: FigmaWorkspace()),
+      home: SafeArea(
+        child: _buildResolvedHome(ref),
+      ),
+    );
+  }
+
+  Widget _buildResolvedHome(WidgetRef ref) {
+    if (home != null) {
+      return home!;
+    }
+
+    final projectsState = ref.watch(projectsProvider);
+    final activeProject = projectsState.activeProject;
+    final hasActiveSession = projectsState.hasActiveSession;
+
+    final shouldShowWorkspace = startInWorkspace != null
+        ? (startInWorkspace! || hasActiveSession || activeProject != null)
+        : (hasActiveSession || activeProject != null);
+
+    if (shouldShowWorkspace) {
+      return FigmaWorkspace(
+        initialProject: activeProject,
+        onGoToHome: () {
+          ref.read(projectsProvider.notifier).closeActiveProject();
+        },
+      );
+    }
+
+    return HomeScreen(
+      onOpenProject: (proj) {
+        ref.read(projectsProvider.notifier).openProject(proj);
+      },
     );
   }
 }

@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:nixsvg/models/project_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Service responsible for persisting and retrieving app configuration
@@ -20,6 +22,9 @@ class PreferencesService {
   static const String _keyPropertiesWidth = 'nixsvg_properties_sidebar_width';
   static const String _keyShowLayers = 'nixsvg_show_layers';
   static const String _keyShowProperties = 'nixsvg_show_properties';
+  static const String _keyRecentProjects = 'nixsvg_recent_projects';
+  static const String _keyActiveProjectId = 'nixsvg_active_project_id';
+  static const String _keyHasActiveSession = 'nixsvg_has_active_session';
 
   /// Factory to asynchronously instantiate [PreferencesService].
   static Future<PreferencesService> create() async {
@@ -195,6 +200,109 @@ class PreferencesService {
       } else {
         _inMemory[_keyShowProperties] = show;
       }
+    }
+  }
+
+  // --- Active Session & Projects ---
+  bool getHasActiveSession() {
+    if (_prefs != null) {
+      return _prefs.getBool(_keyHasActiveSession) ?? false;
+    }
+    // For unit/widget tests in fallback mode, default to true unless specified
+    return (_inMemory[_keyHasActiveSession] as bool?) ?? true;
+  }
+
+  Future<void> setHasActiveSession(bool value) async {
+    if (_prefs != null) {
+      await _prefs.setBool(_keyHasActiveSession, value);
+    } else {
+      _inMemory[_keyHasActiveSession] = value;
+    }
+  }
+
+  String? getActiveProjectId() {
+    if (_prefs != null) {
+      return _prefs.getString(_keyActiveProjectId);
+    }
+    return _inMemory[_keyActiveProjectId] as String?;
+  }
+
+  Future<void> setActiveProjectId(String? id) async {
+    if (_prefs != null) {
+      if (id == null) {
+        await _prefs.remove(_keyActiveProjectId);
+      } else {
+        await _prefs.setString(_keyActiveProjectId, id);
+      }
+    } else {
+      if (id == null) {
+        _inMemory.remove(_keyActiveProjectId);
+      } else {
+        _inMemory[_keyActiveProjectId] = id;
+      }
+    }
+  }
+
+  List<ProjectModel> getRecentProjects() {
+    List<String>? rawList;
+    if (_prefs != null) {
+      rawList = _prefs.getStringList(_keyRecentProjects);
+    } else {
+      rawList = _inMemory[_keyRecentProjects] as List<String>?;
+    }
+
+    if (rawList == null || rawList.isEmpty) {
+      return [];
+    }
+
+    final list = <ProjectModel>[];
+    for (final jsonStr in rawList) {
+      try {
+        final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+        list.add(ProjectModel.fromJson(map));
+      } catch (_) {}
+    }
+    list.sort((a, b) => b.lastModified.compareTo(a.lastModified));
+    return list;
+  }
+
+  Future<void> saveRecentProject(ProjectModel project) async {
+    final list = getRecentProjects();
+    final index = list.indexWhere((p) => p.id == project.id);
+    if (index >= 0) {
+      list[index] = project;
+    } else {
+      list.insert(0, project);
+    }
+    list.sort((a, b) => b.lastModified.compareTo(a.lastModified));
+    if (list.length > 25) {
+      list.removeRange(25, list.length);
+    }
+
+    final rawList = list.map((p) => jsonEncode(p.toJson())).toList();
+    if (_prefs != null) {
+      await _prefs.setStringList(_keyRecentProjects, rawList);
+    } else {
+      _inMemory[_keyRecentProjects] = rawList;
+    }
+  }
+
+  Future<void> deleteRecentProject(String id) async {
+    final list = getRecentProjects();
+    list.removeWhere((p) => p.id == id);
+    final rawList = list.map((p) => jsonEncode(p.toJson())).toList();
+    if (_prefs != null) {
+      await _prefs.setStringList(_keyRecentProjects, rawList);
+    } else {
+      _inMemory[_keyRecentProjects] = rawList;
+    }
+  }
+
+  Future<void> clearRecentProjects() async {
+    if (_prefs != null) {
+      await _prefs.remove(_keyRecentProjects);
+    } else {
+      _inMemory.remove(_keyRecentProjects);
     }
   }
 }

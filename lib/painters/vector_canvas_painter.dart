@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:nixsvg/calculations/canvas_geometry.dart';
 import 'package:nixsvg/models/vector_shape.dart';
 
 class VectorCanvasPainter extends CustomPainter {
@@ -9,8 +10,11 @@ class VectorCanvasPainter extends CustomPainter {
   final Offset? draftStartPoint;
   final Offset? draftCurrentPoint;
   final ShapeType? draftShapeType;
+  final bool? draftIsShiftPressed;
+  final bool? draftIsAltPressed;
   final Rect? marqueeRect;
   final EditorMode currentMode;
+  final bool isResizing;
   final Offset? snapGuidelineX;
   final Offset? snapGuidelineY;
   final ColorScheme colorScheme;
@@ -21,8 +25,11 @@ class VectorCanvasPainter extends CustomPainter {
     this.draftStartPoint,
     this.draftCurrentPoint,
     this.draftShapeType,
+    this.draftIsShiftPressed,
+    this.draftIsAltPressed,
     this.marqueeRect,
     required this.currentMode,
+    this.isResizing = false,
     this.snapGuidelineX,
     this.snapGuidelineY,
     required this.colorScheme,
@@ -66,16 +73,17 @@ class VectorCanvasPainter extends CustomPainter {
 
     // 3. Draw draft shape being created
     if (draftStartPoint != null && draftCurrentPoint != null && draftShapeType != null) {
-      final draftRect = draftShapeType == ShapeType.line
-          ? Rect.fromLTRB(
-              draftStartPoint!.dx,
-              draftStartPoint!.dy,
-              draftCurrentPoint!.dx,
-              draftCurrentPoint!.dy,
-            )
-          : Rect.fromPoints(draftStartPoint!, draftCurrentPoint!);
+      final isShift = draftIsShiftPressed ?? false;
+      final isAlt = draftIsAltPressed ?? false;
+      final draftRect = CanvasGeometry.calculateDrawRect(
+        start: draftStartPoint!,
+        current: draftCurrentPoint!,
+        shapeType: draftShapeType!,
+        isShiftPressed: isShift,
+        isAltPressed: isAlt,
+      );
       _drawDraftShape(canvas, draftRect, draftShapeType!);
-      _drawDimensionBadge(canvas, draftRect);
+      _drawDimensionBadge(canvas, draftRect, shapeType: draftShapeType);
     }
 
 
@@ -423,6 +431,16 @@ class VectorCanvasPainter extends CustomPainter {
       }
     }
 
+    // Show live width, height, and radius badge while resizing
+    if (isResizing) {
+      _drawDimensionBadge(
+        canvas,
+        rect,
+        shapeType: shape.type,
+        cornerRadius: shape.type == ShapeType.roundedRectangle ? shape.cornerRadius : null,
+      );
+    }
+
     canvas.restore();
   }
 
@@ -511,11 +529,35 @@ class VectorCanvasPainter extends CustomPainter {
     }
   }
 
-  void _drawDimensionBadge(Canvas canvas, Rect rect) {
+  void _drawDimensionBadge(
+    Canvas canvas,
+    Rect rect, {
+    ShapeType? shapeType,
+    double? cornerRadius,
+  }) {
     final width = rect.width.abs().round();
     final height = rect.height.abs().round();
+
+    // Check if shape is circle (ellipse with width == height) or ellipse
+    final isCircle = shapeType == ShapeType.ellipse && (width - height).abs() <= 1;
+    final isEllipse = shapeType == ShapeType.ellipse;
+
+    String badgeText;
+    if (isCircle) {
+      final radius = (width / 2).round();
+      badgeText = '$width × $height  (r: $radius)';
+    } else if (isEllipse) {
+      final rx = (width / 2).round();
+      final ry = (height / 2).round();
+      badgeText = '$width × $height  (rx: $rx, ry: $ry)';
+    } else if (shapeType == ShapeType.roundedRectangle && cornerRadius != null && cornerRadius > 0) {
+      badgeText = '$width × $height  (r: ${cornerRadius.round()})';
+    } else {
+      badgeText = '$width × $height';
+    }
+
     final textSpan = TextSpan(
-      text: '$width × $height',
+      text: badgeText,
       style: TextStyle(
         color: colorScheme.onSurface,
         fontSize: 11,
