@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:nixsvg/models/vector_shape.dart';
 import 'package:remixicon/remixicon.dart';
@@ -26,10 +27,7 @@ class MiniProjectPreview extends StatelessWidget {
 
     return ClipRect(
       child: CustomPaint(
-        painter: _MiniCanvasPainter(
-          shapes: shapes,
-          colorScheme: colorScheme,
-        ),
+        painter: _MiniCanvasPainter(shapes: shapes, colorScheme: colorScheme),
       ),
     );
   }
@@ -64,8 +62,12 @@ class _MiniCanvasPainter extends CustomPainter {
     final scaleY = size.height / paddedBounds.height;
     final scale = math.min(scaleX, scaleY).clamp(0.01, 1.0);
 
-    final dx = (size.width - paddedBounds.width * scale) / 2 - paddedBounds.left * scale;
-    final dy = (size.height - paddedBounds.height * scale) / 2 - paddedBounds.top * scale;
+    final dx =
+        (size.width - paddedBounds.width * scale) / 2 -
+        paddedBounds.left * scale;
+    final dy =
+        (size.height - paddedBounds.height * scale) / 2 -
+        paddedBounds.top * scale;
 
     canvas.save();
     canvas.translate(dx, dy);
@@ -118,7 +120,11 @@ class _MiniCanvasPainter extends CustomPainter {
           break;
 
         case ShapeType.line:
-          canvas.drawLine(shape.rect.topLeft, shape.rect.bottomRight, strokePaint);
+          canvas.drawLine(
+            shape.rect.topLeft,
+            shape.rect.bottomRight,
+            strokePaint,
+          );
           break;
 
         case ShapeType.text:
@@ -160,7 +166,10 @@ class _MiniCanvasPainter extends CustomPainter {
     for (int i = 0; i < 10; i++) {
       final angle = (i * 36 - 90) * math.pi / 180;
       final r = i.isEven ? rOuter : rInner;
-      final pt = Offset(center.dx + r * math.cos(angle), center.dy + r * math.sin(angle));
+      final pt = Offset(
+        center.dx + r * math.cos(angle),
+        center.dy + r * math.sin(angle),
+      );
       if (i == 0) {
         path.moveTo(pt.dx, pt.dy);
       } else {

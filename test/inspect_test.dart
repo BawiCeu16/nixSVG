@@ -23,7 +23,9 @@ void main() {
     expect(find.byType(FloatingToolBar), findsOneWidget);
   });
 
-  testWidgets('inspect layers sidebar with M3EReorderableSegmentedList', (tester) async {
+  testWidgets('inspect layers sidebar with M3EReorderableSegmentedList', (
+    tester,
+  ) async {
     final shapes = [
       VectorShape(
         id: '1',
@@ -65,7 +67,9 @@ void main() {
     expect(find.text('Circle 1'), findsOneWidget);
   });
 
-  testWidgets('inspect properties sidebar with 2 connected alignment rows', (tester) async {
+  testWidgets('inspect properties sidebar with 2 connected alignment rows', (
+    tester,
+  ) async {
     String aligned = '';
     final shape = VectorShape(
       id: 'shape-1',
@@ -104,4 +108,3 @@ void main() {
     expect(aligned, 'middle');
   });
 }
-

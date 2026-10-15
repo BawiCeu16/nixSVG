@@ -25,8 +25,9 @@ class ProjectsState {
   }) {
     return ProjectsState(
       recentProjects: recentProjects ?? this.recentProjects,
-      activeProject:
-          clearActiveProject ? null : (activeProject ?? this.activeProject),
+      activeProject: clearActiveProject
+          ? null
+          : (activeProject ?? this.activeProject),
       hasActiveSession: hasActiveSession ?? this.hasActiveSession,
     );
   }
@@ -43,9 +44,9 @@ class ProjectsNotifier extends Notifier<ProjectsState> {
     ProjectModel? active;
     if (hasActive && activeId != null) {
       active = recents.cast<ProjectModel?>().firstWhere(
-            (p) => p?.id == activeId,
-            orElse: () => null,
-          );
+        (p) => p?.id == activeId,
+        orElse: () => null,
+      );
     }
 
     return ProjectsState(
@@ -101,18 +102,15 @@ class ProjectsNotifier extends Notifier<ProjectsState> {
     await prefs.setActiveProjectId(null);
     await prefs.setHasActiveSession(false);
 
-    state = state.copyWith(
-      clearActiveProject: true,
-      hasActiveSession: false,
-    );
+    state = state.copyWith(clearActiveProject: true, hasActiveSession: false);
   }
 
   /// Duplicates a project in recent projects list.
   Future<void> duplicateProject(String id) async {
     final target = state.recentProjects.cast<ProjectModel?>().firstWhere(
-          (p) => p?.id == id,
-          orElse: () => null,
-        );
+      (p) => p?.id == id,
+      orElse: () => null,
+    );
     if (target == null) return;
 
     final copy = target.copyWith(
@@ -129,9 +127,9 @@ class ProjectsNotifier extends Notifier<ProjectsState> {
   /// Renames a recent project.
   Future<void> renameProject(String id, String newName) async {
     final target = state.recentProjects.cast<ProjectModel?>().firstWhere(
-          (p) => p?.id == id,
-          orElse: () => null,
-        );
+      (p) => p?.id == id,
+      orElse: () => null,
+    );
     if (target == null) return;
 
     final updated = target.copyWith(
@@ -176,5 +174,6 @@ class ProjectsNotifier extends Notifier<ProjectsState> {
   }
 }
 
-final projectsProvider =
-    NotifierProvider<ProjectsNotifier, ProjectsState>(ProjectsNotifier.new);
+final projectsProvider = NotifierProvider<ProjectsNotifier, ProjectsState>(
+  ProjectsNotifier.new,
+);

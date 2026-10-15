@@ -55,8 +55,8 @@ class _SidebarResizeHandleState extends State<SidebarResizeHandle> {
                     color: _isDragging
                         ? colorScheme.primary
                         : _isHovered
-                            ? colorScheme.primary.withValues(alpha: 0.7)
-                            : colorScheme.outlineVariant.withValues(alpha: 0.3),
+                        ? colorScheme.primary.withValues(alpha: 0.7)
+                        : colorScheme.outlineVariant.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(1),
                   ),
                 ),

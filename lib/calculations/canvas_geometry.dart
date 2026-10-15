@@ -252,8 +252,8 @@ class CanvasGeometry {
     if (selectedShapes.isEmpty) return const SnapGuidelinesResult();
 
     Rect targetBounds = selectedShapes.first.rect;
-    for (final s in selectedShapes.skip(1)) {
-      targetBounds = targetBounds.expandToInclude(s.rect);
+    for (int i = 1; i < selectedShapes.length; i++) {
+      targetBounds = targetBounds.expandToInclude(selectedShapes[i].rect);
     }
 
     Offset? guideX;
@@ -261,45 +261,83 @@ class CanvasGeometry {
     double snapDx = 0.0;
     double snapDy = 0.0;
 
-    final targetXPositions = [
-      targetBounds.left,
-      targetBounds.center.dx,
-      targetBounds.right,
-    ];
-    final targetYPositions = [
-      targetBounds.top,
-      targetBounds.center.dy,
-      targetBounds.bottom,
-    ];
+    final tLeft = targetBounds.left;
+    final tCenterX = targetBounds.center.dx;
+    final tRight = targetBounds.right;
+
+    final tTop = targetBounds.top;
+    final tCenterY = targetBounds.center.dy;
+    final tBottom = targetBounds.bottom;
 
     for (final s in shapes) {
       if (selectedShapeIds.contains(s.id) || !s.isVisible) continue;
-      final otherXPositions = [s.rect.left, s.rect.center.dx, s.rect.right];
-      final otherYPositions = [s.rect.top, s.rect.center.dy, s.rect.bottom];
+      final oLeft = s.rect.left;
+      final oCenterX = s.rect.center.dx;
+      final oRight = s.rect.right;
+
+      final oTop = s.rect.top;
+      final oCenterY = s.rect.center.dy;
+      final oBottom = s.rect.bottom;
 
       if (guideX == null) {
-        for (final tx in targetXPositions) {
-          for (final ox in otherXPositions) {
-            if ((tx - ox).abs() <= snapThreshold) {
-              guideX = Offset(ox, 0);
-              snapDx = ox - tx;
-              break;
-            }
-          }
-          if (guideX != null) break;
+        if ((tLeft - oLeft).abs() <= snapThreshold) {
+          guideX = Offset(oLeft, 0);
+          snapDx = oLeft - tLeft;
+        } else if ((tLeft - oCenterX).abs() <= snapThreshold) {
+          guideX = Offset(oCenterX, 0);
+          snapDx = oCenterX - tLeft;
+        } else if ((tLeft - oRight).abs() <= snapThreshold) {
+          guideX = Offset(oRight, 0);
+          snapDx = oRight - tLeft;
+        } else if ((tCenterX - oLeft).abs() <= snapThreshold) {
+          guideX = Offset(oLeft, 0);
+          snapDx = oLeft - tCenterX;
+        } else if ((tCenterX - oCenterX).abs() <= snapThreshold) {
+          guideX = Offset(oCenterX, 0);
+          snapDx = oCenterX - tCenterX;
+        } else if ((tCenterX - oRight).abs() <= snapThreshold) {
+          guideX = Offset(oRight, 0);
+          snapDx = oRight - tCenterX;
+        } else if ((tRight - oLeft).abs() <= snapThreshold) {
+          guideX = Offset(oLeft, 0);
+          snapDx = oLeft - tRight;
+        } else if ((tRight - oCenterX).abs() <= snapThreshold) {
+          guideX = Offset(oCenterX, 0);
+          snapDx = oCenterX - tRight;
+        } else if ((tRight - oRight).abs() <= snapThreshold) {
+          guideX = Offset(oRight, 0);
+          snapDx = oRight - tRight;
         }
       }
 
       if (guideY == null) {
-        for (final ty in targetYPositions) {
-          for (final oy in otherYPositions) {
-            if ((ty - oy).abs() <= snapThreshold) {
-              guideY = Offset(0, oy);
-              snapDy = oy - ty;
-              break;
-            }
-          }
-          if (guideY != null) break;
+        if ((tTop - oTop).abs() <= snapThreshold) {
+          guideY = Offset(0, oTop);
+          snapDy = oTop - tTop;
+        } else if ((tTop - oCenterY).abs() <= snapThreshold) {
+          guideY = Offset(0, oCenterY);
+          snapDy = oCenterY - tTop;
+        } else if ((tTop - oBottom).abs() <= snapThreshold) {
+          guideY = Offset(0, oBottom);
+          snapDy = oBottom - tTop;
+        } else if ((tCenterY - oTop).abs() <= snapThreshold) {
+          guideY = Offset(0, oTop);
+          snapDy = oTop - tCenterY;
+        } else if ((tCenterY - oCenterY).abs() <= snapThreshold) {
+          guideY = Offset(0, oCenterY);
+          snapDy = oCenterY - tCenterY;
+        } else if ((tCenterY - oBottom).abs() <= snapThreshold) {
+          guideY = Offset(0, oBottom);
+          snapDy = oBottom - tCenterY;
+        } else if ((tBottom - oTop).abs() <= snapThreshold) {
+          guideY = Offset(0, oTop);
+          snapDy = oTop - tBottom;
+        } else if ((tBottom - oCenterY).abs() <= snapThreshold) {
+          guideY = Offset(0, oCenterY);
+          snapDy = oCenterY - tBottom;
+        } else if ((tBottom - oBottom).abs() <= snapThreshold) {
+          guideY = Offset(0, oBottom);
+          snapDy = oBottom - tBottom;
         }
       }
 
@@ -314,54 +352,9 @@ class CanvasGeometry {
   }
 
   /// Returns the axis-aligned bounding box of a shape in canvas space,
-  /// accounting for stroke width and rotation.
+  /// accounting for stroke width and rotation with cached memoization.
   static Rect getShapeBoundingBox(VectorShape shape) {
-    final rawRect = Rect.fromLTRB(
-      math.min(shape.rect.left, shape.rect.right),
-      math.min(shape.rect.top, shape.rect.bottom),
-      math.max(shape.rect.left, shape.rect.right),
-      math.max(shape.rect.top, shape.rect.bottom),
-    );
-
-    // Padding for stroke width or zero-dimension lines
-    final strokePadding = shape.type == ShapeType.line
-        ? math.max(3.0, shape.strokeWidth / 2)
-        : (shape.isStroked ? shape.strokeWidth / 2 : 0.0);
-    final paddedRect = rawRect.inflate(strokePadding);
-
-    if (shape.rotation == 0.0) {
-      return paddedRect;
-    }
-
-    final center = shape.rect.center;
-    final rad = shape.rotation * math.pi / 180.0;
-    final cosVal = math.cos(rad);
-    final sinVal = math.sin(rad);
-
-    final corners = [
-      paddedRect.topLeft,
-      paddedRect.topRight,
-      paddedRect.bottomRight,
-      paddedRect.bottomLeft,
-    ];
-
-    double minX = double.infinity;
-    double minY = double.infinity;
-    double maxX = -double.infinity;
-    double maxY = -double.infinity;
-
-    for (final corner in corners) {
-      final dx = corner.dx - center.dx;
-      final dy = corner.dy - center.dy;
-      final rx = center.dx + dx * cosVal - dy * sinVal;
-      final ry = center.dy + dx * sinVal + dy * cosVal;
-      if (rx < minX) minX = rx;
-      if (rx > maxX) maxX = rx;
-      if (ry < minY) minY = ry;
-      if (ry > maxY) maxY = ry;
-    }
-
-    return Rect.fromLTRB(minX, minY, maxX, maxY);
+    return shape.getBoundingBox();
   }
 
   /// Calculates which shape IDs fall inside a marquee selection bounding rectangle.
@@ -520,12 +513,14 @@ class CanvasGeometry {
     required double dashLength,
     required double dashGap,
   }) {
+    final effectiveDash = math.max(0.5, dashLength);
+    final effectiveGap = math.max(0.5, dashGap);
     final dest = Path();
     for (final metric in source.computeMetrics()) {
       double distance = 0.0;
       bool draw = true;
       while (distance < metric.length) {
-        final length = draw ? dashLength : dashGap;
+        final length = draw ? effectiveDash : effectiveGap;
         if (distance + length > metric.length) {
           if (draw) {
             dest.addPath(
@@ -546,5 +541,28 @@ class CanvasGeometry {
       }
     }
     return dest;
+  }
+
+  /// Generates a geometric 5-point star [Path] fitted within [rect].
+  static Path createStarPath(Rect rect) {
+    final path = Path();
+    final center = rect.center;
+    final outerRadius = math.min(rect.width, rect.height) / 2;
+    final innerRadius = outerRadius * 0.4;
+    const double angleStep = math.pi / 5;
+
+    for (int i = 0; i < 10; i++) {
+      final r = i.isEven ? outerRadius : innerRadius;
+      final angle = i * angleStep - math.pi / 2;
+      final x = center.dx + r * math.cos(angle);
+      final y = center.dy + r * math.sin(angle);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    path.close();
+    return path;
   }
 }

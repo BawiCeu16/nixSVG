@@ -6,7 +6,9 @@ import 'package:nixsvg/controllers/theme_controller.dart';
 import 'package:nixsvg/main.dart';
 
 void main() {
-  testWidgets('NixSvgApp smoke test and button theme matching', (WidgetTester tester) async {
+  testWidgets('NixSvgApp smoke test and button theme matching', (
+    WidgetTester tester,
+  ) async {
     // Build NixSvgApp and trigger a frame.
     await tester.pumpWidget(const NixSvgApp());
 
@@ -40,7 +42,9 @@ void main() {
     expect(darkTheme.shadowColor, Colors.transparent);
   });
 
-  testWidgets('M3EButton resolves dark theme colors in dark mode', (WidgetTester tester) async {
+  testWidgets('M3EButton resolves dark theme colors in dark mode', (
+    WidgetTester tester,
+  ) async {
     themeController.setThemeMode(ThemeMode.dark);
     await tester.pumpWidget(const NixSvgApp());
     await tester.pumpAndSettle();
@@ -57,7 +61,9 @@ void main() {
     expect(rootMuiTheme.data.shadowColor, Colors.transparent);
   });
 
-  testWidgets('Select and move shapes on interactive canvas', (WidgetTester tester) async {
+  testWidgets('Select and move shapes on interactive canvas', (
+    WidgetTester tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(1280, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -67,7 +73,9 @@ void main() {
     // Verify FigmaWorkspace is present
     expect(find.byType(FigmaWorkspace), findsOneWidget);
 
-    final state = tester.state<FigmaWorkspaceState>(find.byType(FigmaWorkspace));
+    final state = tester.state<FigmaWorkspaceState>(
+      find.byType(FigmaWorkspace),
+    );
     expect(state.shapes.isNotEmpty, isTrue);
 
     final firstShape = state.shapes.first;
@@ -99,14 +107,18 @@ void main() {
     expect(state.shapes.first.rect.topLeft != initialTopLeft, isTrue);
   });
 
-  testWidgets('Marquee drag selection selects shapes', (WidgetTester tester) async {
+  testWidgets('Marquee drag selection selects shapes', (
+    WidgetTester tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(1280, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(const NixSvgApp());
     await tester.pumpAndSettle();
 
-    final state = tester.state<FigmaWorkspaceState>(find.byType(FigmaWorkspace));
+    final state = tester.state<FigmaWorkspaceState>(
+      find.byType(FigmaWorkspace),
+    );
 
     final containerFinder = find.byWidgetPredicate(
       (w) => w is Container && w.constraints?.maxWidth == 3200,
@@ -128,4 +140,3 @@ void main() {
     expect(state.selectedShapeIds.length, greaterThanOrEqualTo(2));
   });
 }
-

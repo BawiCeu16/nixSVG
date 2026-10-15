@@ -126,20 +126,26 @@ class ProjectModel {
 
   factory ProjectModel.fromJson(Map<String, dynamic> json) {
     return ProjectModel(
-      id: json['id'] as String? ??
+      id:
+          json['id'] as String? ??
           'proj-${DateTime.now().millisecondsSinceEpoch}',
       name: json['name'] as String? ?? 'Untitled Design',
-      lastModified: DateTime.tryParse(json['lastModified'] as String? ?? '') ??
+      lastModified:
+          DateTime.tryParse(json['lastModified'] as String? ?? '') ??
           DateTime.now(),
-      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+      createdAt:
+          DateTime.tryParse(json['createdAt'] as String? ?? '') ??
           DateTime.now(),
       canvasSize: Size(
         (json['canvasWidth'] as num?)?.toDouble() ?? 1920.0,
         (json['canvasHeight'] as num?)?.toDouble() ?? 1080.0,
       ),
-      shapes: (json['shapes'] as List<dynamic>?)
-              ?.map((e) =>
-                  VectorShape.fromJson(Map<String, dynamic>.from(e as Map)))
+      shapes:
+          (json['shapes'] as List<dynamic>?)
+              ?.map(
+                (e) =>
+                    VectorShape.fromJson(Map<String, dynamic>.from(e as Map)),
+              )
               .toList() ??
           [],
     );

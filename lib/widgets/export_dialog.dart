@@ -22,7 +22,9 @@ class ExportDialog extends StatelessWidget {
       backgroundColor: colorScheme.surfaceContainerHigh,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(28),
-        side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.4)),
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+        ),
       ),
       title: Row(
         children: [
@@ -45,7 +47,9 @@ class ExportDialog extends StatelessWidget {
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainerLowest,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+            ),
           ),
           child: SingleChildScrollView(
             child: SelectableText(
@@ -78,11 +82,15 @@ class ExportDialog extends StatelessWidget {
               SnackBar(
                 content: Text(
                   'SVG markup copied to clipboard!',
-                  style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onPrimary),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onPrimary,
+                  ),
                 ),
                 backgroundColor: colorScheme.primary,
                 behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 duration: const Duration(seconds: 2),
               ),
             );
@@ -90,7 +98,11 @@ class ExportDialog extends StatelessWidget {
           },
           style: M3EButtonStyle.filled,
           size: M3EButtonSize.sm,
-          icon: Icon(RemixIcons.file_copy_line, size: 18, color: colorScheme.onPrimary),
+          icon: Icon(
+            RemixIcons.file_copy_line,
+            size: 18,
+            color: colorScheme.onPrimary,
+          ),
           label: Text(
             'Copy SVG Code',
             style: theme.textTheme.labelLarge?.copyWith(
@@ -103,4 +115,3 @@ class ExportDialog extends StatelessWidget {
     );
   }
 }
-

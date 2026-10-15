@@ -12,8 +12,14 @@ class NixSvgMuiTheme {
   }) {
     final isDark = brightness == Brightness.dark;
     final m3eScheme = isDark
-        ? M3EColorScheme.dark(seedColor: seedColor, variant: M3EColorVariant.vibrant)
-        : M3EColorScheme.light(seedColor: seedColor, variant: M3EColorVariant.vibrant);
+        ? M3EColorScheme.dark(
+            seedColor: seedColor,
+            variant: M3EColorVariant.vibrant,
+          )
+        : M3EColorScheme.light(
+            seedColor: seedColor,
+            variant: M3EColorVariant.vibrant,
+          );
 
     return mui.ThemeData(
       useMaterial3: true,

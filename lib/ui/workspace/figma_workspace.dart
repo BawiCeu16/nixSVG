@@ -387,12 +387,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     if (_isPanningWithMouse && _lastPanPosition != null) {
       final delta = event.position - _lastPanPosition!;
       _lastPanPosition = event.position;
-      setState(() {
-        _transformationController.value = CanvasTransformHelper.panMatrix(
-          _transformationController.value,
-          delta,
-        );
-      });
+      _transformationController.value = CanvasTransformHelper.panMatrix(
+        _transformationController.value,
+        delta,
+      );
       return;
     }
 
@@ -1207,57 +1205,61 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         body: Column(
           children: [
             // Dynamic Top Navigation Bar adhering to cross-platform tokens
-            TopNavigationBar(
-              fileName: fileName,
-              onFileNameChanged: (val) {
-                setState(() => fileName = val);
-                ref.read(workspaceSettingsProvider.notifier).setFileName(val);
-                _persistCurrentProject();
-              },
-              onGoToHome: _handleGoToHome,
-              onUndo: _undo,
-              onRedo: _redo,
-              canUndo: _undoRedoManager.canUndo,
-              canRedo: _undoRedoManager.canRedo,
-              snapToGrid: snapToGrid,
-              onSnapToGridChanged: (val) {
-                setState(() => snapToGrid = val);
-                ref.read(workspaceSettingsProvider.notifier).setSnapToGrid(val);
-              },
-              onExportSvg: _openExportDialog,
-              onImportImage: _importImageFromDevice,
-              onClearCanvas: () {
-                setState(() {
-                  shapes.clear();
-                  selectedShapeIds.clear();
-                });
-                _saveHistorySnapshot();
-              },
-              onShowShortcuts: _openShortcutsDialog,
-              zoomScale: zoomScale,
-              onZoomIn: _zoomIn,
-              onZoomOut: _zoomOut,
-              onResetZoom: () {
-                setState(() {
-                  _transformationController.value = Matrix4.identity();
-                });
-              },
-              onZoomToFit: _zoomToFit,
-              onZoomToSelection: _zoomToSelection,
-              showLayers: isLayersPanelOpen ?? (!isCompact),
-              onToggleLayers: (val) {
-                setState(() => isLayersPanelOpen = val);
-                ref
-                    .read(workspaceSettingsProvider.notifier)
-                    .toggleLayersPanel(val);
-              },
-              showProperties: isPropertiesPanelOpen ?? (!isCompact),
-              onToggleProperties: (val) {
-                setState(() => isPropertiesPanelOpen = val);
-                ref
-                    .read(workspaceSettingsProvider.notifier)
-                    .togglePropertiesPanel(val);
-              },
+            RepaintBoundary(
+              child: TopNavigationBar(
+                fileName: fileName,
+                onFileNameChanged: (val) {
+                  setState(() => fileName = val);
+                  ref.read(workspaceSettingsProvider.notifier).setFileName(val);
+                  _persistCurrentProject();
+                },
+                onGoToHome: _handleGoToHome,
+                onUndo: _undo,
+                onRedo: _redo,
+                canUndo: _undoRedoManager.canUndo,
+                canRedo: _undoRedoManager.canRedo,
+                snapToGrid: snapToGrid,
+                onSnapToGridChanged: (val) {
+                  setState(() => snapToGrid = val);
+                  ref
+                      .read(workspaceSettingsProvider.notifier)
+                      .setSnapToGrid(val);
+                },
+                onExportSvg: _openExportDialog,
+                onImportImage: _importImageFromDevice,
+                onClearCanvas: () {
+                  setState(() {
+                    shapes.clear();
+                    selectedShapeIds.clear();
+                  });
+                  _saveHistorySnapshot();
+                },
+                onShowShortcuts: _openShortcutsDialog,
+                zoomScale: zoomScale,
+                onZoomIn: _zoomIn,
+                onZoomOut: _zoomOut,
+                onResetZoom: () {
+                  setState(() {
+                    _transformationController.value = Matrix4.identity();
+                  });
+                },
+                onZoomToFit: _zoomToFit,
+                onZoomToSelection: _zoomToSelection,
+                showLayers: isLayersPanelOpen ?? (!isCompact),
+                onToggleLayers: (val) {
+                  setState(() => isLayersPanelOpen = val);
+                  ref
+                      .read(workspaceSettingsProvider.notifier)
+                      .toggleLayersPanel(val);
+                },
+                showProperties: isPropertiesPanelOpen ?? (!isCompact),
+                onToggleProperties: (val) {
+                  setState(() => isPropertiesPanelOpen = val);
+                  ref
+                      .read(workspaceSettingsProvider.notifier)
+                      .togglePropertiesPanel(val);
+                },
+              ),
             ),
 
             // Main Editor Workbench Area
@@ -1282,56 +1284,58 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                     children: [
                       // Left Layers Sidebar (Docked when wide & enabled)
                       if (!isCompact && showLayers) ...[
-                        LayersSidebar(
-                          width: effectiveLayersWidth,
-                          shapes: shapes,
-                          selectedShapeIds: selectedShapeIds,
-                          onSelectShape: (id) {
-                            setState(() {
-                              selectedShapeIds.clear();
-                              selectedShapeIds.add(id);
-                            });
-                          },
-                          onToggleVisibility: (id) {
-                            setState(() {
-                              final s = shapes.firstWhere((s) => s.id == id);
-                              s.isVisible = !s.isVisible;
-                            });
-                            _saveHistorySnapshot();
-                          },
-                          onToggleLock: (id) {
-                            setState(() {
-                              final s = shapes.firstWhere((s) => s.id == id);
-                              s.isLocked = !s.isLocked;
-                            });
-                            _saveHistorySnapshot();
-                          },
-                          onDeleteShape: (id) {
-                            setState(() {
-                              shapes.removeWhere((s) => s.id == id);
-                              selectedShapeIds.remove(id);
-                            });
-                            _saveHistorySnapshot();
-                          },
-                          onBringForward: _bringForward,
-                          onSendBackward: _sendBackward,
-                          onRenameShape: (id, newName) {
-                            setState(() {
-                              shapes.firstWhere((s) => s.id == id).name =
-                                  newName;
-                            });
-                            _saveHistorySnapshot();
-                          },
-                          onReorder: (oldIndex, newIndex) {
-                            setState(() {
-                              if (newIndex > oldIndex) newIndex--;
-                              final displayList = shapes.reversed.toList();
-                              final shape = displayList.removeAt(oldIndex);
-                              displayList.insert(newIndex, shape);
-                              shapes = displayList.reversed.toList();
-                            });
-                            _saveHistorySnapshot();
-                          },
+                        RepaintBoundary(
+                          child: LayersSidebar(
+                            width: effectiveLayersWidth,
+                            shapes: shapes,
+                            selectedShapeIds: selectedShapeIds,
+                            onSelectShape: (id) {
+                              setState(() {
+                                selectedShapeIds.clear();
+                                selectedShapeIds.add(id);
+                              });
+                            },
+                            onToggleVisibility: (id) {
+                              setState(() {
+                                final s = shapes.firstWhere((s) => s.id == id);
+                                s.isVisible = !s.isVisible;
+                              });
+                              _saveHistorySnapshot();
+                            },
+                            onToggleLock: (id) {
+                              setState(() {
+                                final s = shapes.firstWhere((s) => s.id == id);
+                                s.isLocked = !s.isLocked;
+                              });
+                              _saveHistorySnapshot();
+                            },
+                            onDeleteShape: (id) {
+                              setState(() {
+                                shapes.removeWhere((s) => s.id == id);
+                                selectedShapeIds.remove(id);
+                              });
+                              _saveHistorySnapshot();
+                            },
+                            onBringForward: _bringForward,
+                            onSendBackward: _sendBackward,
+                            onRenameShape: (id, newName) {
+                              setState(() {
+                                shapes.firstWhere((s) => s.id == id).name =
+                                    newName;
+                              });
+                              _saveHistorySnapshot();
+                            },
+                            onReorder: (oldIndex, newIndex) {
+                              setState(() {
+                                if (newIndex > oldIndex) newIndex--;
+                                final displayList = shapes.reversed.toList();
+                                final shape = displayList.removeAt(oldIndex);
+                                displayList.insert(newIndex, shape);
+                                shapes = displayList.reversed.toList();
+                              });
+                              _saveHistorySnapshot();
+                            },
+                          ),
                         ),
                         SidebarResizeHandle(
                           onDragUpdate: (deltaDx) {
@@ -1369,8 +1373,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                               selectedShapeIds: selectedShapeIds,
                               currentMode: currentMode,
                               draftShapeType: draftShapeType,
-                              draftIsShiftPressed: HardwareKeyboard
-                                      .instance.logicalKeysPressed
+                              draftIsShiftPressed:
+                                  HardwareKeyboard.instance.logicalKeysPressed
                                       .contains(LogicalKeyboardKey.shiftLeft) ||
                                   HardwareKeyboard.instance.logicalKeysPressed
                                       .contains(LogicalKeyboardKey.shiftRight),
@@ -1384,7 +1388,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                               gridSpacing: gridSpacing,
                               isPanningWithMouse: _isPanningWithMouse,
                               isSpacePressed: isSpacePressed,
-                              isResizing: activeResizeHandle != ResizeHandle.none,
+                              isResizing:
+                                  activeResizeHandle != ResizeHandle.none,
                               onPointerDown: _onPointerDown,
                               onPointerMove: _onPointerMove,
                               onPointerUp: _onPointerUp,
@@ -1409,68 +1414,71 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                 child: Material(
                                   elevation: 8,
                                   color: colorScheme.surfaceContainer,
-                                  child: LayersSidebar(
-                                    width:
-                                        ResponsiveLayoutTokens.getCompactDrawerWidth(
-                                          constraints.maxWidth,
-                                        ),
-                                    shapes: shapes,
-                                    selectedShapeIds: selectedShapeIds,
-                                    onSelectShape: (id) {
-                                      setState(() {
-                                        selectedShapeIds.clear();
-                                        selectedShapeIds.add(id);
-                                      });
-                                    },
-                                    onToggleVisibility: (id) {
-                                      setState(() {
-                                        final s = shapes.firstWhere(
-                                          (s) => s.id == id,
-                                        );
-                                        s.isVisible = !s.isVisible;
-                                      });
-                                      _saveHistorySnapshot();
-                                    },
-                                    onToggleLock: (id) {
-                                      setState(() {
-                                        final s = shapes.firstWhere(
-                                          (s) => s.id == id,
-                                        );
-                                        s.isLocked = !s.isLocked;
-                                      });
-                                      _saveHistorySnapshot();
-                                    },
-                                    onDeleteShape: (id) {
-                                      setState(() {
-                                        shapes.removeWhere((s) => s.id == id);
-                                        selectedShapeIds.remove(id);
-                                      });
-                                      _saveHistorySnapshot();
-                                    },
-                                    onBringForward: _bringForward,
-                                    onSendBackward: _sendBackward,
-                                    onRenameShape: (id, newName) {
-                                      setState(() {
-                                        shapes
-                                                .firstWhere((s) => s.id == id)
-                                                .name =
-                                            newName;
-                                      });
-                                      _saveHistorySnapshot();
-                                    },
-                                    onReorder: (oldIndex, newIndex) {
-                                      setState(() {
-                                        if (newIndex > oldIndex) newIndex--;
-                                        final displayList = shapes.reversed
-                                            .toList();
-                                        final shape = displayList.removeAt(
-                                          oldIndex,
-                                        );
-                                        displayList.insert(newIndex, shape);
-                                        shapes = displayList.reversed.toList();
-                                      });
-                                      _saveHistorySnapshot();
-                                    },
+                                  child: RepaintBoundary(
+                                    child: LayersSidebar(
+                                      width:
+                                          ResponsiveLayoutTokens.getCompactDrawerWidth(
+                                            constraints.maxWidth,
+                                          ),
+                                      shapes: shapes,
+                                      selectedShapeIds: selectedShapeIds,
+                                      onSelectShape: (id) {
+                                        setState(() {
+                                          selectedShapeIds.clear();
+                                          selectedShapeIds.add(id);
+                                        });
+                                      },
+                                      onToggleVisibility: (id) {
+                                        setState(() {
+                                          final s = shapes.firstWhere(
+                                            (s) => s.id == id,
+                                          );
+                                          s.isVisible = !s.isVisible;
+                                        });
+                                        _saveHistorySnapshot();
+                                      },
+                                      onToggleLock: (id) {
+                                        setState(() {
+                                          final s = shapes.firstWhere(
+                                            (s) => s.id == id,
+                                          );
+                                          s.isLocked = !s.isLocked;
+                                        });
+                                        _saveHistorySnapshot();
+                                      },
+                                      onDeleteShape: (id) {
+                                        setState(() {
+                                          shapes.removeWhere((s) => s.id == id);
+                                          selectedShapeIds.remove(id);
+                                        });
+                                        _saveHistorySnapshot();
+                                      },
+                                      onBringForward: _bringForward,
+                                      onSendBackward: _sendBackward,
+                                      onRenameShape: (id, newName) {
+                                        setState(() {
+                                          shapes
+                                                  .firstWhere((s) => s.id == id)
+                                                  .name =
+                                              newName;
+                                        });
+                                        _saveHistorySnapshot();
+                                      },
+                                      onReorder: (oldIndex, newIndex) {
+                                        setState(() {
+                                          if (newIndex > oldIndex) newIndex--;
+                                          final displayList = shapes.reversed
+                                              .toList();
+                                          final shape = displayList.removeAt(
+                                            oldIndex,
+                                          );
+                                          displayList.insert(newIndex, shape);
+                                          shapes = displayList.reversed
+                                              .toList();
+                                        });
+                                        _saveHistorySnapshot();
+                                      },
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1490,22 +1498,24 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                 child: Material(
                                   elevation: 8,
                                   color: colorScheme.surfaceContainer,
-                                  child: PropertiesSidebar(
-                                    width:
-                                        ResponsiveLayoutTokens.getCompactDrawerWidth(
-                                          constraints.maxWidth,
-                                        ),
-                                    selectedShape: selectedShape,
-                                    onShapeChanged: _onPropertiesShapeChanged,
-                                    onShapeChangeEnd:
-                                        _onPropertiesShapeChangeEnd,
-                                    onOpenColorPickerFill: () =>
-                                        _openColorPicker(true),
-                                    onOpenColorPickerStroke: () =>
-                                        _openColorPicker(false),
-                                    onDuplicateShape: _duplicateSelected,
-                                    onDeleteSelected: _deleteSelected,
-                                    onAlignShape: _alignShapes,
+                                  child: RepaintBoundary(
+                                    child: PropertiesSidebar(
+                                      width:
+                                          ResponsiveLayoutTokens.getCompactDrawerWidth(
+                                            constraints.maxWidth,
+                                          ),
+                                      selectedShape: selectedShape,
+                                      onShapeChanged: _onPropertiesShapeChanged,
+                                      onShapeChangeEnd:
+                                          _onPropertiesShapeChangeEnd,
+                                      onOpenColorPickerFill: () =>
+                                          _openColorPicker(true),
+                                      onOpenColorPickerStroke: () =>
+                                          _openColorPicker(false),
+                                      onDuplicateShape: _duplicateSelected,
+                                      onDeleteSelected: _deleteSelected,
+                                      onAlignShape: _alignShapes,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1519,12 +1529,20 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                               left: 0,
                               right: 0,
                               child: Center(
-                                child: FloatingToolBar(
-                                  currentMode: currentMode,
-                                  onModeChanged: (mode) {
-                                    setState(() => currentMode = mode);
-                                  },
-                                  onExportSvg: _openExportDialog,
+                                child: RepaintBoundary(
+                                  child: Transform.scale(
+                                    scale:
+                                        ResponsiveLayoutTokens.getFloatingToolbarScale(
+                                          context,
+                                        ),
+                                    child: FloatingToolBar(
+                                      currentMode: currentMode,
+                                      onModeChanged: (mode) {
+                                        setState(() => currentMode = mode);
+                                      },
+                                      onExportSvg: _openExportDialog,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -1554,17 +1572,19 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                 .setPropertiesSidebarWidth(280.0);
                           },
                         ),
-                        PropertiesSidebar(
-                          width: effectivePropertiesWidth,
-                          selectedShape: selectedShape,
-                          onShapeChanged: _onPropertiesShapeChanged,
-                          onShapeChangeEnd: _onPropertiesShapeChangeEnd,
-                          onOpenColorPickerFill: () => _openColorPicker(true),
-                          onOpenColorPickerStroke: () =>
-                              _openColorPicker(false),
-                          onDuplicateShape: _duplicateSelected,
-                          onDeleteSelected: _deleteSelected,
-                          onAlignShape: _alignShapes,
+                        RepaintBoundary(
+                          child: PropertiesSidebar(
+                            width: effectivePropertiesWidth,
+                            selectedShape: selectedShape,
+                            onShapeChanged: _onPropertiesShapeChanged,
+                            onShapeChangeEnd: _onPropertiesShapeChangeEnd,
+                            onOpenColorPickerFill: () => _openColorPicker(true),
+                            onOpenColorPickerStroke: () =>
+                                _openColorPicker(false),
+                            onDuplicateShape: _duplicateSelected,
+                            onDeleteSelected: _deleteSelected,
+                            onAlignShape: _alignShapes,
+                          ),
                         ),
                       ],
                     ],

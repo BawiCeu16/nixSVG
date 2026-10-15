@@ -82,7 +82,9 @@ class TopNavigationBar extends ConsumerWidget {
             width: double.infinity,
             height: barHeight,
             decoration: BoxDecoration(
-              color: colorScheme.surface.withValues(alpha: isDark ? 0.78 : 0.88),
+              color: colorScheme.surface.withValues(
+                alpha: isDark ? 0.78 : 0.88,
+              ),
               border: Border(
                 bottom: BorderSide(
                   color: colorScheme.outlineVariant.withValues(
@@ -99,7 +101,9 @@ class TopNavigationBar extends ConsumerWidget {
                   physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minWidth: constraints.maxWidth - 28),
+                    constraints: BoxConstraints(
+                      minWidth: constraints.maxWidth - 28,
+                    ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -132,13 +136,14 @@ class TopNavigationBar extends ConsumerWidget {
                                           gradient: LinearGradient(
                                             colors: [
                                               colorScheme.primary,
-                                              colorScheme.tertiary
+                                              colorScheme.tertiary,
                                             ],
                                             begin: Alignment.topLeft,
                                             end: Alignment.bottomRight,
                                           ),
-                                          borderRadius:
-                                              BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                           boxShadow: [
                                             BoxShadow(
                                               color: colorScheme.primary
@@ -253,10 +258,11 @@ class TopNavigationBar extends ConsumerWidget {
                                         children: [
                                           Text(
                                             '${(zoomScale * 100).round()}%',
-                                            style: textTheme.labelMedium?.copyWith(
-                                              color: colorScheme.onSurface,
-                                              fontWeight: FontWeight.w700,
-                                            ),
+                                            style: textTheme.labelMedium
+                                                ?.copyWith(
+                                                  color: colorScheme.onSurface,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
                                           ),
                                           const SizedBox(width: 2),
                                           Icon(
@@ -299,7 +305,9 @@ class TopNavigationBar extends ConsumerWidget {
                                       if (onZoomToSelection != null)
                                         const PopupMenuItem(
                                           value: 'selection',
-                                          child: Text('Zoom to Selection (Shift+2)'),
+                                          child: Text(
+                                            'Zoom to Selection (Shift+2)',
+                                          ),
                                         ),
                                       const PopupMenuDivider(),
                                       const PopupMenuItem(
@@ -330,7 +338,8 @@ class TopNavigationBar extends ConsumerWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             // --- Sidebar Panel Toggles Segmented Pill ---
-                            if (onToggleLayers != null || onToggleProperties != null) ...[
+                            if (onToggleLayers != null ||
+                                onToggleProperties != null) ...[
                               _MacPillContainer(
                                 children: [
                                   if (onToggleLayers != null)
@@ -343,7 +352,8 @@ class TopNavigationBar extends ConsumerWidget {
                                           : 'Show Layers Panel',
                                       onTap: () => onToggleLayers!(!showLayers),
                                     ),
-                                  if (onToggleLayers != null && onToggleProperties != null)
+                                  if (onToggleLayers != null &&
+                                      onToggleProperties != null)
                                     _buildInnerDivider(colorScheme),
                                   if (onToggleProperties != null)
                                     _MacPanelToggleButton(
@@ -353,7 +363,8 @@ class TopNavigationBar extends ConsumerWidget {
                                       tooltip: showProperties
                                           ? 'Hide Properties Panel'
                                           : 'Show Properties Panel',
-                                      onTap: () => onToggleProperties!(!showProperties),
+                                      onTap: () =>
+                                          onToggleProperties!(!showProperties),
                                     ),
                                 ],
                               ),
@@ -376,10 +387,14 @@ class TopNavigationBar extends ConsumerWidget {
                                     size: 17,
                                   ),
                                   onSelected: (color) {
-                                    ref.read(themeProvider.notifier).setSeedColor(color);
+                                    ref
+                                        .read(themeProvider.notifier)
+                                        .setSeedColor(color);
                                   },
                                   itemBuilder: (context) {
-                                    return ThemeController.themePresets.map((color) {
+                                    return ThemeController.themePresets.map((
+                                      color,
+                                    ) {
                                       final isSelected =
                                           themeState.seedColor.toARGB32() ==
                                           color.toARGB32();
@@ -404,12 +419,14 @@ class TopNavigationBar extends ConsumerWidget {
                                             const SizedBox(width: 10),
                                             Text(
                                               _getColorName(color),
-                                              style: textTheme.bodyMedium?.copyWith(
-                                                color: colorScheme.onSurface,
-                                                fontWeight: isSelected
-                                                    ? FontWeight.bold
-                                                    : FontWeight.normal,
-                                              ),
+                                              style: textTheme.bodyMedium
+                                                  ?.copyWith(
+                                                    color:
+                                                        colorScheme.onSurface,
+                                                    fontWeight: isSelected
+                                                        ? FontWeight.bold
+                                                        : FontWeight.normal,
+                                                  ),
                                             ),
                                           ],
                                         ),
@@ -430,7 +447,9 @@ class TopNavigationBar extends ConsumerWidget {
                                       : 'Dark Theme',
                                   enabled: true,
                                   onTap: () {
-                                    ref.read(themeProvider.notifier).toggleThemeMode();
+                                    ref
+                                        .read(themeProvider.notifier)
+                                        .toggleThemeMode();
                                   },
                                 ),
 

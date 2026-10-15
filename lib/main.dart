@@ -45,18 +45,11 @@ class NixSvgApp extends StatelessWidget {
   final Widget? home;
   final bool? startInWorkspace;
 
-  const NixSvgApp({
-    super.key,
-    this.home,
-    this.startInWorkspace,
-  });
+  const NixSvgApp({super.key, this.home, this.startInWorkspace});
 
   @override
   Widget build(BuildContext context) {
-    Widget app = _NixSvgAppView(
-      home: home,
-      startInWorkspace: startInWorkspace,
-    );
+    Widget app = _NixSvgAppView(home: home, startInWorkspace: startInWorkspace);
     try {
       ProviderScope.containerOf(context, listen: false);
     } catch (_) {
@@ -70,10 +63,7 @@ class _NixSvgAppView extends ConsumerWidget {
   final Widget? home;
   final bool? startInWorkspace;
 
-  const _NixSvgAppView({
-    this.home,
-    this.startInWorkspace,
-  });
+  const _NixSvgAppView({this.home, this.startInWorkspace});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -122,9 +112,7 @@ class _NixSvgAppView extends ConsumerWidget {
           ),
         );
       },
-      home: SafeArea(
-        child: _buildResolvedHome(ref),
-      ),
+      home: SafeArea(child: _buildResolvedHome(ref)),
     );
   }
 

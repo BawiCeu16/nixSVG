@@ -1,4 +1,5 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nixsvg/models/vector_shape.dart';
@@ -28,36 +29,39 @@ void main() {
       expect(textShape.isBold, isFalse);
     });
 
-    test('copyWith updates text properties and keeps font weight / isBold in sync', () {
-      final textShape = VectorShape(
-        id: 'txt-1',
-        name: 'Header',
-        type: ShapeType.text,
-        rect: const Rect.fromLTWH(100, 100, 300, 60),
-        textContent: 'Hello World',
-      );
+    test(
+      'copyWith updates text properties and keeps font weight / isBold in sync',
+      () {
+        final textShape = VectorShape(
+          id: 'txt-1',
+          name: 'Header',
+          type: ShapeType.text,
+          rect: const Rect.fromLTWH(100, 100, 300, 60),
+          textContent: 'Hello World',
+        );
 
-      final updated = textShape.copyWith(
-        textAlign: TextAlign.center,
-        textVerticalAlign: TextVerticalAlign.center,
-        textCase: TextCase.uppercase,
-        isUnderline: true,
-        isStrikethrough: true,
-        letterSpacing: 3.5,
-        lineHeight: 1.6,
-        fontWeight: FontWeight.w800,
-      );
+        final updated = textShape.copyWith(
+          textAlign: TextAlign.center,
+          textVerticalAlign: TextVerticalAlign.center,
+          textCase: TextCase.uppercase,
+          isUnderline: true,
+          isStrikethrough: true,
+          letterSpacing: 3.5,
+          lineHeight: 1.6,
+          fontWeight: FontWeight.w800,
+        );
 
-      expect(updated.textAlign, TextAlign.center);
-      expect(updated.textVerticalAlign, TextVerticalAlign.center);
-      expect(updated.textCase, TextCase.uppercase);
-      expect(updated.isUnderline, isTrue);
-      expect(updated.isStrikethrough, isTrue);
-      expect(updated.letterSpacing, 3.5);
-      expect(updated.lineHeight, 1.6);
-      expect(updated.fontWeight, FontWeight.w800);
-      expect(updated.isBold, isTrue);
-    });
+        expect(updated.textAlign, TextAlign.center);
+        expect(updated.textVerticalAlign, TextVerticalAlign.center);
+        expect(updated.textCase, TextCase.uppercase);
+        expect(updated.isUnderline, isTrue);
+        expect(updated.isStrikethrough, isTrue);
+        expect(updated.letterSpacing, 3.5);
+        expect(updated.lineHeight, 1.6);
+        expect(updated.fontWeight, FontWeight.w800);
+        expect(updated.isBold, isTrue);
+      },
+    );
 
     test('toSvgElement generates valid SVG with text-anchor, baseline, case, and spacing', () {
       final textShape = VectorShape(
@@ -107,7 +111,9 @@ void main() {
   });
 
   group('PropertiesSidebar Text Inspector UI', () {
-    testWidgets('Renders all typography controls and updates text alignment', (tester) async {
+    testWidgets('Renders all typography controls and updates text alignment', (
+      tester,
+    ) async {
       VectorShape currentShape = VectorShape(
         id: 'txt-1',
         name: 'Sample Text',
@@ -234,17 +240,26 @@ void main() {
       expect(painterCenter.width, rectWidth);
       expect(painterRight.width, rectWidth);
 
-      final leftBox = painterLeft.getBoxesForSelection(
-        const TextSelection(baseOffset: 0, extentOffset: sampleText.length),
-      ).first.toRect();
+      final leftBox = painterLeft
+          .getBoxesForSelection(
+            const TextSelection(baseOffset: 0, extentOffset: sampleText.length),
+          )
+          .first
+          .toRect();
 
-      final centerBox = painterCenter.getBoxesForSelection(
-        const TextSelection(baseOffset: 0, extentOffset: sampleText.length),
-      ).first.toRect();
+      final centerBox = painterCenter
+          .getBoxesForSelection(
+            const TextSelection(baseOffset: 0, extentOffset: sampleText.length),
+          )
+          .first
+          .toRect();
 
-      final rightBox = painterRight.getBoxesForSelection(
-        const TextSelection(baseOffset: 0, extentOffset: sampleText.length),
-      ).first.toRect();
+      final rightBox = painterRight
+          .getBoxesForSelection(
+            const TextSelection(baseOffset: 0, extentOffset: sampleText.length),
+          )
+          .first
+          .toRect();
 
       // Left starts at 0
       expect(leftBox.left, closeTo(0.0, 1.0));
@@ -295,7 +310,10 @@ void main() {
         colorScheme: const ColorScheme.dark(),
       );
 
-      expect(() => painter.paint(canvas, const Size(1000, 1000)), returnsNormally);
+      expect(
+        () => painter.paint(canvas, const Size(1000, 1000)),
+        returnsNormally,
+      );
       final picture = recorder.endRecording();
       picture.dispose();
     });

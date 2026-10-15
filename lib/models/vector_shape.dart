@@ -2,17 +2,12 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-import 'package:flutter/material.dart';
 
-enum ShapeType {
-  rectangle,
-  roundedRectangle,
-  ellipse,
-  line,
-  star,
-  text,
-  image,
-}
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:nixsvg/calculations/canvas_geometry.dart';
+
+enum ShapeType { rectangle, roundedRectangle, ellipse, line, star, text, image }
 
 enum EditorMode {
   select,
@@ -39,58 +34,25 @@ enum ResizeHandle {
   none,
 }
 
-enum LineCapStyle {
-  none,
-  round,
-  square,
-  arrow,
-  circle,
-}
+enum LineCapStyle { none, round, square, arrow, circle }
 
-enum TextVerticalAlign {
-  top,
-  center,
-  bottom,
-}
+enum TextVerticalAlign { top, center, bottom }
 
-enum TextCase {
-  original,
-  uppercase,
-  lowercase,
-  titleCase,
-}
+enum TextCase { original, uppercase, lowercase, titleCase }
 
-enum PaintFillType {
-  solid,
-  linearGradient,
-  radialGradient,
-}
+enum PaintFillType { solid, linearGradient, radialGradient }
 
-enum StrokeStyle {
-  solid,
-  dashed,
-  dotted,
-}
+enum StrokeStyle { solid, dashed, dotted }
 
-enum StrokeAlign {
-  inside,
-  center,
-  outside,
-}
+enum StrokeAlign { inside, center, outside }
 
 class GradientColorStop {
   final double offset;
   final Color color;
 
-  const GradientColorStop({
-    required this.offset,
-    required this.color,
-  });
+  const GradientColorStop({required this.offset, required this.color});
 
-  GradientColorStop copyWith({
-    double? offset,
-    Color? color,
-  }) {
+  GradientColorStop copyWith({double? offset, Color? color}) {
     return GradientColorStop(
       offset: offset ?? this.offset,
       color: color ?? this.color,
@@ -98,9 +60,9 @@ class GradientColorStop {
   }
 
   Map<String, dynamic> toJson() => {
-        'offset': offset,
-        'color': color.toARGB32(),
-      };
+    'offset': offset,
+    'color': color.toARGB32(),
+  };
 
   factory GradientColorStop.fromJson(Map<String, dynamic> json) =>
       GradientColorStop(
@@ -138,10 +100,10 @@ class ShapeGradient {
   }
 
   Map<String, dynamic> toJson() => {
-        'type': type.name,
-        'stops': stops.map((s) => s.toJson()).toList(),
-        'angle': angle,
-      };
+    'type': type.name,
+    'stops': stops.map((s) => s.toJson()).toList(),
+    'angle': angle,
+  };
 
   factory ShapeGradient.fromJson(Map<String, dynamic> json) {
     final typeStr = json['type'] as String? ?? 'linearGradient';
@@ -211,6 +173,44 @@ class VectorShape {
   Uint8List? imageBytes;
   ui.Image? decodedImage;
 
+  // Self-invalidating geometry and rendering caches
+  Path? _cachedPath;
+  Rect? _lastPathRect;
+  double? _lastPathRadius;
+  double? _lastPathCurvature;
+  bool? _lastPathIsCurved;
+  ShapeType? _lastPathType;
+
+  Path? _cachedDashedPath;
+  double? _lastDashLength;
+  double? _lastDashGap;
+  StrokeStyle? _lastDashStyle;
+
+  Rect? _cachedBoundingBox;
+  Rect? _lastBBRect;
+  double? _lastBBRotation;
+  double? _lastBBStrokeWidth;
+  bool? _lastBBIsStroked;
+  ShapeType? _lastBBType;
+
+  TextPainter? _cachedTextPainter;
+  String? _lastTextContent;
+  double? _lastTextFontSize;
+  String? _lastTextFontFamily;
+  FontWeight? _lastTextFontWeight;
+  bool? _lastTextIsItalic;
+  bool? _lastTextIsUnderline;
+  bool? _lastTextIsStrikethrough;
+  TextAlign? _lastTextAlign;
+  double? _lastTextLetterSpacing;
+  double? _lastTextLineHeight;
+  TextCase? _lastTextCase;
+  Color? _lastTextColor;
+  PaintFillType? _lastTextFillType;
+  ShapeGradient? _lastTextFillGradient;
+  double? _lastTextFillOpacity;
+  double? _lastTextRectWidth;
+
   VectorShape({
     required this.id,
     required this.name,
@@ -255,7 +255,8 @@ class VectorShape {
     this.isLocked = false,
     this.imageBytes,
     this.decodedImage,
-  }) : fontWeight = fontWeight ?? (isBold ? FontWeight.bold : FontWeight.normal);
+  }) : fontWeight =
+           fontWeight ?? (isBold ? FontWeight.bold : FontWeight.normal);
 
   VectorShape copyWith({
     String? id,
@@ -302,11 +303,13 @@ class VectorShape {
     Uint8List? imageBytes,
     ui.Image? decodedImage,
   }) {
-    final effectiveIsBold = isBold ??
+    final effectiveIsBold =
+        isBold ??
         (fontWeight != null
             ? (fontWeight.value >= FontWeight.w700.value)
             : this.isBold);
-    final effectiveFontWeight = fontWeight ??
+    final effectiveFontWeight =
+        fontWeight ??
         (isBold != null
             ? (isBold ? FontWeight.bold : FontWeight.normal)
             : this.fontWeight);
@@ -430,8 +433,9 @@ class VectorShape {
       orElse: () => PaintFillType.solid,
     );
     final fillGradMap = json['fillGradient'] as Map<String, dynamic>?;
-    final fillGradient =
-        fillGradMap != null ? ShapeGradient.fromJson(fillGradMap) : null;
+    final fillGradient = fillGradMap != null
+        ? ShapeGradient.fromJson(fillGradMap)
+        : null;
 
     final strokeStyleStr = json['strokeStyle'] as String? ?? 'solid';
     final strokeStyle = StrokeStyle.values.firstWhere(
@@ -449,8 +453,9 @@ class VectorShape {
       orElse: () => PaintFillType.solid,
     );
     final strokeGradMap = json['strokeGradient'] as Map<String, dynamic>?;
-    final strokeGradient =
-        strokeGradMap != null ? ShapeGradient.fromJson(strokeGradMap) : null;
+    final strokeGradient = strokeGradMap != null
+        ? ShapeGradient.fromJson(strokeGradMap)
+        : null;
 
     final strokeCapStr = json['strokeCap'] as String? ?? 'butt';
     final strokeCap = StrokeCap.values.firstWhere(
@@ -476,8 +481,7 @@ class VectorShape {
       orElse: () => TextAlign.left,
     );
 
-    final textVerticalAlignStr =
-        json['textVerticalAlign'] as String? ?? 'top';
+    final textVerticalAlignStr = json['textVerticalAlign'] as String? ?? 'top';
     final textVerticalAlign = TextVerticalAlign.values.firstWhere(
       (e) => e.name == textVerticalAlignStr,
       orElse: () => TextVerticalAlign.top,
@@ -506,7 +510,8 @@ class VectorShape {
     }
 
     return VectorShape(
-      id: json['id'] as String? ??
+      id:
+          json['id'] as String? ??
           'shape-${DateTime.now().millisecondsSinceEpoch}',
       name: json['name'] as String? ?? 'Shape',
       type: type,
@@ -564,7 +569,9 @@ class VectorShape {
     if (isFilled && fillType != PaintFillType.solid && fillGradient != null) {
       defs.writeln(_gradientToSvgDef('grad-$id-fill', fillGradient!));
     }
-    if (isStroked && strokeType != PaintFillType.solid && strokeGradient != null) {
+    if (isStroked &&
+        strokeType != PaintFillType.solid &&
+        strokeGradient != null) {
       defs.writeln(_gradientToSvgDef('grad-$id-stroke', strokeGradient!));
     }
 
@@ -580,15 +587,23 @@ class VectorShape {
       final y1 = (0.5 - 0.5 * math.sin(rad)) * 100;
       final x2 = (0.5 + 0.5 * math.cos(rad)) * 100;
       final y2 = (0.5 + 0.5 * math.sin(rad)) * 100;
-      sb.writeln('    <linearGradient id="$gradId" x1="${x1.toStringAsFixed(1)}%" y1="${y1.toStringAsFixed(1)}%" x2="${x2.toStringAsFixed(1)}%" y2="${y2.toStringAsFixed(1)}%">');
+      sb.writeln(
+        '    <linearGradient id="$gradId" x1="${x1.toStringAsFixed(1)}%" y1="${y1.toStringAsFixed(1)}%" x2="${x2.toStringAsFixed(1)}%" y2="${y2.toStringAsFixed(1)}%">',
+      );
       for (final stop in grad.stops) {
-        sb.writeln('      <stop offset="${(stop.offset * 100).toStringAsFixed(1)}%" stop-color="${_colorToHex(stop.color)}" stop-opacity="${(stop.color.a).toStringAsFixed(2)}" />');
+        sb.writeln(
+          '      <stop offset="${(stop.offset * 100).toStringAsFixed(1)}%" stop-color="${_colorToHex(stop.color)}" stop-opacity="${(stop.color.a).toStringAsFixed(2)}" />',
+        );
       }
       sb.write('    </linearGradient>');
     } else {
-      sb.writeln('    <radialGradient id="$gradId" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">');
+      sb.writeln(
+        '    <radialGradient id="$gradId" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">',
+      );
       for (final stop in grad.stops) {
-        sb.writeln('      <stop offset="${(stop.offset * 100).toStringAsFixed(1)}%" stop-color="${_colorToHex(stop.color)}" stop-opacity="${(stop.color.a).toStringAsFixed(2)}" />');
+        sb.writeln(
+          '      <stop offset="${(stop.offset * 100).toStringAsFixed(1)}%" stop-color="${_colorToHex(stop.color)}" stop-opacity="${(stop.color.a).toStringAsFixed(2)}" />',
+        );
       }
       sb.write('    </radialGradient>');
     }
@@ -622,9 +637,11 @@ class VectorShape {
 
       var dashAttr = '';
       if (strokeStyle == StrokeStyle.dashed) {
-        dashAttr = ' stroke-dasharray="${strokeDashLength.toStringAsFixed(1)} ${strokeDashGap.toStringAsFixed(1)}"';
+        dashAttr =
+            ' stroke-dasharray="${strokeDashLength.toStringAsFixed(1)} ${strokeDashGap.toStringAsFixed(1)}"';
       } else if (strokeStyle == StrokeStyle.dotted) {
-        dashAttr = ' stroke-dasharray="${strokeWidth.toStringAsFixed(1)} ${(strokeWidth * 1.5).toStringAsFixed(1)}"';
+        dashAttr =
+            ' stroke-dasharray="${strokeWidth.toStringAsFixed(1)} ${(strokeWidth * 1.5).toStringAsFixed(1)}"';
       }
 
       strokeAttr =
@@ -762,10 +779,280 @@ class VectorShape {
 
   static String _toTitleCase(String text) {
     if (text.isEmpty) return text;
-    return text.split(' ').map((word) {
-      if (word.isEmpty) return word;
-      return word[0].toUpperCase() +
-          (word.length > 1 ? word.substring(1).toLowerCase() : '');
-    }).join(' ');
+    return text
+        .split(' ')
+        .map((word) {
+          if (word.isEmpty) return word;
+          return word[0].toUpperCase() +
+              (word.length > 1 ? word.substring(1).toLowerCase() : '');
+        })
+        .join(' ');
+  }
+
+  /// Returns a cached [Path] representation of this shape's geometry.
+  /// Automatically invalidates whenever rect, cornerRadius, or curvature changes.
+  Path getPath() {
+    if (_cachedPath != null &&
+        _lastPathRect == rect &&
+        _lastPathRadius == cornerRadius &&
+        _lastPathCurvature == curvature &&
+        _lastPathIsCurved == isCurved &&
+        _lastPathType == type) {
+      return _cachedPath!;
+    }
+
+    final path = Path();
+    switch (type) {
+      case ShapeType.rectangle:
+        path.addRect(rect);
+        break;
+      case ShapeType.roundedRectangle:
+        path.addRRect(
+          RRect.fromRectAndRadius(rect, Radius.circular(cornerRadius)),
+        );
+        break;
+      case ShapeType.ellipse:
+        path.addOval(rect);
+        break;
+      case ShapeType.star:
+        path.addPath(CanvasGeometry.createStarPath(rect), Offset.zero);
+        break;
+      case ShapeType.line:
+        final p1 = rect.topLeft;
+        final p2 = rect.bottomRight;
+        if (isCurved || curvature != 0.0) {
+          final mid = Offset((p1.dx + p2.dx) / 2, (p1.dy + p2.dy) / 2);
+          final dx = p2.dx - p1.dx;
+          final dy = p2.dy - p1.dy;
+          final len = math.sqrt(dx * dx + dy * dy);
+          final perp = len > 0 ? Offset(-dy / len, dx / len) : Offset.zero;
+          final controlPt = mid + perp * curvature;
+          path.moveTo(p1.dx, p1.dy);
+          path.quadraticBezierTo(controlPt.dx, controlPt.dy, p2.dx, p2.dy);
+        } else {
+          path.moveTo(p1.dx, p1.dy);
+          path.lineTo(p2.dx, p2.dy);
+        }
+        break;
+      case ShapeType.text:
+      case ShapeType.image:
+        path.addRect(rect);
+        break;
+    }
+
+    _cachedPath = path;
+    _lastPathRect = rect;
+    _lastPathRadius = cornerRadius;
+    _lastPathCurvature = curvature;
+    _lastPathIsCurved = isCurved;
+    _lastPathType = type;
+    return path;
+  }
+
+  /// Returns a cached dashed [Path] given [dashLength] and [dashGap].
+  Path getDashedPath(double dashLength, double dashGap, StrokeStyle style) {
+    final base = getPath();
+    if (_cachedDashedPath != null &&
+        _lastDashLength == dashLength &&
+        _lastDashGap == dashGap &&
+        _lastDashStyle == style) {
+      return _cachedDashedPath!;
+    }
+    _cachedDashedPath = CanvasGeometry.dashPath(
+      base,
+      dashLength: dashLength,
+      dashGap: dashGap,
+    );
+    _lastDashLength = dashLength;
+    _lastDashGap = dashGap;
+    _lastDashStyle = style;
+    return _cachedDashedPath!;
+  }
+
+  /// Returns the axis-aligned bounding box accounting for stroke width and rotation.
+  /// Computed once and cached until geometry changes.
+  Rect getBoundingBox() {
+    if (_cachedBoundingBox != null &&
+        _lastBBRect == rect &&
+        _lastBBRotation == rotation &&
+        _lastBBStrokeWidth == strokeWidth &&
+        _lastBBIsStroked == isStroked &&
+        _lastBBType == type) {
+      return _cachedBoundingBox!;
+    }
+
+    final rawRect = Rect.fromLTRB(
+      math.min(rect.left, rect.right),
+      math.min(rect.top, rect.bottom),
+      math.max(rect.left, rect.right),
+      math.max(rect.top, rect.bottom),
+    );
+
+    final strokePadding = type == ShapeType.line
+        ? math.max(3.0, strokeWidth / 2)
+        : (isStroked ? strokeWidth / 2 : 0.0);
+    final paddedRect = rawRect.inflate(strokePadding);
+
+    if (rotation == 0.0) {
+      _cachedBoundingBox = paddedRect;
+      _lastBBRect = rect;
+      _lastBBRotation = rotation;
+      _lastBBStrokeWidth = strokeWidth;
+      _lastBBIsStroked = isStroked;
+      _lastBBType = type;
+      return paddedRect;
+    }
+
+    final center = rect.center;
+    final rad = rotation * math.pi / 180.0;
+    final cosVal = math.cos(rad);
+    final sinVal = math.sin(rad);
+
+    final tlX = paddedRect.left - center.dx;
+    final tlY = paddedRect.top - center.dy;
+    final r1X = center.dx + tlX * cosVal - tlY * sinVal;
+    final r1Y = center.dy + tlX * sinVal + tlY * cosVal;
+
+    final trX = paddedRect.right - center.dx;
+    final trY = paddedRect.top - center.dy;
+    final r2X = center.dx + trX * cosVal - trY * sinVal;
+    final r2Y = center.dy + trX * sinVal + trY * cosVal;
+
+    final brX = paddedRect.right - center.dx;
+    final brY = paddedRect.bottom - center.dy;
+    final r3X = center.dx + brX * cosVal - brY * sinVal;
+    final r3Y = center.dy + brX * sinVal + brY * cosVal;
+
+    final blX = paddedRect.left - center.dx;
+    final blY = paddedRect.bottom - center.dy;
+    final r4X = center.dx + blX * cosVal - blY * sinVal;
+    final r4Y = center.dy + blX * sinVal + blY * cosVal;
+
+    final minX = math.min(math.min(r1X, r2X), math.min(r3X, r4X));
+    final maxX = math.max(math.max(r1X, r2X), math.max(r3X, r4X));
+    final minY = math.min(math.min(r1Y, r2Y), math.min(r3Y, r4Y));
+    final maxY = math.max(math.max(r1Y, r2Y), math.max(r3Y, r4Y));
+
+    final computed = Rect.fromLTRB(minX, minY, maxX, maxY);
+    _cachedBoundingBox = computed;
+    _lastBBRect = rect;
+    _lastBBRotation = rotation;
+    _lastBBStrokeWidth = strokeWidth;
+    _lastBBIsStroked = isStroked;
+    _lastBBType = type;
+    return computed;
+  }
+
+  /// Returns cached [TextPainter] for typography shapes.
+  TextPainter getTextPainter({Paint? fillPaint}) {
+    final effectiveColor = fillColor.withValues(alpha: fillOpacity);
+    if (_cachedTextPainter != null &&
+        _lastTextContent == textContent &&
+        _lastTextFontSize == fontSize &&
+        _lastTextFontFamily == fontFamily &&
+        _lastTextFontWeight == fontWeight &&
+        _lastTextIsItalic == isItalic &&
+        _lastTextIsUnderline == isUnderline &&
+        _lastTextIsStrikethrough == isStrikethrough &&
+        _lastTextAlign == textAlign &&
+        _lastTextLetterSpacing == letterSpacing &&
+        _lastTextLineHeight == lineHeight &&
+        _lastTextCase == textCase &&
+        _lastTextColor == effectiveColor &&
+        _lastTextFillType == fillType &&
+        _lastTextFillGradient == fillGradient &&
+        _lastTextFillOpacity == fillOpacity &&
+        _lastTextRectWidth == rect.width) {
+      return _cachedTextPainter!;
+    }
+
+    String displayText = textContent;
+    switch (textCase) {
+      case TextCase.uppercase:
+        displayText = displayText.toUpperCase();
+        break;
+      case TextCase.lowercase:
+        displayText = displayText.toLowerCase();
+        break;
+      case TextCase.titleCase:
+        displayText = _toTitleCase(displayText);
+        break;
+      case TextCase.original:
+        break;
+    }
+
+    final textDecorations = <TextDecoration>[];
+    if (isUnderline) textDecorations.add(TextDecoration.underline);
+    if (isStrikethrough) textDecorations.add(TextDecoration.lineThrough);
+    final decoration = textDecorations.isNotEmpty
+        ? TextDecoration.combine(textDecorations)
+        : TextDecoration.none;
+
+    final isGradientText =
+        fillType != PaintFillType.solid && fillGradient != null;
+    TextStyle textStyle;
+    try {
+      textStyle = GoogleFonts.getFont(
+        fontFamily,
+        color: isGradientText ? null : effectiveColor,
+        foreground: isGradientText ? fillPaint : null,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        fontStyle: isItalic ? FontStyle.italic : FontStyle.normal,
+        letterSpacing: letterSpacing != 0.0 ? letterSpacing : null,
+        height: lineHeight,
+        decoration: decoration,
+        decorationColor: effectiveColor,
+      );
+    } catch (_) {
+      textStyle = TextStyle(
+        color: isGradientText ? null : effectiveColor,
+        foreground: isGradientText ? fillPaint : null,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        fontStyle: isItalic ? FontStyle.italic : FontStyle.normal,
+        fontFamily: fontFamily,
+        letterSpacing: letterSpacing != 0.0 ? letterSpacing : null,
+        height: lineHeight,
+        decoration: decoration,
+        decorationColor: effectiveColor,
+      );
+    }
+
+    final layoutWidth = math.max(10.0, rect.width);
+    final painter = TextPainter(
+      text: TextSpan(text: displayText, style: textStyle),
+      textAlign: textAlign,
+      textDirection: TextDirection.ltr,
+    );
+    painter.layout(minWidth: layoutWidth, maxWidth: layoutWidth);
+
+    _cachedTextPainter = painter;
+    _lastTextContent = textContent;
+    _lastTextFontSize = fontSize;
+    _lastTextFontFamily = fontFamily;
+    _lastTextFontWeight = fontWeight;
+    _lastTextIsItalic = isItalic;
+    _lastTextIsUnderline = isUnderline;
+    _lastTextIsStrikethrough = isStrikethrough;
+    _lastTextAlign = textAlign;
+    _lastTextLetterSpacing = letterSpacing;
+    _lastTextLineHeight = lineHeight;
+    _lastTextCase = textCase;
+    _lastTextColor = effectiveColor;
+    _lastTextFillType = fillType;
+    _lastTextFillGradient = fillGradient;
+    _lastTextFillOpacity = fillOpacity;
+    _lastTextRectWidth = rect.width;
+
+    return painter;
+  }
+
+  /// Clears all memoized caches when shape undergoes deep modifications.
+  void invalidateCache() {
+    _cachedPath = null;
+    _cachedDashedPath = null;
+    _cachedBoundingBox = null;
+    _cachedTextPainter = null;
   }
 }

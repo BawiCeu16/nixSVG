@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 /// Matrix4 transformations and zoom calculations for the vector canvas.
@@ -57,9 +58,11 @@ class CanvasTransformHelper {
     final double currentTy = currentMatrix.storage[13];
 
     final double newTx =
-        currentTx + currentScale * focalCanvasPoint.dx * (1.0 - effectiveFactor);
+        currentTx +
+        currentScale * focalCanvasPoint.dx * (1.0 - effectiveFactor);
     final double newTy =
-        currentTy + currentScale * focalCanvasPoint.dy * (1.0 - effectiveFactor);
+        currentTy +
+        currentScale * focalCanvasPoint.dy * (1.0 - effectiveFactor);
 
     final matrix = currentMatrix.clone();
     matrix.storage[0] = newScale;
@@ -143,16 +146,33 @@ class CanvasTransformHelper {
   }
 
   /// Calculates a matrix that centers and fits [targetBounds] within [viewportSize].
-  static Matrix4 zoomToFit(Rect targetBounds, Size viewportSize, {double padding = 80.0}) {
+  static Matrix4 zoomToFit(
+    Rect targetBounds,
+    Size viewportSize, {
+    double padding = 80.0,
+  }) {
     if (targetBounds.isEmpty || viewportSize.isEmpty) return Matrix4.identity();
-    final double availW = (viewportSize.width - padding * 2).clamp(100.0, 10000.0);
-    final double availH = (viewportSize.height - padding * 2).clamp(100.0, 10000.0);
+    final double availW = (viewportSize.width - padding * 2).clamp(
+      100.0,
+      10000.0,
+    );
+    final double availH = (viewportSize.height - padding * 2).clamp(
+      100.0,
+      10000.0,
+    );
     final double scaleX = availW / targetBounds.width;
     final double scaleY = availH / targetBounds.height;
-    final double scale = (scaleX < scaleY ? scaleX : scaleY).clamp(minScale, 4.0);
+    final double scale = (scaleX < scaleY ? scaleX : scaleY).clamp(
+      minScale,
+      4.0,
+    );
 
-    final double transX = (viewportSize.width - targetBounds.width * scale) / 2 - targetBounds.left * scale;
-    final double transY = (viewportSize.height - targetBounds.height * scale) / 2 - targetBounds.top * scale;
+    final double transX =
+        (viewportSize.width - targetBounds.width * scale) / 2 -
+        targetBounds.left * scale;
+    final double transY =
+        (viewportSize.height - targetBounds.height * scale) / 2 -
+        targetBounds.top * scale;
 
     final matrix = Matrix4.identity();
     matrix.storage[0] = scale;
@@ -177,4 +197,3 @@ class CanvasTransformHelper {
         : zoomAtScreenPoint(currentMatrix, focalPoint, factor);
   }
 }
-

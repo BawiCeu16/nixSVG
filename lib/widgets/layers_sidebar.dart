@@ -65,7 +65,10 @@ class LayersSidebar extends StatelessWidget {
             children: [
               // --- macOS Sidebar Header ---
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   border: Border(
                     bottom: BorderSide(
@@ -163,9 +166,8 @@ class LayersSidebar extends StatelessWidget {
                               Text(
                                 'No vector layers',
                                 style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: colorScheme.onSurfaceVariant.withValues(
-                                    alpha: 0.7,
-                                  ),
+                                  color: colorScheme.onSurfaceVariant
+                                      .withValues(alpha: 0.7),
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -174,9 +176,8 @@ class LayersSidebar extends StatelessWidget {
                                 'Draw shapes using the dock tools.',
                                 textAlign: TextAlign.center,
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant.withValues(
-                                    alpha: 0.5,
-                                  ),
+                                  color: colorScheme.onSurfaceVariant
+                                      .withValues(alpha: 0.5),
                                   fontSize: 12,
                                 ),
                               ),
@@ -220,17 +221,15 @@ class LayersSidebar extends StatelessWidget {
                                   horizontal: 8.0,
                                   vertical: 2.0,
                                 ),
-                                hoverColor:
-                                    colorScheme.onSurfaceVariant.withValues(
-                                  alpha: 0.08,
-                                ),
+                                hoverColor: colorScheme.onSurfaceVariant
+                                    .withValues(alpha: 0.08),
                                 dragPlaceholderColor:
                                     colorScheme.surfaceContainerHighest,
                                 color: isDark
                                     ? colorScheme.surfaceContainerHigh
-                                        .withValues(alpha: 0.3)
+                                          .withValues(alpha: 0.3)
                                     : colorScheme.surfaceContainerHighest
-                                        .withValues(alpha: 0.25),
+                                          .withValues(alpha: 0.25),
                                 selectedColor: colorScheme.primaryContainer
                                     .withValues(alpha: 0.65),
                               ),
@@ -313,8 +312,8 @@ class LayersSidebar extends StatelessWidget {
           icon: shape.isVisible ? RemixIcons.eye_line : RemixIcons.eye_off_line,
           iconColor: shape.isVisible
               ? (isSelected
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant.withValues(alpha: 0.7))
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant.withValues(alpha: 0.7))
               : colorScheme.outline.withValues(alpha: 0.35),
           onTap: () => onToggleVisibility(shape.id),
         ),
@@ -322,7 +321,9 @@ class LayersSidebar extends StatelessWidget {
         // Lock Toggle
         _MacLayerActionBtn(
           tooltip: shape.isLocked ? 'Unlock Layer' : 'Lock Layer',
-          icon: shape.isLocked ? RemixIcons.lock_line : RemixIcons.lock_unlock_line,
+          icon: shape.isLocked
+              ? RemixIcons.lock_line
+              : RemixIcons.lock_unlock_line,
           iconColor: shape.isLocked
               ? colorScheme.tertiary
               : colorScheme.outline.withValues(alpha: 0.35),
@@ -350,9 +351,7 @@ class LayersSidebar extends StatelessWidget {
           content: TextField(
             controller: controller,
             autofocus: true,
-            decoration: const InputDecoration(
-              labelText: 'Layer Name',
-            ),
+            decoration: const InputDecoration(labelText: 'Layer Name'),
             onSubmitted: (value) {
               if (value.trim().isNotEmpty) {
                 onRenameShape(shape.id, value.trim());
@@ -422,11 +421,7 @@ class _MacHeaderAction extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
         child: Padding(
           padding: const EdgeInsets.all(4),
-          child: Icon(
-            icon,
-            size: 15,
-            color: colorScheme.onSurfaceVariant,
-          ),
+          child: Icon(icon, size: 15, color: colorScheme.onSurfaceVariant),
         ),
       ),
     );
@@ -455,11 +450,7 @@ class _MacLayerActionBtn extends StatelessWidget {
         borderRadius: BorderRadius.circular(5),
         child: Padding(
           padding: const EdgeInsets.all(3.5),
-          child: Icon(
-            icon,
-            size: 14,
-            color: iconColor,
-          ),
+          child: Icon(icon, size: 14, color: iconColor),
         ),
       ),
     );

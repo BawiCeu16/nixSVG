@@ -10,32 +10,37 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('HomeScreen & Project Flow Tests', () {
-    testWidgets('Renders HomeScreen with startup template cards and Mac style header', (WidgetTester tester) async {
-      await tester.binding.setSurfaceSize(const Size(1280, 800));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+    testWidgets(
+      'Renders HomeScreen with startup template cards and Mac style header',
+      (WidgetTester tester) async {
+        await tester.binding.setSurfaceSize(const Size(1280, 800));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      final prefsService = PreferencesService.fallback();
-      await prefsService.setHasActiveSession(false);
-      await prefsService.setActiveProjectId(null);
+        final prefsService = PreferencesService.fallback();
+        await prefsService.setHasActiveSession(false);
+        await prefsService.setActiveProjectId(null);
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            preferencesServiceProvider.overrideWithValue(prefsService),
-          ],
-          child: const NixSvgApp(startInWorkspace: false),
-        ),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              preferencesServiceProvider.overrideWithValue(prefsService),
+            ],
+            child: const NixSvgApp(startInWorkspace: false),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      // Check HomeScreen is rendered
-      expect(find.byType(HomeScreen), findsOneWidget);
-      expect(find.text('New File'), findsOneWidget);
-      expect(find.text('Blank Canvas'), findsOneWidget);
-      expect(find.text('Start a New Design'), findsOneWidget);
-    });
+        // Check HomeScreen is rendered
+        expect(find.byType(HomeScreen), findsOneWidget);
+        expect(find.text('New File'), findsOneWidget);
+        expect(find.text('Blank Canvas'), findsOneWidget);
+        expect(find.text('Start a New Design'), findsOneWidget);
+      },
+    );
 
-    testWidgets('Opening preset navigates from HomeScreen to FigmaWorkspace', (WidgetTester tester) async {
+    testWidgets('Opening preset navigates from HomeScreen to FigmaWorkspace', (
+      WidgetTester tester,
+    ) async {
       await tester.binding.setSurfaceSize(const Size(1280, 800));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -64,15 +69,15 @@ void main() {
       expect(find.byType(HomeScreen), findsNothing);
     });
 
-    testWidgets('Clearing recents via ProjectsNotifier removes recent items', (WidgetTester tester) async {
+    testWidgets('Clearing recents via ProjectsNotifier removes recent items', (
+      WidgetTester tester,
+    ) async {
       final prefsService = PreferencesService.fallback();
       final sample = ProjectModel.createNew(name: 'Test Design');
       await prefsService.saveRecentProject(sample);
 
       final container = ProviderContainer(
-        overrides: [
-          preferencesServiceProvider.overrideWithValue(prefsService),
-        ],
+        overrides: [preferencesServiceProvider.overrideWithValue(prefsService)],
       );
       addTearDown(container.dispose);
 

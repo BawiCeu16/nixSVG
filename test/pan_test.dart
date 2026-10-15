@@ -6,7 +6,9 @@ import 'package:nixsvg/main.dart';
 import 'package:nixsvg/models/vector_shape.dart';
 
 void main() {
-  testWidgets('Pan canvas using Hand / Pan tool (H)', (WidgetTester tester) async {
+  testWidgets('Pan canvas using Hand / Pan tool (H)', (
+    WidgetTester tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(1280, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -24,7 +26,9 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.keyH);
     await tester.pumpAndSettle();
 
-    final state = tester.state<FigmaWorkspaceState>(find.byType(FigmaWorkspace));
+    final state = tester.state<FigmaWorkspaceState>(
+      find.byType(FigmaWorkspace),
+    );
     expect(state.currentMode, EditorMode.pan);
 
     // Drag canvas 150px right, 100px down with primary mouse
@@ -42,7 +46,9 @@ void main() {
     expect(controller.value.storage[13], initialY + 100);
   });
 
-  testWidgets('Pan canvas by holding Spacebar and dragging', (WidgetTester tester) async {
+  testWidgets('Pan canvas by holding Spacebar and dragging', (
+    WidgetTester tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(1280, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -76,7 +82,9 @@ void main() {
     expect(controller.value.storage[13], initialY + 60);
   });
 
-  testWidgets('Pan canvas with middle mouse button drag', (WidgetTester tester) async {
+  testWidgets('Pan canvas with middle mouse button drag', (
+    WidgetTester tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(1280, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 

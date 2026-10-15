@@ -43,8 +43,21 @@ class ResponsiveLayoutTokens {
     return MediaQuery.of(context).size.width < 900.0;
   }
 
+  /// True for small phone screen viewports (<600px width).
+  static bool isPhone(BuildContext context) {
+    return MediaQuery.of(context).size.width < 600.0;
+  }
+
+  /// True for large desktop and 4k ultrawide screens (>=1600px width).
+  static bool isUltraWide(BuildContext context) {
+    return MediaQuery.of(context).size.width >= 1600.0;
+  }
+
   /// Calculates dynamic maximum allowed sidebar width.
   static double getMaxSidebarWidth(double screenWidth) {
+    if (screenWidth >= 1920) {
+      return (screenWidth * 0.28).clamp(240.0, 520.0);
+    }
     return (screenWidth * 0.35).clamp(180.0, 420.0);
   }
 
@@ -68,7 +81,7 @@ class ResponsiveLayoutTokens {
 
   /// Dynamic drawer width for compact screens (phones / small viewports).
   static double getCompactDrawerWidth(double screenWidth) {
-    return (screenWidth * 0.78).clamp(240.0, 360.0);
+    return (screenWidth * 0.85).clamp(240.0, 380.0);
   }
 
   /// Dynamic bottom padding for the [FloatingToolBar].
@@ -76,8 +89,19 @@ class ResponsiveLayoutTokens {
     final media = MediaQuery.of(context);
     final bottomInset = media.padding.bottom;
     if (media.orientation == Orientation.landscape && media.size.height < 500) {
-      return 12.0 + bottomInset;
+      return 10.0 + bottomInset;
     }
-    return 24.0 + bottomInset;
+    return (media.size.width < 600)
+        ? (14.0 + bottomInset)
+        : (24.0 + bottomInset);
+  }
+
+  /// Dynamic scale factor for the [FloatingToolBar] across device form factors.
+  static double getFloatingToolbarScale(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < 400) return 0.84;
+    if (width < 600) return 0.92;
+    if (width >= 2000) return 1.05;
+    return 1.0;
   }
 }

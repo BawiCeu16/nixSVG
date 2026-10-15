@@ -1,6 +1,7 @@
 import 'dart:math' as math;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:nixsvg/calculations/canvas_geometry.dart';
 import 'package:nixsvg/models/vector_shape.dart';
 
@@ -37,9 +38,11 @@ class VectorCanvasPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. Draw existing vector shapes
+    // 1. Draw existing vector shapes with viewport AABB culling
+    final canvasBounds = Rect.fromLTWH(0, 0, size.width, size.height);
     for (final shape in shapes) {
       if (!shape.isVisible) continue;
+      if (!canvasBounds.overlaps(shape.getBoundingBox())) continue;
       _drawShape(canvas, shape);
     }
 
@@ -72,7 +75,9 @@ class VectorCanvasPainter extends CustomPainter {
     }
 
     // 3. Draw draft shape being created
-    if (draftStartPoint != null && draftCurrentPoint != null && draftShapeType != null) {
+    if (draftStartPoint != null &&
+        draftCurrentPoint != null &&
+        draftShapeType != null) {
       final isShift = draftIsShiftPressed ?? false;
       final isAlt = draftIsAltPressed ?? false;
       final draftRect = CanvasGeometry.calculateDrawRect(
@@ -85,7 +90,6 @@ class VectorCanvasPainter extends CustomPainter {
       _drawDraftShape(canvas, draftRect, draftShapeType!);
       _drawDimensionBadge(canvas, draftRect, shapeType: draftShapeType);
     }
-
 
     // 4. Draw marquee selection box if dragging marquee
     if (marqueeRect != null) {
@@ -111,24 +115,33 @@ class VectorCanvasPainter extends CustomPainter {
       final snapPaint = Paint()
         ..color = colorScheme.tertiary
         ..strokeWidth = 1.2;
-      canvas.drawLine(snapGuidelineX!, Offset(snapGuidelineX!.dx, size.height), snapPaint);
+      canvas.drawLine(
+        snapGuidelineX!,
+        Offset(snapGuidelineX!.dx, size.height),
+        snapPaint,
+      );
     }
     if (snapGuidelineY != null) {
       final snapPaint = Paint()
         ..color = colorScheme.tertiary
         ..strokeWidth = 1.2;
-      canvas.drawLine(snapGuidelineY!, Offset(size.width, snapGuidelineY!.dy), snapPaint);
+      canvas.drawLine(
+        snapGuidelineY!,
+        Offset(size.width, snapGuidelineY!.dy),
+        snapPaint,
+      );
     }
   }
 
   Shader? _createShader(ShapeGradient gradient, Rect bounds, double opacity) {
     // If width or height is 0 (like a horizontal or vertical line), inflate slightly
-    final safeBounds = bounds.isEmpty
-        ? bounds.inflate(1.0)
-        : bounds;
+    final safeBounds = bounds.isEmpty ? bounds.inflate(1.0) : bounds;
 
     final colors = gradient.stops
-        .map((s) => s.color.withValues(alpha: (s.color.a * opacity).clamp(0.0, 1.0)))
+        .map(
+          (s) =>
+              s.color.withValues(alpha: (s.color.a * opacity).clamp(0.0, 1.0)),
+        )
         .toList();
     final stops = gradient.stops.map((s) => s.offset).toList();
 
@@ -184,14 +197,17 @@ class VectorCanvasPainter extends CustomPainter {
       ..strokeWidth = shape.strokeWidth
       ..strokeCap = shape.strokeCap;
 
-    if (shape.strokeType != PaintFillType.solid && shape.strokeGradient != null) {
+    if (shape.strokeType != PaintFillType.solid &&
+        shape.strokeGradient != null) {
       strokePaint.shader = _createShader(
         shape.strokeGradient!,
         shape.rect,
         shape.strokeOpacity,
       );
     } else {
-      strokePaint.color = shape.strokeColor.withValues(alpha: shape.strokeOpacity);
+      strokePaint.color = shape.strokeColor.withValues(
+        alpha: shape.strokeOpacity,
+      );
     }
 
     void drawStrokedPath(Path path, {Path? shapeBoundary}) {
@@ -207,10 +223,10 @@ class VectorCanvasPainter extends CustomPainter {
           final dashGap = shape.strokeStyle == StrokeStyle.dashed
               ? shape.strokeDashGap
               : (shape.strokeWidth * 1.5);
-          final dashed = CanvasGeometry.dashPath(
-            path,
-            dashLength: dashLength,
-            dashGap: dashGap,
+          final dashed = shape.getDashedPath(
+            dashLength,
+            dashGap,
+            shape.strokeStyle,
           );
           canvas.drawPath(dashed, paint);
         }
@@ -225,7 +241,11 @@ class VectorCanvasPainter extends CustomPainter {
           // Clip to outside of the boundary (inverse clip)
           final bounds = shape.rect.inflate(shape.strokeWidth * 3 + 10.0);
           final outerPath = Path()..addRect(bounds);
-          final clipOut = Path.combine(PathOperation.difference, outerPath, shapeBoundary);
+          final clipOut = Path.combine(
+            PathOperation.difference,
+            outerPath,
+            shapeBoundary,
+          );
           canvas.clipPath(clipOut);
         }
 
@@ -251,16 +271,19 @@ class VectorCanvasPainter extends CustomPainter {
       case ShapeType.rectangle:
         if (shape.isFilled) canvas.drawRect(shape.rect, fillPaint);
         if (shape.isStroked) {
-          final path = Path()..addRect(shape.rect);
+          final path = shape.getPath();
           drawStrokedPath(path, shapeBoundary: path);
         }
         break;
 
       case ShapeType.roundedRectangle:
-        final rrect = RRect.fromRectAndRadius(shape.rect, Radius.circular(shape.cornerRadius));
+        final rrect = RRect.fromRectAndRadius(
+          shape.rect,
+          Radius.circular(shape.cornerRadius),
+        );
         if (shape.isFilled) canvas.drawRRect(rrect, fillPaint);
         if (shape.isStroked) {
-          final path = Path()..addRRect(rrect);
+          final path = shape.getPath();
           drawStrokedPath(path, shapeBoundary: path);
         }
         break;
@@ -268,7 +291,7 @@ class VectorCanvasPainter extends CustomPainter {
       case ShapeType.ellipse:
         if (shape.isFilled) canvas.drawOval(shape.rect, fillPaint);
         if (shape.isStroked) {
-          final path = Path()..addOval(shape.rect);
+          final path = shape.getPath();
           drawStrokedPath(path, shapeBoundary: path);
         }
         break;
@@ -279,7 +302,6 @@ class VectorCanvasPainter extends CustomPainter {
         final p1 = shape.rect.topLeft;
         final p2 = shape.rect.bottomRight;
 
-        Path linePath;
         Offset? markerCtrl;
         if (shape.isCurved || shape.curvature != 0.0) {
           final mid = Offset((p1.dx + p2.dx) / 2, (p1.dy + p2.dy) / 2);
@@ -287,19 +309,10 @@ class VectorCanvasPainter extends CustomPainter {
           final dy = p2.dy - p1.dy;
           final len = math.sqrt(dx * dx + dy * dy);
           final perp = len > 0 ? Offset(-dy / len, dx / len) : Offset.zero;
-          final controlPt = mid + perp * shape.curvature;
-          markerCtrl = controlPt;
-
-          linePath = Path()
-            ..moveTo(p1.dx, p1.dy)
-            ..quadraticBezierTo(controlPt.dx, controlPt.dy, p2.dx, p2.dy);
-        } else {
-          linePath = Path()
-            ..moveTo(p1.dx, p1.dy)
-            ..lineTo(p2.dx, p2.dy);
+          markerCtrl = mid + perp * shape.curvature;
         }
 
-        drawStrokedPath(linePath);
+        drawStrokedPath(shape.getPath());
 
         if (markerCtrl != null) {
           _drawLineCapMarker(canvas, p1, markerCtrl, shape.startCap, shape);
@@ -311,82 +324,28 @@ class VectorCanvasPainter extends CustomPainter {
         break;
 
       case ShapeType.star:
-        final path = _generateStarPath(shape.rect);
+        final path = shape.getPath();
         if (shape.isFilled) canvas.drawPath(path, fillPaint);
         if (shape.isStroked) drawStrokedPath(path, shapeBoundary: path);
         break;
 
-
       case ShapeType.text:
-        String displayText = shape.textContent;
-        switch (shape.textCase) {
-          case TextCase.uppercase:
-            displayText = displayText.toUpperCase();
-            break;
-          case TextCase.lowercase:
-            displayText = displayText.toLowerCase();
-            break;
-          case TextCase.titleCase:
-            displayText = _toTitleCase(displayText);
-            break;
-          case TextCase.original:
-            break;
-        }
-
-        final textDecorations = <TextDecoration>[];
-        if (shape.isUnderline) textDecorations.add(TextDecoration.underline);
-        if (shape.isStrikethrough) textDecorations.add(TextDecoration.lineThrough);
-        final decoration = textDecorations.isNotEmpty
-            ? TextDecoration.combine(textDecorations)
-            : TextDecoration.none;
-
         final isGradientText =
             shape.fillType != PaintFillType.solid && shape.fillGradient != null;
-        final textColor = shape.fillColor.withValues(alpha: shape.fillOpacity);
-        TextStyle textStyle;
-        try {
-          textStyle = GoogleFonts.getFont(
-            shape.fontFamily,
-            color: isGradientText ? null : textColor,
-            foreground: isGradientText ? fillPaint : null,
-            fontSize: shape.fontSize,
-            fontWeight: shape.fontWeight,
-            fontStyle: shape.isItalic ? FontStyle.italic : FontStyle.normal,
-            letterSpacing: shape.letterSpacing != 0.0 ? shape.letterSpacing : null,
-            height: shape.lineHeight,
-            decoration: decoration,
-            decorationColor: textColor,
-          );
-        } catch (_) {
-          textStyle = TextStyle(
-            color: isGradientText ? null : textColor,
-            foreground: isGradientText ? fillPaint : null,
-            fontSize: shape.fontSize,
-            fontWeight: shape.fontWeight,
-            fontStyle: shape.isItalic ? FontStyle.italic : FontStyle.normal,
-            fontFamily: shape.fontFamily,
-            letterSpacing: shape.letterSpacing != 0.0 ? shape.letterSpacing : null,
-            height: shape.lineHeight,
-            decoration: decoration,
-            decorationColor: textColor,
-          );
-        }
-
-        final textSpan = TextSpan(text: displayText, style: textStyle);
-        final textPainter = TextPainter(
-          text: textSpan,
-          textAlign: shape.textAlign,
-          textDirection: TextDirection.ltr,
+        final textPainter = shape.getTextPainter(
+          fillPaint: isGradientText ? fillPaint : null,
         );
-        final layoutWidth = math.max(10.0, shape.rect.width);
-        textPainter.layout(minWidth: layoutWidth, maxWidth: layoutWidth);
 
         // Vertical alignment calculation within shape.rect
         double offsetY = shape.rect.top;
         if (shape.textVerticalAlign == TextVerticalAlign.center) {
-          offsetY = shape.rect.top + math.max(0.0, (shape.rect.height - textPainter.height) / 2);
+          offsetY =
+              shape.rect.top +
+              math.max(0.0, (shape.rect.height - textPainter.height) / 2);
         } else if (shape.textVerticalAlign == TextVerticalAlign.bottom) {
-          offsetY = shape.rect.top + math.max(0.0, shape.rect.height - textPainter.height);
+          offsetY =
+              shape.rect.top +
+              math.max(0.0, shape.rect.height - textPainter.height);
         }
 
         textPainter.paint(canvas, Offset(shape.rect.left, offsetY));
@@ -400,7 +359,12 @@ class VectorCanvasPainter extends CustomPainter {
             shape.decodedImage!.width.toDouble(),
             shape.decodedImage!.height.toDouble(),
           );
-          canvas.drawImageRect(shape.decodedImage!, srcRect, shape.rect, Paint());
+          canvas.drawImageRect(
+            shape.decodedImage!,
+            srcRect,
+            shape.rect,
+            Paint(),
+          );
         } else {
           canvas.drawRect(shape.rect, fillPaint);
         }
@@ -411,27 +375,7 @@ class VectorCanvasPainter extends CustomPainter {
     canvas.restore();
   }
 
-  Path _generateStarPath(Rect rect) {
-    final path = Path();
-    final center = rect.center;
-    final outerRadius = math.min(rect.width, rect.height) / 2;
-    final innerRadius = outerRadius * 0.4;
-    const double angleStep = math.pi / 5;
-
-    for (int i = 0; i < 10; i++) {
-      final r = i.isEven ? outerRadius : innerRadius;
-      final angle = i * angleStep - math.pi / 2;
-      final x = center.dx + r * math.cos(angle);
-      final y = center.dy + r * math.sin(angle);
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    path.close();
-    return path;
-  }
+  Path _generateStarPath(Rect rect) => CanvasGeometry.createStarPath(rect);
 
   void _drawSelectionBox(Canvas canvas, VectorShape shape) {
     canvas.save();
@@ -461,7 +405,10 @@ class VectorCanvasPainter extends CustomPainter {
         ..strokeWidth = 1.5;
 
       if (shape.isCurved || shape.curvature != 0.0) {
-        final mid = Offset((startPt.dx + endPt.dx) / 2, (startPt.dy + endPt.dy) / 2);
+        final mid = Offset(
+          (startPt.dx + endPt.dx) / 2,
+          (startPt.dy + endPt.dy) / 2,
+        );
         final dx = endPt.dx - startPt.dx;
         final dy = endPt.dy - startPt.dy;
         final len = math.sqrt(dx * dx + dy * dy);
@@ -533,10 +480,14 @@ class VectorCanvasPainter extends CustomPainter {
     canvas.drawCircle(rotCenter, 5, handleBorder);
 
     // Figma-style corner radius handles inside rectangles
-    if ((shape.type == ShapeType.rectangle || shape.type == ShapeType.roundedRectangle) &&
+    if ((shape.type == ShapeType.rectangle ||
+            shape.type == ShapeType.roundedRectangle) &&
         rect.width >= 40 &&
         rect.height >= 40) {
-      final radiusInset = math.min(16.0, math.min(rect.width, rect.height) * 0.2);
+      final radiusInset = math.min(
+        16.0,
+        math.min(rect.width, rect.height) * 0.2,
+      );
       final radiusHandleFill = Paint()
         ..color = colorScheme.surface
         ..style = PaintingStyle.fill;
@@ -562,7 +513,9 @@ class VectorCanvasPainter extends CustomPainter {
         canvas,
         rect,
         shapeType: shape.type,
-        cornerRadius: shape.type == ShapeType.roundedRectangle ? shape.cornerRadius : null,
+        cornerRadius: shape.type == ShapeType.roundedRectangle
+            ? shape.cornerRadius
+            : null,
       );
     }
 
@@ -664,7 +617,8 @@ class VectorCanvasPainter extends CustomPainter {
     final height = rect.height.abs().round();
 
     // Check if shape is circle (ellipse with width == height) or ellipse
-    final isCircle = shapeType == ShapeType.ellipse && (width - height).abs() <= 1;
+    final isCircle =
+        shapeType == ShapeType.ellipse && (width - height).abs() <= 1;
     final isEllipse = shapeType == ShapeType.ellipse;
 
     String badgeText;
@@ -675,7 +629,9 @@ class VectorCanvasPainter extends CustomPainter {
       final rx = (width / 2).round();
       final ry = (height / 2).round();
       badgeText = '$width × $height  (rx: $rx, ry: $ry)';
-    } else if (shapeType == ShapeType.roundedRectangle && cornerRadius != null && cornerRadius > 0) {
+    } else if (shapeType == ShapeType.roundedRectangle &&
+        cornerRadius != null &&
+        cornerRadius > 0) {
       badgeText = '$width × $height  (r: ${cornerRadius.round()})';
     } else {
       badgeText = '$width × $height';
@@ -707,7 +663,8 @@ class VectorCanvasPainter extends CustomPainter {
 
     canvas.drawRRect(
       RRect.fromRectAndRadius(bgRect, const Radius.circular(6)),
-      Paint()..color = colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
+      Paint()
+        ..color = colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
     );
     canvas.drawRRect(
       RRect.fromRectAndRadius(bgRect, const Radius.circular(6)),
@@ -781,15 +738,20 @@ class VectorCanvasPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant VectorCanvasPainter oldDelegate) {
-    return true;
-  }
-
-  static String _toTitleCase(String text) {
-    if (text.isEmpty) return text;
-    return text.split(' ').map((word) {
-      if (word.isEmpty) return word;
-      return word[0].toUpperCase() +
-          (word.length > 1 ? word.substring(1).toLowerCase() : '');
-    }).join(' ');
+    if (!identical(shapes, oldDelegate.shapes)) return true;
+    if (shapes.length != oldDelegate.shapes.length) return true;
+    if (!setEquals(selectedShapeIds, oldDelegate.selectedShapeIds)) return true;
+    if (draftStartPoint != oldDelegate.draftStartPoint) return true;
+    if (draftCurrentPoint != oldDelegate.draftCurrentPoint) return true;
+    if (draftShapeType != oldDelegate.draftShapeType) return true;
+    if (draftIsShiftPressed != oldDelegate.draftIsShiftPressed) return true;
+    if (draftIsAltPressed != oldDelegate.draftIsAltPressed) return true;
+    if (marqueeRect != oldDelegate.marqueeRect) return true;
+    if (currentMode != oldDelegate.currentMode) return true;
+    if (isResizing != oldDelegate.isResizing) return true;
+    if (snapGuidelineX != oldDelegate.snapGuidelineX) return true;
+    if (snapGuidelineY != oldDelegate.snapGuidelineY) return true;
+    if (colorScheme != oldDelegate.colorScheme) return true;
+    return false;
   }
 }

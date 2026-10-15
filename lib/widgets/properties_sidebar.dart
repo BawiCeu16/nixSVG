@@ -2077,6 +2077,7 @@ class PropertiesSidebar extends StatelessWidget {
 
         return M3EToggleButtonGroup(
           type: M3EButtonGroupType.connected,
+
           style: style,
           size: size,
           shape: M3EButtonShape.round,

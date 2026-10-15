@@ -8,17 +8,11 @@ class ThemeState {
   final Color seedColor;
   final ThemeMode themeMode;
 
-  const ThemeState({
-    required this.seedColor,
-    required this.themeMode,
-  });
+  const ThemeState({required this.seedColor, required this.themeMode});
 
   bool get isDarkMode => themeMode == ThemeMode.dark;
 
-  ThemeState copyWith({
-    Color? seedColor,
-    ThemeMode? themeMode,
-  }) {
+  ThemeState copyWith({Color? seedColor, ThemeMode? themeMode}) {
     return ThemeState(
       seedColor: seedColor ?? this.seedColor,
       themeMode: themeMode ?? this.themeMode,
@@ -37,10 +31,7 @@ class ThemeNotifier extends Notifier<ThemeState> {
     // Sync legacy themeController instance
     themeController.syncFrom(seed: initialSeed, mode: initialMode);
 
-    return ThemeState(
-      seedColor: initialSeed,
-      themeMode: initialMode,
-    );
+    return ThemeState(seedColor: initialSeed, themeMode: initialMode);
   }
 
   void setSeedColor(Color color) {
@@ -52,7 +43,9 @@ class ThemeNotifier extends Notifier<ThemeState> {
   }
 
   void toggleThemeMode() {
-    final nextMode = state.themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    final nextMode = state.themeMode == ThemeMode.dark
+        ? ThemeMode.light
+        : ThemeMode.dark;
     setThemeMode(nextMode);
   }
 
@@ -65,4 +58,6 @@ class ThemeNotifier extends Notifier<ThemeState> {
   }
 }
 
-final themeProvider = NotifierProvider<ThemeNotifier, ThemeState>(ThemeNotifier.new);
+final themeProvider = NotifierProvider<ThemeNotifier, ThemeState>(
+  ThemeNotifier.new,
+);

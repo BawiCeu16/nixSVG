@@ -8,9 +8,7 @@ class AppDialogsTheme {
     return DialogThemeData(
       elevation: 0,
       backgroundColor: scheme.surfaceContainerHigh,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(28),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
     );
   }
 
@@ -18,9 +16,7 @@ class AppDialogsTheme {
     return PopupMenuThemeData(
       color: scheme.surfaceContainerHigh,
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
     );
   }
 }

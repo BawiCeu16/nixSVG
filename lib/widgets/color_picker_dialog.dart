@@ -58,7 +58,9 @@ class _ColorPickerDialogState extends State<ColorPickerDialog> {
       backgroundColor: colorScheme.surfaceContainerHigh,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(28),
-        side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.4)),
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+        ),
       ),
       title: Row(
         children: [
@@ -87,12 +89,17 @@ class _ColorPickerDialogState extends State<ColorPickerDialog> {
               decoration: BoxDecoration(
                 color: currentColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: colorScheme.outlineVariant, width: 1.5),
+                border: Border.all(
+                  color: colorScheme.outlineVariant,
+                  width: 1.5,
+                ),
               ),
               child: Text(
                 _toHex(currentColor),
                 style: theme.textTheme.titleMedium?.copyWith(
-                  color: currentColor.computeLuminance() > 0.5 ? Colors.black : Colors.white,
+                  color: currentColor.computeLuminance() > 0.5
+                      ? Colors.black
+                      : Colors.white,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1.2,
                 ),
@@ -120,7 +127,9 @@ class _ColorPickerDialogState extends State<ColorPickerDialog> {
                       color: color,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isSelected ? colorScheme.onSurface : Colors.transparent,
+                        color: isSelected
+                            ? colorScheme.onSurface
+                            : Colors.transparent,
                         width: 3.0,
                       ),
                     ),
@@ -147,4 +156,3 @@ class _ColorPickerDialogState extends State<ColorPickerDialog> {
     );
   }
 }
-

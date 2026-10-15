@@ -70,17 +70,19 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
   void _handlePointerSignal(PointerSignalEvent pointerSignal) {
     FocusManager.instance.primaryFocus?.unfocus();
     if (pointerSignal is PointerScrollEvent) {
-      final isCtrlPressed = HardwareKeyboard.instance.isControlPressed ||
+      final isCtrlPressed =
+          HardwareKeyboard.instance.isControlPressed ||
           HardwareKeyboard.instance.isMetaPressed;
       if (isCtrlPressed) {
-        final double zoomFactor =
-            pointerSignal.scrollDelta.dy < 0 ? 1.15 : (1.0 / 1.15);
+        final double zoomFactor = pointerSignal.scrollDelta.dy < 0
+            ? 1.15
+            : (1.0 / 1.15);
         widget.transformationController.value =
             CanvasTransformHelper.scrollZoom(
-          widget.transformationController.value,
-          pointerSignal.localPosition,
-          zoomFactor,
-        );
+              widget.transformationController.value,
+              pointerSignal.localPosition,
+              zoomFactor,
+            );
         widget.onMatrixChanged();
       } else {
         final isShiftPressed = HardwareKeyboard.instance.isShiftPressed;
@@ -88,8 +90,7 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
         if (isShiftPressed) {
           delta = Offset(delta.dy, delta.dx);
         }
-        widget.transformationController.value =
-            CanvasTransformHelper.panMatrix(
+        widget.transformationController.value = CanvasTransformHelper.panMatrix(
           widget.transformationController.value,
           delta,
         );
@@ -155,9 +156,9 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
             if (event.panDelta != Offset.zero) {
               widget.transformationController.value =
                   CanvasTransformHelper.panMatrix(
-                widget.transformationController.value,
-                event.panDelta,
-              );
+                    widget.transformationController.value,
+                    event.panDelta,
+                  );
             }
             if (event.scale != 1.0 && event.scale > 0.0) {
               final double deltaFactor = event.scale / _lastTrackpadScale;
@@ -165,10 +166,10 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
               if ((deltaFactor - 1.0).abs() > 0.0001) {
                 widget.transformationController.value =
                     CanvasTransformHelper.scrollZoom(
-                  widget.transformationController.value,
-                  event.localPosition,
-                  deltaFactor,
-                );
+                      widget.transformationController.value,
+                      event.localPosition,
+                      deltaFactor,
+                    );
               }
             }
             widget.onMatrixChanged();
@@ -191,7 +192,9 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
                     painter: GridPainter(
                       gridSpacing: widget.gridSpacing,
                       gridColor: colorScheme.onSurface.withValues(
-                        alpha: Theme.of(context).brightness == Brightness.dark ? 0.08 : 0.06,
+                        alpha: Theme.of(context).brightness == Brightness.dark
+                            ? 0.08
+                            : 0.06,
                       ),
                       isDotGrid: true,
                     ),

@@ -10,9 +10,7 @@ class AppCardsAndChipsTheme {
       color: scheme.brightness == Brightness.dark
           ? scheme.surfaceContainer
           : scheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     );
   }
 
@@ -37,9 +35,7 @@ class AppCardsAndChipsTheme {
         ),
         width: 1,
       ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     );
   }
 }

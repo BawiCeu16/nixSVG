@@ -151,117 +151,127 @@ void main() {
   });
 
   group('Interactive Live Selection Area UI in FigmaWorkspace', () {
-    testWidgets('Live selection area only keeps currently intersected shapes during drag', (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1400, 900));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+    testWidgets(
+      'Live selection area only keeps currently intersected shapes during drag',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(1400, 900));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await tester.pumpWidget(const NixSvgApp());
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(const NixSvgApp());
+        await tester.pumpAndSettle();
 
-      final state = tester.state<FigmaWorkspaceState>(find.byType(FigmaWorkspace));
+        final state = tester.state<FigmaWorkspaceState>(
+          find.byType(FigmaWorkspace),
+        );
 
-      // Reset shapes to 2 known rectangles on canvas
-      state.shapes.clear();
-      state.shapes.addAll([
-        VectorShape(
-          id: 'box-a',
-          name: 'Box A',
-          type: ShapeType.rectangle,
-          rect: const Rect.fromLTWH(200, 200, 100, 100),
-        ),
-        VectorShape(
-          id: 'box-b',
-          name: 'Box B',
-          type: ShapeType.rectangle,
-          rect: const Rect.fromLTWH(500, 200, 100, 100),
-        ),
-      ]);
-      state.selectedShapeIds.clear();
-      await tester.pumpAndSettle();
+        // Reset shapes to 2 known rectangles on canvas
+        state.shapes.clear();
+        state.shapes.addAll([
+          VectorShape(
+            id: 'box-a',
+            name: 'Box A',
+            type: ShapeType.rectangle,
+            rect: const Rect.fromLTWH(200, 200, 100, 100),
+          ),
+          VectorShape(
+            id: 'box-b',
+            name: 'Box B',
+            type: ShapeType.rectangle,
+            rect: const Rect.fromLTWH(500, 200, 100, 100),
+          ),
+        ]);
+        state.selectedShapeIds.clear();
+        await tester.pumpAndSettle();
 
-      // Find canvas gesture surface
-      final gestureFinder = find.byType(InteractiveCanvas);
-      expect(gestureFinder, findsOneWidget);
+        // Find canvas gesture surface
+        final gestureFinder = find.byType(InteractiveCanvas);
+        expect(gestureFinder, findsOneWidget);
 
-      // Start drag at empty space (100, 100)
-      final gesture = await tester.startGesture(const Offset(100, 100));
-      await tester.pump();
+        // Start drag at empty space (100, 100)
+        final gesture = await tester.startGesture(const Offset(100, 100));
+        await tester.pump();
 
-      // 1. Drag selection area to (350, 350) -> covers Box A
-      await gesture.moveTo(const Offset(350, 350));
-      await tester.pump();
-      expect(state.selectedShapeIds, contains('box-a'));
-      expect(state.selectedShapeIds, isNot(contains('box-b')));
+        // 1. Drag selection area to (350, 350) -> covers Box A
+        await gesture.moveTo(const Offset(350, 350));
+        await tester.pump();
+        expect(state.selectedShapeIds, contains('box-a'));
+        expect(state.selectedShapeIds, isNot(contains('box-b')));
 
-      // 2. Drag selection area further to (650, 350) -> covers Box A and Box B
-      await gesture.moveTo(const Offset(650, 350));
-      await tester.pump();
-      expect(state.selectedShapeIds, contains('box-a'));
-      // 3. Shrink marquee to (150, 150) so it NO LONGER touches Box A or Box B
-      await gesture.moveTo(const Offset(150, 150));
-      await tester.pump();
-      // Verifies the live selection area is strictly current (not sticky)
-      expect(state.selectedShapeIds, isEmpty);
+        // 2. Drag selection area further to (650, 350) -> covers Box A and Box B
+        await gesture.moveTo(const Offset(650, 350));
+        await tester.pump();
+        expect(state.selectedShapeIds, contains('box-a'));
+        // 3. Shrink marquee to (150, 150) so it NO LONGER touches Box A or Box B
+        await gesture.moveTo(const Offset(150, 150));
+        await tester.pump();
+        // Verifies the live selection area is strictly current (not sticky)
+        expect(state.selectedShapeIds, isEmpty);
 
-      // 4. Release gesture
-      await gesture.up();
-      await tester.pumpAndSettle();
-      expect(state.marqueeRect, isNull);
-    });
+        // 4. Release gesture
+        await gesture.up();
+        await tester.pumpAndSettle();
+        expect(state.marqueeRect, isNull);
+      },
+    );
 
-    testWidgets('Holding Shift during marquee drag preserves initial selection while updating live marquee hits', (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1400, 900));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+    testWidgets(
+      'Holding Shift during marquee drag preserves initial selection while updating live marquee hits',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(1400, 900));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await tester.pumpWidget(const NixSvgApp());
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(const NixSvgApp());
+        await tester.pumpAndSettle();
 
-      final state = tester.state<FigmaWorkspaceState>(find.byType(FigmaWorkspace));
+        final state = tester.state<FigmaWorkspaceState>(
+          find.byType(FigmaWorkspace),
+        );
 
-      state.shapes.clear();
-      state.shapes.addAll([
-        VectorShape(
-          id: 'box-a',
-          name: 'Box A',
-          type: ShapeType.rectangle,
-          rect: const Rect.fromLTWH(200, 200, 100, 100),
-        ),
-        VectorShape(
-          id: 'box-b',
-          name: 'Box B',
-          type: ShapeType.rectangle,
-          rect: const Rect.fromLTWH(500, 200, 100, 100),
-        ),
-      ]);
-      // Initially box-a is selected
-      state.selectedShapeIds.clear();
-      state.selectedShapeIds.add('box-a');
-      await tester.pumpAndSettle();
+        state.shapes.clear();
+        state.shapes.addAll([
+          VectorShape(
+            id: 'box-a',
+            name: 'Box A',
+            type: ShapeType.rectangle,
+            rect: const Rect.fromLTWH(200, 200, 100, 100),
+          ),
+          VectorShape(
+            id: 'box-b',
+            name: 'Box B',
+            type: ShapeType.rectangle,
+            rect: const Rect.fromLTWH(500, 200, 100, 100),
+          ),
+        ]);
+        // Initially box-a is selected
+        state.selectedShapeIds.clear();
+        state.selectedShapeIds.add('box-a');
+        await tester.pumpAndSettle();
 
-      // Hold Shift
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.pump();
+        // Hold Shift
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pump();
 
-      // Start drag at empty space (450, 150)
-      final gesture = await tester.startGesture(const Offset(450, 150));
-      await tester.pump();
+        // Start drag at empty space (450, 150)
+        final gesture = await tester.startGesture(const Offset(450, 150));
+        await tester.pump();
 
-      // Move into box-b: both box-a (from initial) and box-b (from live marquee) are selected
-      await gesture.moveTo(const Offset(650, 350));
-      await tester.pump();
-      expect(state.selectedShapeIds, contains('box-a'));
-      expect(state.selectedShapeIds, contains('box-b'));
+        // Move into box-b: both box-a (from initial) and box-b (from live marquee) are selected
+        await gesture.moveTo(const Offset(650, 350));
+        await tester.pump();
+        expect(state.selectedShapeIds, contains('box-a'));
+        expect(state.selectedShapeIds, contains('box-b'));
 
-      // Move away from box-b to empty space (460, 160): box-b is deselected live, box-a remains
-      await gesture.moveTo(const Offset(460, 160));
-      await tester.pump();
-      expect(state.selectedShapeIds, contains('box-a'));
-      expect(state.selectedShapeIds, isNot(contains('box-b')));
+        // Move away from box-b to empty space (460, 160): box-b is deselected live, box-a remains
+        await gesture.moveTo(const Offset(460, 160));
+        await tester.pump();
+        expect(state.selectedShapeIds, contains('box-a'));
+        expect(state.selectedShapeIds, isNot(contains('box-b')));
 
-      await gesture.up();
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.pumpAndSettle();
-      expect(state.marqueeRect, isNull);
-    });
+        await gesture.up();
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pumpAndSettle();
+        expect(state.marqueeRect, isNull);
+      },
+    );
   });
 }

@@ -167,7 +167,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     child: Center(
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 1200),
+                        constraints: BoxConstraints(
+                          maxWidth: constraints.maxWidth >= 1920
+                              ? 1800
+                              : (constraints.maxWidth >= 1440 ? 1400 : 1200),
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -790,7 +794,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   ) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final crossAxisCount = (constraints.maxWidth / 260).floor().clamp(1, 4);
+        final crossAxisCount = (constraints.maxWidth / 260).floor().clamp(1, 8);
 
         return GridView.builder(
           shrinkWrap: true,

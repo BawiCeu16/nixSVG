@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:nixsvg/models/vector_shape.dart';
 
@@ -13,6 +14,13 @@ class CanvasHitTester {
     // Generous touch / pointer padding (especially for lines which have zero height)
     if (shape.type == ShapeType.line && !shape.isStroked) return false;
     final padding = shape.type == ShapeType.line ? 16.0 : 8.0;
+
+    // Fast AABB rejection using cached bounding box before trig math
+    final bounds = shape.getBoundingBox();
+    if (!bounds.inflate(padding).contains(point)) {
+      return false;
+    }
+
     final effectiveRect = Rect.fromLTRB(
       math.min(shape.rect.left, shape.rect.right) - padding,
       math.min(shape.rect.top, shape.rect.bottom) - padding,
@@ -65,6 +73,12 @@ class CanvasHitTester {
   static ResizeHandle hitTestHandle(Offset pos, VectorShape shape) {
     final rect = shape.rect;
     const double hitSize = 28.0; // Touch and mouse friendly handle size
+
+    // Fast handle rejection using cached bounding box
+    final bounds = shape.getBoundingBox();
+    if (!bounds.inflate(hitSize + 12.0).contains(pos)) {
+      return ResizeHandle.none;
+    }
 
     Offset testPos = pos;
     if (shape.rotation != 0.0) {
@@ -128,7 +142,12 @@ class CanvasHitTester {
     }
 
     // Outer corner rotation zones (Figma rotates when cursor is slightly outside corner handles)
-    for (final c in [rect.topLeft, rect.topRight, rect.bottomLeft, rect.bottomRight]) {
+    for (final c in [
+      rect.topLeft,
+      rect.topRight,
+      rect.bottomLeft,
+      rect.bottomRight,
+    ]) {
       final dist = (testPos - c).distance;
       if (dist > hitSize / 2 && dist <= hitSize / 2 + 14) {
         return ResizeHandle.rotation;

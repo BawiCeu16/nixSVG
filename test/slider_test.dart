@@ -4,7 +4,9 @@ import 'package:m3e_slider/m3e_slider.dart';
 import 'package:nixsvg/widgets/nix_slider.dart';
 
 void main() {
-  testWidgets('NixSlider renders with custom M3ESlider motion and decoration', (tester) async {
+  testWidgets('NixSlider renders with custom M3ESlider motion and decoration', (
+    tester,
+  ) async {
     double currentValue = 0.48;
 
     await tester.pumpWidget(

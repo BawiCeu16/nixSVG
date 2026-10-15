@@ -19,8 +19,10 @@ void main() {
 
       // Screen position before zoom: S = scale * C + T
       final scaleBefore = matrix.getMaxScaleOnAxis();
-      final screenXBefore = scaleBefore * focalCanvasPoint.dx + matrix.storage[12];
-      final screenYBefore = scaleBefore * focalCanvasPoint.dy + matrix.storage[13];
+      final screenXBefore =
+          scaleBefore * focalCanvasPoint.dx + matrix.storage[12];
+      final screenYBefore =
+          scaleBefore * focalCanvasPoint.dy + matrix.storage[13];
 
       // Zoom in by 1.35x
       final zoomedIn = CanvasTransformHelper.zoomAtCanvasPoint(
@@ -30,8 +32,10 @@ void main() {
       );
 
       final scaleAfter = zoomedIn.getMaxScaleOnAxis();
-      final screenXAfter = scaleAfter * focalCanvasPoint.dx + zoomedIn.storage[12];
-      final screenYAfter = scaleAfter * focalCanvasPoint.dy + zoomedIn.storage[13];
+      final screenXAfter =
+          scaleAfter * focalCanvasPoint.dx + zoomedIn.storage[12];
+      final screenYAfter =
+          scaleAfter * focalCanvasPoint.dy + zoomedIn.storage[13];
 
       expect(screenXAfter, closeTo(screenXBefore, 1e-4));
       expect(screenYAfter, closeTo(screenYBefore, 1e-4));
@@ -61,36 +65,64 @@ void main() {
       const focalPoint = Offset(600.0, 400.0);
       const factor = 1.25;
 
-      final zoomed = CanvasTransformHelper.zoomAtCanvasPoint(original, focalPoint, factor);
-      final restored = CanvasTransformHelper.zoomAtCanvasPoint(zoomed, focalPoint, 1.0 / factor);
+      final zoomed = CanvasTransformHelper.zoomAtCanvasPoint(
+        original,
+        focalPoint,
+        factor,
+      );
+      final restored = CanvasTransformHelper.zoomAtCanvasPoint(
+        zoomed,
+        focalPoint,
+        1.0 / factor,
+      );
 
-      expect(restored.getMaxScaleOnAxis(), closeTo(original.getMaxScaleOnAxis(), 1e-5));
+      expect(
+        restored.getMaxScaleOnAxis(),
+        closeTo(original.getMaxScaleOnAxis(), 1e-5),
+      );
       expect(restored.storage[12], closeTo(original.storage[12], 1e-5));
       expect(restored.storage[13], closeTo(original.storage[13], 1e-5));
     });
 
-    test('Scale is strictly bounded between minScale (5%) and maxScale (3200%)', () {
-      var matrix = Matrix4.identity();
-      const focalPoint = Offset(300.0, 200.0);
+    test(
+      'Scale is strictly bounded between minScale (5%) and maxScale (3200%)',
+      () {
+        var matrix = Matrix4.identity();
+        const focalPoint = Offset(300.0, 200.0);
 
-      // Repeatedly zoom in 100 times
-      for (int i = 0; i < 100; i++) {
-        matrix = CanvasTransformHelper.zoomAtCanvasPoint(matrix, focalPoint, 1.3);
-      }
+        // Repeatedly zoom in 100 times
+        for (int i = 0; i < 100; i++) {
+          matrix = CanvasTransformHelper.zoomAtCanvasPoint(
+            matrix,
+            focalPoint,
+            1.3,
+          );
+        }
 
-      expect(CanvasTransformHelper.getScale(matrix), closeTo(CanvasTransformHelper.maxScale, 1e-5));
-      expect(matrix.storage[12].isFinite, isTrue);
-      expect(matrix.storage[13].isFinite, isTrue);
+        expect(
+          CanvasTransformHelper.getScale(matrix),
+          closeTo(CanvasTransformHelper.maxScale, 1e-5),
+        );
+        expect(matrix.storage[12].isFinite, isTrue);
+        expect(matrix.storage[13].isFinite, isTrue);
 
-      // Repeatedly zoom out 150 times
-      for (int i = 0; i < 150; i++) {
-        matrix = CanvasTransformHelper.zoomAtCanvasPoint(matrix, focalPoint, 0.7);
-      }
+        // Repeatedly zoom out 150 times
+        for (int i = 0; i < 150; i++) {
+          matrix = CanvasTransformHelper.zoomAtCanvasPoint(
+            matrix,
+            focalPoint,
+            0.7,
+          );
+        }
 
-      expect(CanvasTransformHelper.getScale(matrix), closeTo(CanvasTransformHelper.minScale, 1e-5));
-      expect(matrix.storage[12].isFinite, isTrue);
-      expect(matrix.storage[13].isFinite, isTrue);
-    });
+        expect(
+          CanvasTransformHelper.getScale(matrix),
+          closeTo(CanvasTransformHelper.minScale, 1e-5),
+        );
+        expect(matrix.storage[12].isFinite, isTrue);
+        expect(matrix.storage[13].isFinite, isTrue);
+      },
+    );
 
     test('zoomAtScreenPoint correctly converts screen coordinates to canvas coordinates', () {
       final matrix = Matrix4.identity()
@@ -119,7 +151,9 @@ void main() {
   });
 
   group('Interactive Canvas Zoom UI & Shortcuts', () {
-    testWidgets('Ctrl + scroll wheel zooms canvas focused on cursor point', (tester) async {
+    testWidgets('Ctrl + scroll wheel zooms canvas focused on cursor point', (
+      tester,
+    ) async {
       await tester.binding.setSurfaceSize(const Size(1280, 800));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -140,9 +174,7 @@ void main() {
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
       final pointer = TestPointer(1, PointerDeviceKind.mouse);
       pointer.hover(center);
-      await tester.sendEventToBinding(
-        pointer.scroll(const Offset(0, -100)),
-      );
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, -100)));
       await tester.pumpAndSettle();
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
 
@@ -157,7 +189,11 @@ void main() {
     test('zoomToFit mathematically maps targetBounds.center precisely to viewportSize / 2', () {
       const bounds = Rect.fromLTWH(320, 150, 400, 260);
       const viewport = Size(800, 600);
-      final matrix = CanvasTransformHelper.zoomToFit(bounds, viewport, padding: 60);
+      final matrix = CanvasTransformHelper.zoomToFit(
+        bounds,
+        viewport,
+        padding: 60,
+      );
 
       final scale = matrix.getMaxScaleOnAxis();
       final tx = matrix.storage[12];
@@ -173,74 +209,87 @@ void main() {
       expect(screenCenterY, closeTo(viewport.height / 2, 1e-4));
     });
 
-    testWidgets('Top Navigation Bar zoom in and zoom out updates zoom smoothly without losing canvas', (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1280, 800));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+    testWidgets(
+      'Top Navigation Bar zoom in and zoom out updates zoom smoothly without losing canvas',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(1280, 800));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await tester.pumpWidget(const NixSvgApp());
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(const NixSvgApp());
+        await tester.pumpAndSettle();
 
-      final ivFinder = find.byType(InteractiveViewer);
-      final ivWidget = tester.widget<InteractiveViewer>(ivFinder);
-      final controller = ivWidget.transformationController!;
+        final ivFinder = find.byType(InteractiveViewer);
+        final ivWidget = tester.widget<InteractiveViewer>(ivFinder);
+        final controller = ivWidget.transformationController!;
 
-      final initialScale = controller.value.getMaxScaleOnAxis();
+        final initialScale = controller.value.getMaxScaleOnAxis();
 
-      // Find Zoom In button in top navigation bar
-      final zoomInFinder = find.byTooltip('Zoom In');
-      expect(zoomInFinder, findsOneWidget);
-      await tester.tap(zoomInFinder);
-      await tester.pumpAndSettle();
+        // Find Zoom In button in top navigation bar
+        final zoomInFinder = find.byTooltip('Zoom In');
+        expect(zoomInFinder, findsOneWidget);
+        await tester.tap(zoomInFinder);
+        await tester.pumpAndSettle();
 
-      expect(controller.value.getMaxScaleOnAxis(), closeTo(initialScale * 1.2, 1e-4));
+        expect(
+          controller.value.getMaxScaleOnAxis(),
+          closeTo(initialScale * 1.2, 1e-4),
+        );
 
-      // Find Zoom Out button
-      final zoomOutFinder = find.byTooltip('Zoom Out');
-      expect(zoomOutFinder, findsOneWidget);
-      await tester.tap(zoomOutFinder);
-      await tester.pumpAndSettle();
+        // Find Zoom Out button
+        final zoomOutFinder = find.byTooltip('Zoom Out');
+        expect(zoomOutFinder, findsOneWidget);
+        await tester.tap(zoomOutFinder);
+        await tester.pumpAndSettle();
 
-      expect(controller.value.getMaxScaleOnAxis(), closeTo(initialScale, 1e-4));
-    });
+        expect(
+          controller.value.getMaxScaleOnAxis(),
+          closeTo(initialScale, 1e-4),
+        );
+      },
+    );
 
-    testWidgets('Zoom to Selection (Shift+2) centers selected shape at visible canvas center', (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1280, 800));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+    testWidgets(
+      'Zoom to Selection (Shift+2) centers selected shape at visible canvas center',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(1280, 800));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await tester.pumpWidget(const NixSvgApp());
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(const NixSvgApp());
+        await tester.pumpAndSettle();
 
-      final state = tester.state<FigmaWorkspaceState>(find.byType(FigmaWorkspace));
-      // Select the first shape
-      final selectedShape = state.shapes.first;
-      state.selectShape(selectedShape.id);
-      await tester.pumpAndSettle();
+        final state = tester.state<FigmaWorkspaceState>(
+          find.byType(FigmaWorkspace),
+        );
+        // Select the first shape
+        final selectedShape = state.shapes.first;
+        state.selectShape(selectedShape.id);
+        await tester.pumpAndSettle();
 
-      // Trigger Zoom to Selection using shortcut Shift+2
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.digit2);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.pumpAndSettle();
+        // Trigger Zoom to Selection using shortcut Shift+2
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.digit2);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pumpAndSettle();
 
-      final ivFinder = find.byType(InteractiveCanvas);
-      final canvasBox = tester.renderObject<RenderBox>(ivFinder);
-      final canvasSize = canvasBox.size;
+        final ivFinder = find.byType(InteractiveCanvas);
+        final canvasBox = tester.renderObject<RenderBox>(ivFinder);
+        final canvasSize = canvasBox.size;
 
-      final matrix = state.transformationController.value;
-      final scale = matrix.getMaxScaleOnAxis();
-      final tx = matrix.storage[12];
-      final ty = matrix.storage[13];
+        final matrix = state.transformationController.value;
+        final scale = matrix.getMaxScaleOnAxis();
+        final tx = matrix.storage[12];
+        final ty = matrix.storage[13];
 
-      // Canvas local coordinate of shape center
-      final shapeCenter = selectedShape.rect.center;
-      // In InteractiveCanvas coordinate space, (x, y) after transformation is:
-      final localCanvasScreenX = shapeCenter.dx * scale + tx;
-      final localCanvasScreenY = shapeCenter.dy * scale + ty;
+        // Canvas local coordinate of shape center
+        final shapeCenter = selectedShape.rect.center;
+        // In InteractiveCanvas coordinate space, (x, y) after transformation is:
+        final localCanvasScreenX = shapeCenter.dx * scale + tx;
+        final localCanvasScreenY = shapeCenter.dy * scale + ty;
 
-      // Must be at the center of the InteractiveCanvas RenderBox
-      expect(localCanvasScreenX, closeTo(canvasSize.width / 2, 1.0));
-      expect(localCanvasScreenY, closeTo(canvasSize.height / 2, 1.0));
-    });
+        // Must be at the center of the InteractiveCanvas RenderBox
+        expect(localCanvasScreenX, closeTo(canvasSize.width / 2, 1.0));
+        expect(localCanvasScreenY, closeTo(canvasSize.height / 2, 1.0));
+      },
+    );
   });
 }
-

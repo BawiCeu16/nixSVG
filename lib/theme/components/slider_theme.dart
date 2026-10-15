@@ -39,12 +39,14 @@ class AppSliderTheme {
         inactiveTrackColor: colorScheme.surfaceContainerHighest,
         disabledThumbColor: colorScheme.onSurface.withValues(alpha: 0.38),
         disabledActiveTrackColor: colorScheme.onSurface.withValues(alpha: 0.38),
-        disabledInactiveTrackColor:
-            colorScheme.surfaceContainerHighest.withValues(alpha: 0.38),
+        disabledInactiveTrackColor: colorScheme.surfaceContainerHighest
+            .withValues(alpha: 0.38),
         activeTickColor: colorScheme.onPrimary,
         inactiveTickColor: colorScheme.onSurfaceVariant,
         disabledActiveTickColor: colorScheme.onSurface.withValues(alpha: 0.38),
-        disabledInactiveTickColor: colorScheme.onSurface.withValues(alpha: 0.38),
+        disabledInactiveTickColor: colorScheme.onSurface.withValues(
+          alpha: 0.38,
+        ),
       ),
       hapticConfig: defaultHapticConfig,
     );

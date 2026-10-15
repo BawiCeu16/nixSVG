@@ -33,9 +33,14 @@ class WorkspaceSettingsState {
       snapToGrid: snapToGrid ?? this.snapToGrid,
       gridSpacing: gridSpacing ?? this.gridSpacing,
       layersSidebarWidth: layersSidebarWidth ?? this.layersSidebarWidth,
-      propertiesSidebarWidth: propertiesSidebarWidth ?? this.propertiesSidebarWidth,
-      isLayersPanelOpen: isLayersPanelOpen != null ? isLayersPanelOpen() : this.isLayersPanelOpen,
-      isPropertiesPanelOpen: isPropertiesPanelOpen != null ? isPropertiesPanelOpen() : this.isPropertiesPanelOpen,
+      propertiesSidebarWidth:
+          propertiesSidebarWidth ?? this.propertiesSidebarWidth,
+      isLayersPanelOpen: isLayersPanelOpen != null
+          ? isLayersPanelOpen()
+          : this.isLayersPanelOpen,
+      isPropertiesPanelOpen: isPropertiesPanelOpen != null
+          ? isPropertiesPanelOpen()
+          : this.isPropertiesPanelOpen,
       fileName: fileName ?? this.fileName,
     );
   }
@@ -92,5 +97,5 @@ class WorkspaceSettingsNotifier extends Notifier<WorkspaceSettingsState> {
 
 final workspaceSettingsProvider =
     NotifierProvider<WorkspaceSettingsNotifier, WorkspaceSettingsState>(
-  WorkspaceSettingsNotifier.new,
-);
+      WorkspaceSettingsNotifier.new,
+    );
