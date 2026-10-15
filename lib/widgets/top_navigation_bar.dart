@@ -205,7 +205,7 @@ class TopNavigationBar extends ConsumerWidget {
                                 _buildInnerDivider(colorScheme),
                                 _MacIconButton(
                                   icon: RemixIcons.arrow_go_forward_line,
-                                  tooltip: 'Redo (Ctrl+Y)',
+                                  tooltip: 'Redo (Ctrl+Shift+Z)',
                                   enabled: canRedo,
                                   onTap: onRedo,
                                 ),

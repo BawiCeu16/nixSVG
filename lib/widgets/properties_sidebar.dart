@@ -20,6 +20,26 @@ class PropertiesSidebar extends StatelessWidget {
   final VoidCallback onDeleteSelected;
   final Function(String align) onAlignShape;
   final double? width;
+  final Color? canvasBackgroundColor;
+  final ValueChanged<Color>? onCanvasBackgroundColorChanged;
+  final bool? snapToGrid;
+  final ValueChanged<bool>? onToggleSnapToGrid;
+  final double? gridSpacing;
+  final ValueChanged<double>? onGridSpacingChanged;
+  final int totalShapesCount;
+  final double zoomScale;
+  final VoidCallback? onZoomIn;
+  final VoidCallback? onZoomOut;
+  final ValueChanged<double>? onSetZoomScale;
+  final bool isPanMode;
+  final VoidCallback? onTogglePanMode;
+  final VoidCallback? onCenterCanvas;
+  final VoidCallback? onResetZoom;
+  final VoidCallback? onZoomToFit;
+  final VoidCallback? onZoomToSelection;
+  final VoidCallback? onSelectAll;
+  final VoidCallback? onExportSvg;
+  final VoidCallback? onClearCanvas;
 
   const PropertiesSidebar({
     super.key,
@@ -32,6 +52,26 @@ class PropertiesSidebar extends StatelessWidget {
     required this.onDeleteSelected,
     required this.onAlignShape,
     this.width,
+    this.canvasBackgroundColor,
+    this.onCanvasBackgroundColorChanged,
+    this.snapToGrid,
+    this.onToggleSnapToGrid,
+    this.gridSpacing,
+    this.onGridSpacingChanged,
+    this.totalShapesCount = 0,
+    this.zoomScale = 1.0,
+    this.onZoomIn,
+    this.onZoomOut,
+    this.onSetZoomScale,
+    this.isPanMode = false,
+    this.onTogglePanMode,
+    this.onCenterCanvas,
+    this.onResetZoom,
+    this.onZoomToFit,
+    this.onZoomToSelection,
+    this.onSelectAll,
+    this.onExportSvg,
+    this.onClearCanvas,
   });
 
   @override
@@ -59,39 +99,7 @@ class PropertiesSidebar extends StatelessWidget {
             ),
           ),
           child: selectedShape == null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          RemixIcons.hand,
-                          size: 40,
-                          color: colorScheme.outline.withValues(alpha: 0.4),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'No Shape Selected',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Click on a shape or layer to inspect & edit properties.',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant.withValues(
-                              alpha: 0.6,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
+              ? _buildCanvasProperties(context, theme, colorScheme, isDark)
               : ListView(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -2143,6 +2151,736 @@ class PropertiesSidebar extends StatelessWidget {
       case ShapeType.image:
         return RemixIcons.image_line;
     }
+  }
+
+  Widget _buildCanvasProperties(
+    BuildContext context,
+    ThemeData theme,
+    ColorScheme colorScheme,
+    bool isDark,
+  ) {
+    final effectiveBg =
+        canvasBackgroundColor ??
+        (isDark ? const Color(0xFF1E1E1E) : colorScheme.surface);
+    final opacityPct = (effectiveBg.a * 100).round();
+
+    final canvasPresets = [
+      const Color(0xFF121212), // Pure Dark
+      const Color(0xFF1E1E1E), // Figma Dark
+      const Color(0xFF0F172A), // Slate Navy
+      const Color(0xFF262626), // Neutral Charcoal
+      const Color(0xFFE2E8F0), // Cool Gray
+      const Color(0xFFF8FAFC), // Pure Off-White
+      const Color(0xFFFFFFFF), // Crisp White
+    ];
+
+    return ListView(
+      key: const ValueKey('properties-sidebar-canvas-inspector'),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      children: [
+        // Header M3 & Quick Actions
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: colorScheme.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                RemixIcons.artboard_line,
+                size: 18,
+                color: colorScheme.primary,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'PAGE / CANVAS',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: colorScheme.onSurface,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  Text(
+                    totalShapesCount == 1
+                        ? '1 layer'
+                        : '$totalShapesCount layers',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.75,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (onSelectAll != null)
+              M3EButton(
+                onPressed: totalShapesCount > 0 ? onSelectAll : null,
+                style: M3EButtonStyle.tonal,
+                size: M3EButtonSize.sm,
+                tooltip: totalShapesCount > 0
+                    ? 'Select All (Ctrl+A)'
+                    : 'No layers to select',
+                child: Icon(
+                  RemixIcons.checkbox_multiple_line,
+                  size: 16,
+                  color: totalShapesCount > 0
+                      ? colorScheme.onSecondaryContainer
+                      : colorScheme.onSurface.withValues(alpha: 0.38),
+                ),
+              ),
+          ],
+        ),
+
+        Divider(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+          height: 24,
+        ),
+
+        // Section: Navigation & Tools
+        Text('TOOL & NAVIGATION', style: _getSectionHeaderStyle(theme)),
+        const SizedBox(height: 10),
+
+        M3ESegmentedRow(
+          onTap: (index) {
+            if (index == 0 && isPanMode) {
+              onTogglePanMode?.call();
+            } else if (index == 1 && !isPanMode) {
+              onTogglePanMode?.call();
+            }
+          },
+          equalWidth: true,
+          gap: 2.0,
+          decoration: M3ESegmentedListDecoration(
+            outerRadius: 10.0,
+            innerRadius: 4.0,
+            gap: 2.0,
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+            color: colorScheme.surfaceContainerHigh,
+            hoverColor: colorScheme.surfaceContainerHighest,
+            pressedRadius: 8.0,
+            pressedScale: 0.97,
+          ),
+          children: [
+            Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    RemixIcons.cursor_line,
+                    size: 14,
+                    color: !isPanMode
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      'Select (V)',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: !isPanMode
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: !isPanMode
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    RemixIcons.hand,
+                    size: 14,
+                    color: isPanMode
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      'Move (H)',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: isPanMode
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: isPanMode
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 8),
+
+        Row(
+          children: [
+            Expanded(
+              child: M3EButton(
+                onPressed: onCenterCanvas,
+                style: M3EButtonStyle.tonal,
+                size: M3EButtonSize.sm,
+                tooltip: 'Center Canvas in Viewport',
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(RemixIcons.focus_3_line, size: 14),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        'Center',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: M3EButton(
+                onPressed: onZoomToFit,
+                style: M3EButtonStyle.tonal,
+                size: M3EButtonSize.sm,
+                tooltip: 'Zoom to Fit (Shift+1)',
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(RemixIcons.aspect_ratio_line, size: 14),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        'Fit',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        Divider(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+          height: 24,
+        ),
+
+        // Section: Zoom Controls
+        Text('ZOOM CONTROLS', style: _getSectionHeaderStyle(theme)),
+        const SizedBox(height: 10),
+
+        // Zoom Out | % Pill | Zoom In
+        Row(
+          children: [
+            M3EButton(
+              onPressed: onZoomOut,
+              style: M3EButtonStyle.tonal,
+              size: M3EButtonSize.sm,
+              tooltip: 'Zoom Out (Ctrl+-)',
+              child: Icon(
+                RemixIcons.subtract_line,
+                size: 16,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Tooltip(
+                message: 'Reset to 100% (Ctrl+0)',
+                child: InkWell(
+                  onTap: onResetZoom,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    height: 32,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: colorScheme.outlineVariant.withValues(
+                          alpha: 0.3,
+                        ),
+                        width: 0.8,
+                      ),
+                    ),
+                    child: Text(
+                      '${(zoomScale * 100).round()}%',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontFamily: 'monospace',
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            M3EButton(
+              onPressed: onZoomIn,
+              style: M3EButtonStyle.tonal,
+              size: M3EButtonSize.sm,
+              tooltip: 'Zoom In (Ctrl++)',
+              child: Icon(
+                RemixIcons.add_line,
+                size: 16,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 8),
+
+        // Presets: 50%, 100%, 200%, Fit
+        M3ESegmentedRow(
+          onTap: (index) {
+            switch (index) {
+              case 0:
+                onSetZoomScale?.call(0.5);
+                break;
+              case 1:
+                onResetZoom?.call();
+                break;
+              case 2:
+                onSetZoomScale?.call(2.0);
+                break;
+              case 3:
+                onZoomToFit?.call();
+                break;
+            }
+          },
+          equalWidth: true,
+          gap: 2.0,
+          decoration: M3ESegmentedListDecoration(
+            outerRadius: 10.0,
+            innerRadius: 4.0,
+            gap: 2.0,
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            color: colorScheme.surfaceContainerHigh,
+            hoverColor: colorScheme.surfaceContainerHighest,
+          ),
+          children: [
+            Center(
+              child: Text(
+                '50%',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: (zoomScale - 0.5).abs() < 0.05
+                      ? FontWeight.bold
+                      : FontWeight.normal,
+                  color: (zoomScale - 0.5).abs() < 0.05
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            Center(
+              child: Text(
+                '100%',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: (zoomScale - 1.0).abs() < 0.05
+                      ? FontWeight.bold
+                      : FontWeight.normal,
+                  color: (zoomScale - 1.0).abs() < 0.05
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            Center(
+              child: Text(
+                '200%',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: (zoomScale - 2.0).abs() < 0.05
+                      ? FontWeight.bold
+                      : FontWeight.normal,
+                  color: (zoomScale - 2.0).abs() < 0.05
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            Center(
+              child: Text(
+                'Fit',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.normal,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 10),
+
+        // Interactive Zoom Slider
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Zoom Range',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+            Text(
+              '${(zoomScale * 100).round()}%',
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        NixSlider(
+          value: zoomScale.clamp(0.25, 4.0),
+          min: 0.25,
+          max: 4.0,
+          onChanged: onSetZoomScale,
+        ),
+
+        Divider(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+          height: 24,
+        ),
+
+        // Section: Canvas Background
+        Text('CANVAS BACKGROUND', style: _getSectionHeaderStyle(theme)),
+        const SizedBox(height: 10),
+
+        // Color Chip + Hex Field + Opacity
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+              width: 0.8,
+            ),
+          ),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => ColorPickerDialog(
+                      initialColor: effectiveBg,
+                      title: 'Canvas Background Color',
+                      onColorSelected: (col) {
+                        onCanvasBackgroundColorChanged?.call(col);
+                      },
+                    ),
+                  );
+                },
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: effectiveBg,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: colorScheme.outline.withValues(alpha: 0.4),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _CanvasHexInputField(
+                  effectiveBg: effectiveBg,
+                  onColorChanged: onCanvasBackgroundColorChanged,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '$opacityPct%',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        // Quick Preset Swatches (No glow)
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: canvasPresets.map((preset) {
+            final isSelected =
+                (effectiveBg.toARGB32() & 0x00FFFFFF) ==
+                (preset.toARGB32() & 0x00FFFFFF);
+            return GestureDetector(
+              onTap: () => onCanvasBackgroundColorChanged?.call(preset),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: preset,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isSelected
+                        ? colorScheme.primary
+                        : colorScheme.outlineVariant.withValues(alpha: 0.4),
+                    width: isSelected ? 2.5 : 1.0,
+                  ),
+                  boxShadow: null,
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+
+        Divider(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+          height: 24,
+        ),
+
+        // Section: Grid & Snapping
+        Text('GRID & SNAPPING', style: _getSectionHeaderStyle(theme)),
+        const SizedBox(height: 10),
+
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Snap to Grid',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurface,
+                ),
+              ),
+            ),
+            Switch.adaptive(
+              value: snapToGrid ?? true,
+              onChanged: onToggleSnapToGrid,
+            ),
+          ],
+        ),
+
+        if (gridSpacing != null) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Text(
+                'Spacing: ${gridSpacing!.round()} px',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const Spacer(),
+            ],
+          ),
+          const SizedBox(height: 6),
+          _buildToggleGroup(
+            selectedIndex: switch (gridSpacing!.round()) {
+              10 => 0,
+              20 => 1,
+              40 => 2,
+              80 => 3,
+              _ => 2,
+            },
+            onChanged: (idx) {
+              final spacings = [10.0, 20.0, 40.0, 80.0];
+              onGridSpacingChanged?.call(spacings[idx]);
+            },
+            actions: const [
+              M3EToggleButtonGroupAction(
+                label: Text('10', style: TextStyle(fontSize: 11)),
+                tooltip: '10px Grid',
+              ),
+              M3EToggleButtonGroupAction(
+                label: Text('20', style: TextStyle(fontSize: 11)),
+                tooltip: '20px Grid',
+              ),
+              M3EToggleButtonGroupAction(
+                label: Text('40', style: TextStyle(fontSize: 11)),
+                tooltip: '40px Grid',
+              ),
+              M3EToggleButtonGroupAction(
+                label: Text('80', style: TextStyle(fontSize: 11)),
+                tooltip: '80px Grid',
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Editable Hex input field for canvas background color
+class _CanvasHexInputField extends StatefulWidget {
+  final Color effectiveBg;
+  final ValueChanged<Color>? onColorChanged;
+
+  const _CanvasHexInputField({
+    required this.effectiveBg,
+    required this.onColorChanged,
+  });
+
+  @override
+  State<_CanvasHexInputField> createState() => _CanvasHexInputFieldState();
+}
+
+class _CanvasHexInputFieldState extends State<_CanvasHexInputField> {
+  late TextEditingController _controller;
+  late FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: _formatHex(widget.effectiveBg));
+    _focusNode = FocusNode();
+    _focusNode.addListener(() {
+      if (!_focusNode.hasFocus) {
+        _commitHex(_controller.text);
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _CanvasHexInputField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_focusNode.hasFocus &&
+        (oldWidget.effectiveBg.toARGB32() & 0x00FFFFFF) !=
+            (widget.effectiveBg.toARGB32() & 0x00FFFFFF)) {
+      _controller.text = _formatHex(widget.effectiveBg);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  String _formatHex(Color col) {
+    return col
+        .toARGB32()
+        .toRadixString(16)
+        .padLeft(8, '0')
+        .substring(2)
+        .toUpperCase();
+  }
+
+  void _commitHex(String text) {
+    var raw = text.trim().replaceAll('#', '');
+    if (raw.length == 3) {
+      raw = raw.split('').map((c) => '$c$c').join();
+    }
+    if (raw.length == 6) {
+      final value = int.tryParse(raw, radix: 16);
+      if (value != null) {
+        final newColor = Color(0xFF000000 | value);
+        widget.onColorChanged?.call(newColor);
+        return;
+      }
+    } else if (raw.length == 8) {
+      final value = int.tryParse(raw, radix: 16);
+      if (value != null) {
+        final newColor = Color(value);
+        widget.onColorChanged?.call(newColor);
+        return;
+      }
+    }
+    _controller.text = _formatHex(widget.effectiveBg);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '#',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontFamily: 'monospace',
+            fontWeight: FontWeight.w600,
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: TextField(
+            key: const ValueKey('canvas-hex-input-field'),
+            controller: _controller,
+            focusNode: _focusNode,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontFamily: 'monospace',
+              fontWeight: FontWeight.w600,
+              color: colorScheme.onSurface,
+            ),
+            decoration: const InputDecoration(
+              isDense: true,
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+            ),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9a-fA-F]')),
+              LengthLimitingTextInputFormatter(8),
+            ],
+            onSubmitted: _commitHex,
+          ),
+        ),
+      ],
+    );
   }
 }
 

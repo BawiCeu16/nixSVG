@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:nixsvg/calculations/canvas_geometry.dart';
 import 'package:nixsvg/models/vector_shape.dart';
@@ -19,6 +18,7 @@ class VectorCanvasPainter extends CustomPainter {
   final Offset? snapGuidelineX;
   final Offset? snapGuidelineY;
   final ColorScheme colorScheme;
+  final String? editingShapeId;
 
   VectorCanvasPainter({
     required this.shapes,
@@ -34,6 +34,7 @@ class VectorCanvasPainter extends CustomPainter {
     this.snapGuidelineX,
     this.snapGuidelineY,
     required this.colorScheme,
+    this.editingShapeId,
   });
 
   @override
@@ -69,7 +70,9 @@ class VectorCanvasPainter extends CustomPainter {
     } else {
       for (final shape in shapes) {
         if (selectedShapeIds.contains(shape.id) && shape.isVisible) {
-          _drawSelectionBox(canvas, shape);
+          if (shape.id != editingShapeId) {
+            _drawSelectionBox(canvas, shape);
+          }
         }
       }
     }
@@ -330,6 +333,10 @@ class VectorCanvasPainter extends CustomPainter {
         break;
 
       case ShapeType.text:
+        if (shape.id == editingShapeId) {
+          // Inline editor handles active rendering
+          break;
+        }
         final isGradientText =
             shape.fillType != PaintFillType.solid && shape.fillGradient != null;
         final textPainter = shape.getTextPainter(
@@ -737,21 +744,5 @@ class VectorCanvasPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant VectorCanvasPainter oldDelegate) {
-    if (!identical(shapes, oldDelegate.shapes)) return true;
-    if (shapes.length != oldDelegate.shapes.length) return true;
-    if (!setEquals(selectedShapeIds, oldDelegate.selectedShapeIds)) return true;
-    if (draftStartPoint != oldDelegate.draftStartPoint) return true;
-    if (draftCurrentPoint != oldDelegate.draftCurrentPoint) return true;
-    if (draftShapeType != oldDelegate.draftShapeType) return true;
-    if (draftIsShiftPressed != oldDelegate.draftIsShiftPressed) return true;
-    if (draftIsAltPressed != oldDelegate.draftIsAltPressed) return true;
-    if (marqueeRect != oldDelegate.marqueeRect) return true;
-    if (currentMode != oldDelegate.currentMode) return true;
-    if (isResizing != oldDelegate.isResizing) return true;
-    if (snapGuidelineX != oldDelegate.snapGuidelineX) return true;
-    if (snapGuidelineY != oldDelegate.snapGuidelineY) return true;
-    if (colorScheme != oldDelegate.colorScheme) return true;
-    return false;
-  }
+  bool shouldRepaint(covariant VectorCanvasPainter oldDelegate) => true;
 }

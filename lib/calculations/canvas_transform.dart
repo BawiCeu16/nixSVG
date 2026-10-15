@@ -21,10 +21,36 @@ class CanvasTransformHelper {
   /// Using the matrix translation components (storage[12] and storage[13])
   /// guarantees 1:1 cursor tracking at ANY zoom scale without drift or precision loss.
   static Matrix4 panMatrix(Matrix4 currentMatrix, Offset screenDelta) {
+    if (!screenDelta.dx.isFinite || !screenDelta.dy.isFinite) {
+      return currentMatrix;
+    }
     final matrix = currentMatrix.clone();
-    matrix.storage[12] += screenDelta.dx;
-    matrix.storage[13] += screenDelta.dy;
+    final curTx = matrix.storage[12];
+    final curTy = matrix.storage[13];
+    matrix.storage[12] = (curTx.isFinite ? curTx : 0.0) + screenDelta.dx;
+    matrix.storage[13] = (curTy.isFinite ? curTy : 0.0) + screenDelta.dy;
     return matrix;
+  }
+
+  /// Transforms a screen/viewport coordinate to canvas coordinate space.
+  static Offset screenToCanvas(Matrix4 matrix, Offset screenPoint) {
+    final double scale = getScale(matrix);
+    if (scale <= 0.0 || scale.isNaN || scale.isInfinite) return screenPoint;
+    final double curTx = matrix.storage[12];
+    final double curTy = matrix.storage[13];
+    final double tx = curTx.isFinite ? curTx : 0.0;
+    final double ty = curTy.isFinite ? curTy : 0.0;
+    return Offset((screenPoint.dx - tx) / scale, (screenPoint.dy - ty) / scale);
+  }
+
+  /// Transforms a canvas coordinate to screen/viewport coordinate space.
+  static Offset canvasToScreen(Matrix4 matrix, Offset canvasPoint) {
+    final double scale = getScale(matrix);
+    final double curTx = matrix.storage[12];
+    final double curTy = matrix.storage[13];
+    final double tx = curTx.isFinite ? curTx : 0.0;
+    final double ty = curTy.isFinite ? curTy : 0.0;
+    return Offset(canvasPoint.dx * scale + tx, canvasPoint.dy * scale + ty);
   }
 
   /// Calculates focal-point zoom around a canvas coordinate [focalCanvasPoint].
@@ -47,6 +73,9 @@ class CanvasTransformHelper {
     if (zoomFactor <= 0.0 || zoomFactor.isNaN || zoomFactor.isInfinite) {
       return currentMatrix;
     }
+    if (!focalCanvasPoint.dx.isFinite || !focalCanvasPoint.dy.isFinite) {
+      return currentMatrix;
+    }
 
     final double newScale = (currentScale * zoomFactor).clamp(min, max);
     final double effectiveFactor = newScale / currentScale;
@@ -54,21 +83,23 @@ class CanvasTransformHelper {
       return currentMatrix;
     }
 
-    final double currentTx = currentMatrix.storage[12];
-    final double currentTy = currentMatrix.storage[13];
+    final double curTx = currentMatrix.storage[12];
+    final double curTy = currentMatrix.storage[13];
+    final double safeTx = curTx.isFinite ? curTx : 0.0;
+    final double safeTy = curTy.isFinite ? curTy : 0.0;
 
     final double newTx =
-        currentTx +
+        safeTx +
         currentScale * focalCanvasPoint.dx * (1.0 - effectiveFactor);
     final double newTy =
-        currentTy +
+        safeTy +
         currentScale * focalCanvasPoint.dy * (1.0 - effectiveFactor);
 
     final matrix = currentMatrix.clone();
     matrix.storage[0] = newScale;
     matrix.storage[5] = newScale;
-    matrix.storage[12] = newTx;
-    matrix.storage[13] = newTy;
+    matrix.storage[12] = newTx.isFinite ? newTx : safeTx;
+    matrix.storage[13] = newTy.isFinite ? newTy : safeTy;
     return matrix;
   }
 
@@ -84,11 +115,20 @@ class CanvasTransformHelper {
     if (currentScale <= 0.0 || currentScale.isNaN || currentScale.isInfinite) {
       return Matrix4.identity();
     }
-    final double currentTx = currentMatrix.storage[12];
-    final double currentTy = currentMatrix.storage[13];
+    if (!focalScreenPoint.dx.isFinite || !focalScreenPoint.dy.isFinite) {
+      return currentMatrix;
+    }
+    final double curTx = currentMatrix.storage[12];
+    final double curTy = currentMatrix.storage[13];
+    final double safeTx = curTx.isFinite ? curTx : 0.0;
+    final double safeTy = curTy.isFinite ? curTy : 0.0;
 
-    final double canvasX = (focalScreenPoint.dx - currentTx) / currentScale;
-    final double canvasY = (focalScreenPoint.dy - currentTy) / currentScale;
+    final double canvasX = (focalScreenPoint.dx - safeTx) / currentScale;
+    final double canvasY = (focalScreenPoint.dy - safeTy) / currentScale;
+
+    if (!canvasX.isFinite || !canvasY.isFinite) {
+      return currentMatrix;
+    }
 
     return zoomAtCanvasPoint(
       currentMatrix,

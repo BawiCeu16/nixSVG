@@ -81,6 +81,19 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   String fileName = 'nix_vector_design';
   bool snapToGrid = true;
   double gridSpacing = 40.0;
+  Color? canvasBackgroundColor;
+
+  void _selectAll() {
+    if (shapes.isEmpty) return;
+    setState(() {
+      selectedShapeIds.clear();
+      selectedShapeIds.addAll(shapes.map((s) => s.id));
+    });
+  }
+
+  void _resetZoom() {
+    setState(() => _transformationController.value = Matrix4.identity());
+  }
 
   // Sidebar Resize & Visibility State
   double layersSidebarWidth = 270.0;
@@ -106,6 +119,12 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   Offset? _lastMouseCanvasPosition;
   final GlobalKey _canvasKey = GlobalKey();
   final FocusNode _workspaceFocusNode = FocusNode(debugLabel: 'WorkspaceFocus');
+
+  // Inline Canvas Text Editing State
+  String? _editingTextShapeId;
+  bool _isEditingNewText = false;
+  DateTime? _lastPointerDownTime;
+  Offset? _lastPointerDownPos;
 
   bool get isSpacePressed =>
       _isSpacePressed ||
@@ -244,6 +263,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   }
 
   void _undo() {
+    _stopTextEditing(commit: true);
     final previous = _undoRedoManager.undo();
     if (previous != null) {
       setState(() {
@@ -254,6 +274,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   }
 
   void _redo() {
+    _stopTextEditing(commit: true);
     final next = _undoRedoManager.redo();
     if (next != null) {
       setState(() {
@@ -261,6 +282,40 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         selectedShapeIds.clear();
       });
     }
+  }
+
+  void _startTextEditing(VectorShape shape, {bool isNew = false}) {
+    setState(() {
+      _editingTextShapeId = shape.id;
+      _isEditingNewText = isNew;
+      selectedShapeIds.clear();
+      selectedShapeIds.add(shape.id);
+      currentMode = EditorMode.select;
+    });
+  }
+
+  void _stopTextEditing({bool commit = true}) {
+    if (_editingTextShapeId == null) return;
+    final editingId = _editingTextShapeId!;
+    final editingShape = shapes.cast<VectorShape?>().firstWhere(
+      (s) => s?.id == editingId,
+      orElse: () => null,
+    );
+
+    setState(() {
+      if (commit && editingShape != null) {
+        if (_isEditingNewText && editingShape.textContent.trim().isEmpty) {
+          shapes.removeWhere((s) => s.id == editingId);
+          selectedShapeIds.remove(editingId);
+        } else {
+          editingShape.invalidateCache();
+          _saveHistorySnapshot();
+        }
+      }
+      _editingTextShapeId = null;
+      _isEditingNewText = false;
+    });
+    _workspaceFocusNode.requestFocus();
   }
 
   // Pointer Down / Move / Up / Cancel Gestures
@@ -287,6 +342,65 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     _lastMouseCanvasPosition = localPos;
     panStartOffset = localPos;
     panCurrentOffset = localPos;
+
+    // Check if clicked inside active inline text editor
+    if (_editingTextShapeId != null) {
+      final editingShape = shapes.cast<VectorShape?>().firstWhere(
+        (s) => s?.id == _editingTextShapeId,
+        orElse: () => null,
+      );
+      if (editingShape != null &&
+          CanvasHitTester.hitTestShape(localPos, editingShape)) {
+        return;
+      }
+      _stopTextEditing(commit: true);
+    }
+
+    // Detect double-click on text shape to edit text like Figma
+    final now = DateTime.now();
+    final isDoubleClick =
+        _lastPointerDownTime != null &&
+        now.difference(_lastPointerDownTime!) <
+            const Duration(milliseconds: 350) &&
+        _lastPointerDownPos != null &&
+        (localPos - _lastPointerDownPos!).distance < 16.0;
+    _lastPointerDownTime = now;
+    _lastPointerDownPos = localPos;
+
+    if (isDoubleClick) {
+      VectorShape? hitTextShape;
+      for (int i = shapes.length - 1; i >= 0; i--) {
+        final s = shapes[i];
+        if (s.type == ShapeType.text &&
+            CanvasHitTester.hitTestShape(localPos, s)) {
+          hitTextShape = s;
+          break;
+        }
+      }
+      if (hitTextShape != null) {
+        _startTextEditing(hitTextShape);
+        return;
+      }
+    }
+
+    if (currentMode == EditorMode.drawText) {
+      VectorShape? hitTextShape;
+      for (int i = shapes.length - 1; i >= 0; i--) {
+        final s = shapes[i];
+        if (s.type == ShapeType.text &&
+            CanvasHitTester.hitTestShape(localPos, s)) {
+          hitTextShape = s;
+          break;
+        }
+      }
+      if (hitTextShape != null) {
+        _startTextEditing(hitTextShape);
+        return;
+      }
+      draftShapeType = ShapeType.text;
+      setState(() {});
+      return;
+    }
 
     if (currentMode == EditorMode.select) {
       // 1. Check if hit resize or rotation handle of single selected shape
@@ -540,11 +654,13 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
       if (isValidShape) {
         final isCurveMode = currentMode == EditorMode.drawCurve;
+        final isText = draftShapeType == ShapeType.text;
         final newShape = VectorShape(
           id: 'shape-${DateTime.now().millisecondsSinceEpoch}',
           name: '${_getModeName(currentMode)} $_shapeCounter',
           type: draftShapeType!,
           rect: finalRect,
+          textContent: isText ? '' : 'Text Element',
           isStroked: draftShapeType == ShapeType.line ? true : false,
           isFilled: draftShapeType == ShapeType.line ? false : true,
           isCurved: isCurveMode,
@@ -556,6 +672,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           selectedShapeIds.clear();
           selectedShapeIds.add(newShape.id);
           currentMode = EditorMode.select;
+          if (isText) {
+            _startTextEditing(newShape, isNew: true);
+          }
         });
         _saveHistorySnapshot();
       }
@@ -619,9 +738,23 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
   void _deleteSelected() {
     if (selectedShapeIds.isEmpty) return;
+    if (_editingTextShapeId != null && selectedShapeIds.contains(_editingTextShapeId)) {
+      _stopTextEditing(commit: false);
+    }
     setState(() {
-      shapes.removeWhere((s) => selectedShapeIds.contains(s.id));
+      shapes = shapes.where((s) => !selectedShapeIds.contains(s.id)).toList();
       selectedShapeIds.clear();
+    });
+    _saveHistorySnapshot();
+  }
+
+  void _deleteShapeById(String id) {
+    if (_editingTextShapeId == id) {
+      _stopTextEditing(commit: false);
+    }
+    setState(() {
+      shapes = shapes.where((s) => s.id != id).toList();
+      selectedShapeIds.remove(id);
     });
     _saveHistorySnapshot();
   }
@@ -850,6 +983,63 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     });
   }
 
+  void _setZoomScale(double targetScale) {
+    final currentScale = CanvasTransformHelper.getScale(
+      _transformationController.value,
+    );
+    if (currentScale <= 0) return;
+    final factor = targetScale / currentScale;
+    final focalPoint = (_isMouseOverCanvas && _lastMouseCanvasPosition != null)
+        ? _lastMouseCanvasPosition!
+        : _getViewportCanvasCenter();
+    setState(() {
+      _transformationController.value = CanvasTransformHelper.zoomAtCanvasPoint(
+        _transformationController.value,
+        focalPoint,
+        factor,
+      );
+    });
+  }
+
+  void _togglePanMode() {
+    setState(() {
+      if (currentMode == EditorMode.pan) {
+        currentMode = EditorMode.select;
+      } else {
+        currentMode = EditorMode.pan;
+      }
+    });
+  }
+
+  void _centerCanvas() {
+    final size = _getCanvasViewportSize();
+    const canvasWidth = 3200.0;
+    const canvasHeight = 2400.0;
+    final scale = CanvasTransformHelper.getScale(
+      _transformationController.value,
+    );
+    final tx = (size.width - canvasWidth * scale) / 2;
+    final ty = (size.height - canvasHeight * scale) / 2;
+    final m = Matrix4.identity();
+    m.storage[0] = scale;
+    m.storage[5] = scale;
+    m.storage[12] = tx;
+    m.storage[13] = ty;
+    setState(() {
+      _transformationController.value = m;
+    });
+  }
+
+  void _clearCanvas() {
+    if (shapes.isEmpty) return;
+    setState(() {
+      shapes = [];
+      selectedShapeIds.clear();
+      _stopTextEditing(commit: false);
+    });
+    _saveHistorySnapshot();
+  }
+
   Future<void> _importImageFromDevice() async {
     try {
       ensureFilePickerInitialized();
@@ -962,12 +1152,55 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
   /// Selects a shape by ID and ensures the properties panel is visible.
   void selectShape(String id) {
+    if (_editingTextShapeId != null && _editingTextShapeId != id) {
+      _stopTextEditing(commit: true);
+    }
     setState(() {
       selectedShapeIds.clear();
       selectedShapeIds.add(id);
       isPropertiesPanelOpen = true;
     });
   }
+
+  /// Clears shape selection to focus canvas/document inspector.
+  void clearSelection() {
+    setState(() {
+      selectedShapeIds.clear();
+    });
+  }
+
+  /// Deletes currently selected shapes.
+  void deleteSelected() => _deleteSelected();
+
+  /// Sets the canvas background color and saves to undo history.
+  void setCanvasBackgroundColor(Color color) {
+    setState(() => canvasBackgroundColor = color);
+    _saveHistorySnapshot();
+  }
+
+  /// Zooms in towards canvas focal point.
+  void zoomIn() => _zoomIn();
+
+  /// Zooms out from canvas focal point.
+  void zoomOut() => _zoomOut();
+
+  /// Zooms to fit all shapes.
+  void zoomToFit() => _zoomToFit();
+
+  /// Resets zoom to 100%.
+  void resetZoom() => _resetZoom();
+
+  /// Centers the canvas in the viewport.
+  void centerCanvas() => _centerCanvas();
+
+  /// Toggles between Pan/Move mode and Select mode.
+  void togglePanMode() => _togglePanMode();
+
+  /// Sets zoom scale directly.
+  void setZoomScale(double scale) => _setZoomScale(scale);
+
+  /// Clears all shapes from the canvas.
+  void clearCanvas() => _clearCanvas();
 
   bool _isTextInputFocused() {
     final focus = FocusManager.instance.primaryFocus;
@@ -992,6 +1225,15 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (_editingTextShapeId != null) {
+      if (event is KeyDownEvent &&
+          event.logicalKey == LogicalKeyboardKey.escape) {
+        _stopTextEditing(commit: true);
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+
     if (event is KeyDownEvent &&
         event.logicalKey == LogicalKeyboardKey.escape) {
       FocusManager.instance.primaryFocus?.unfocus();
@@ -1036,10 +1278,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           HardwareKeyboard.instance.isMetaPressed;
       if (isCtrl) {
         if (event.logicalKey == LogicalKeyboardKey.keyA) {
-          setState(() {
-            selectedShapeIds.clear();
-            selectedShapeIds.addAll(shapes.map((s) => s.id));
-          });
+          if (shapes.isNotEmpty) {
+            _selectAll();
+          }
           return KeyEventResult.handled;
         } else if (event.logicalKey == LogicalKeyboardKey.keyC) {
           _copySelected();
@@ -1051,7 +1292,11 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           _pasteClipboard();
           return KeyEventResult.handled;
         } else if (event.logicalKey == LogicalKeyboardKey.keyZ) {
-          _undo();
+          if (HardwareKeyboard.instance.isShiftPressed) {
+            _redo();
+          } else {
+            _undo();
+          }
           return KeyEventResult.handled;
         } else if (event.logicalKey == LogicalKeyboardKey.keyY) {
           _redo();
@@ -1227,13 +1472,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                 },
                 onExportSvg: _openExportDialog,
                 onImportImage: _importImageFromDevice,
-                onClearCanvas: () {
-                  setState(() {
-                    shapes.clear();
-                    selectedShapeIds.clear();
-                  });
-                  _saveHistorySnapshot();
-                },
+                onClearCanvas: _clearCanvas,
                 onShowShortcuts: _openShortcutsDialog,
                 zoomScale: zoomScale,
                 onZoomIn: _zoomIn,
@@ -1309,13 +1548,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                               });
                               _saveHistorySnapshot();
                             },
-                            onDeleteShape: (id) {
-                              setState(() {
-                                shapes.removeWhere((s) => s.id == id);
-                                selectedShapeIds.remove(id);
-                              });
-                              _saveHistorySnapshot();
-                            },
+                            onDeleteShape: _deleteShapeById,
                             onBringForward: _bringForward,
                             onSendBackward: _sendBackward,
                             onRenameShape: (id, newName) {
@@ -1390,6 +1623,37 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                               isSpacePressed: isSpacePressed,
                               isResizing:
                                   activeResizeHandle != ResizeHandle.none,
+                              editingTextShapeId: _editingTextShapeId,
+                              isEditingNewText: _isEditingNewText,
+                              canvasBackgroundColor: canvasBackgroundColor,
+                              onInlineTextChanged: (text) {
+                                final editingId = _editingTextShapeId;
+                                if (editingId == null) return;
+                                final index = shapes.indexWhere(
+                                  (s) => s.id == editingId,
+                                );
+                                if (index != -1) {
+                                  shapes[index].textContent = text;
+                                  shapes[index].invalidateCache();
+                                  setState(() {});
+                                }
+                              },
+                              onInlineTextCommit: () =>
+                                  _stopTextEditing(commit: true),
+                              onInlineTextCancel: () =>
+                                  _stopTextEditing(commit: false),
+                              onInlineTextRectChanged: (newRect) {
+                                final editingId = _editingTextShapeId;
+                                if (editingId == null) return;
+                                final index = shapes.indexWhere(
+                                  (s) => s.id == editingId,
+                                );
+                                if (index != -1) {
+                                  shapes[index].rect = newRect;
+                                  shapes[index].invalidateCache();
+                                  setState(() {});
+                                }
+                              },
                               onPointerDown: _onPointerDown,
                               onPointerMove: _onPointerMove,
                               onPointerUp: _onPointerUp,
@@ -1446,13 +1710,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                         });
                                         _saveHistorySnapshot();
                                       },
-                                      onDeleteShape: (id) {
-                                        setState(() {
-                                          shapes.removeWhere((s) => s.id == id);
-                                          selectedShapeIds.remove(id);
-                                        });
-                                        _saveHistorySnapshot();
-                                      },
+                                      onDeleteShape: _deleteShapeById,
                                       onBringForward: _bringForward,
                                       onSendBackward: _sendBackward,
                                       onRenameShape: (id, newName) {
@@ -1515,6 +1773,39 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                       onDuplicateShape: _duplicateSelected,
                                       onDeleteSelected: _deleteSelected,
                                       onAlignShape: _alignShapes,
+                                      canvasBackgroundColor: canvasBackgroundColor,
+                                      onCanvasBackgroundColorChanged: (col) {
+                                        setState(() => canvasBackgroundColor = col);
+                                        _saveHistorySnapshot();
+                                      },
+                                      snapToGrid: snapToGrid,
+                                      onToggleSnapToGrid: (val) {
+                                        setState(() => snapToGrid = val);
+                                        ref
+                                            .read(workspaceSettingsProvider.notifier)
+                                            .setSnapToGrid(val);
+                                      },
+                                      gridSpacing: gridSpacing,
+                                      onGridSpacingChanged: (val) {
+                                        setState(() => gridSpacing = val);
+                                        ref
+                                            .read(workspaceSettingsProvider.notifier)
+                                            .setGridSpacing(val);
+                                      },
+                                      totalShapesCount: shapes.length,
+                                      zoomScale: zoomScale,
+                                      onZoomIn: _zoomIn,
+                                      onZoomOut: _zoomOut,
+                                      onSetZoomScale: _setZoomScale,
+                                      isPanMode: currentMode == EditorMode.pan,
+                                      onTogglePanMode: _togglePanMode,
+                                      onCenterCanvas: _centerCanvas,
+                                      onResetZoom: _resetZoom,
+                                      onZoomToFit: _zoomToFit,
+                                      onZoomToSelection: _zoomToSelection,
+                                      onSelectAll: _selectAll,
+                                      onExportSvg: _openExportDialog,
+                                      onClearCanvas: _clearCanvas,
                                     ),
                                   ),
                                 ),
@@ -1584,6 +1875,39 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                             onDuplicateShape: _duplicateSelected,
                             onDeleteSelected: _deleteSelected,
                             onAlignShape: _alignShapes,
+                            canvasBackgroundColor: canvasBackgroundColor,
+                            onCanvasBackgroundColorChanged: (col) {
+                              setState(() => canvasBackgroundColor = col);
+                              _saveHistorySnapshot();
+                            },
+                            snapToGrid: snapToGrid,
+                            onToggleSnapToGrid: (val) {
+                              setState(() => snapToGrid = val);
+                              ref
+                                  .read(workspaceSettingsProvider.notifier)
+                                  .setSnapToGrid(val);
+                            },
+                            gridSpacing: gridSpacing,
+                            onGridSpacingChanged: (val) {
+                              setState(() => gridSpacing = val);
+                              ref
+                                  .read(workspaceSettingsProvider.notifier)
+                                  .setGridSpacing(val);
+                            },
+                            totalShapesCount: shapes.length,
+                            zoomScale: zoomScale,
+                            onZoomIn: _zoomIn,
+                            onZoomOut: _zoomOut,
+                            onSetZoomScale: _setZoomScale,
+                            isPanMode: currentMode == EditorMode.pan,
+                            onTogglePanMode: _togglePanMode,
+                            onCenterCanvas: _centerCanvas,
+                            onResetZoom: _resetZoom,
+                            onZoomToFit: _zoomToFit,
+                            onZoomToSelection: _zoomToSelection,
+                            onSelectAll: _selectAll,
+                            onExportSvg: _openExportDialog,
+                            onClearCanvas: _clearCanvas,
                           ),
                         ),
                       ],

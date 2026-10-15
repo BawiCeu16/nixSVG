@@ -943,6 +943,48 @@ class VectorShape {
     return computed;
   }
 
+  /// Returns the resolved [TextStyle] for typography shapes matching canvas metrics.
+  TextStyle getTextStyle({Paint? fillPaint}) {
+    final effectiveColor = fillColor.withValues(alpha: fillOpacity);
+    final textDecorations = <TextDecoration>[];
+    if (isUnderline) textDecorations.add(TextDecoration.underline);
+    if (isStrikethrough) textDecorations.add(TextDecoration.lineThrough);
+    final decoration = textDecorations.isNotEmpty
+        ? TextDecoration.combine(textDecorations)
+        : TextDecoration.none;
+
+    final isGradientText =
+        fillType != PaintFillType.solid && fillGradient != null;
+
+    try {
+      return GoogleFonts.getFont(
+        fontFamily,
+        color: isGradientText ? null : effectiveColor,
+        foreground: isGradientText ? fillPaint : null,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        fontStyle: isItalic ? FontStyle.italic : FontStyle.normal,
+        letterSpacing: letterSpacing != 0.0 ? letterSpacing : null,
+        height: lineHeight,
+        decoration: decoration,
+        decorationColor: effectiveColor,
+      );
+    } catch (_) {
+      return TextStyle(
+        color: isGradientText ? null : effectiveColor,
+        foreground: isGradientText ? fillPaint : null,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        fontStyle: isItalic ? FontStyle.italic : FontStyle.normal,
+        fontFamily: fontFamily,
+        letterSpacing: letterSpacing != 0.0 ? letterSpacing : null,
+        height: lineHeight,
+        decoration: decoration,
+        decorationColor: effectiveColor,
+      );
+    }
+  }
+
   /// Returns cached [TextPainter] for typography shapes.
   TextPainter getTextPainter({Paint? fillPaint}) {
     final effectiveColor = fillColor.withValues(alpha: fillOpacity);
@@ -981,43 +1023,7 @@ class VectorShape {
         break;
     }
 
-    final textDecorations = <TextDecoration>[];
-    if (isUnderline) textDecorations.add(TextDecoration.underline);
-    if (isStrikethrough) textDecorations.add(TextDecoration.lineThrough);
-    final decoration = textDecorations.isNotEmpty
-        ? TextDecoration.combine(textDecorations)
-        : TextDecoration.none;
-
-    final isGradientText =
-        fillType != PaintFillType.solid && fillGradient != null;
-    TextStyle textStyle;
-    try {
-      textStyle = GoogleFonts.getFont(
-        fontFamily,
-        color: isGradientText ? null : effectiveColor,
-        foreground: isGradientText ? fillPaint : null,
-        fontSize: fontSize,
-        fontWeight: fontWeight,
-        fontStyle: isItalic ? FontStyle.italic : FontStyle.normal,
-        letterSpacing: letterSpacing != 0.0 ? letterSpacing : null,
-        height: lineHeight,
-        decoration: decoration,
-        decorationColor: effectiveColor,
-      );
-    } catch (_) {
-      textStyle = TextStyle(
-        color: isGradientText ? null : effectiveColor,
-        foreground: isGradientText ? fillPaint : null,
-        fontSize: fontSize,
-        fontWeight: fontWeight,
-        fontStyle: isItalic ? FontStyle.italic : FontStyle.normal,
-        fontFamily: fontFamily,
-        letterSpacing: letterSpacing != 0.0 ? letterSpacing : null,
-        height: lineHeight,
-        decoration: decoration,
-        decorationColor: effectiveColor,
-      );
-    }
+    final textStyle = getTextStyle(fillPaint: fillPaint);
 
     final layoutWidth = math.max(10.0, rect.width);
     final painter = TextPainter(

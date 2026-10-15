@@ -29,7 +29,6 @@ Future<void> main() async {
     minScale: 1.0,
     maxScale: 1.25,
   );
-
   runApp(
     ProviderScope(
       overrides: [

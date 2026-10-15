@@ -72,7 +72,7 @@ class ShortcutsDialog extends StatelessWidget {
               ),
               _buildShortcutRow(context, 'Ctrl + A', 'Select All Shapes'),
               _buildShortcutRow(context, 'Ctrl + Z', 'Undo'),
-              _buildShortcutRow(context, 'Ctrl + Y', 'Redo'),
+              _buildShortcutRow(context, 'Ctrl + Shift + Z', 'Redo'),
               const Divider(height: 16),
               _buildShortcutRow(
                 context,
