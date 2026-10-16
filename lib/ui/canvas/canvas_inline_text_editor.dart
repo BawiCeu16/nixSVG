@@ -13,6 +13,7 @@ class CanvasInlineTextEditor extends StatefulWidget {
   final VoidCallback? onCancel;
   final ValueChanged<Rect>? onRectChanged;
   final bool isNew;
+  final bool selectAll;
 
   const CanvasInlineTextEditor({
     super.key,
@@ -22,6 +23,7 @@ class CanvasInlineTextEditor extends StatefulWidget {
     this.onCancel,
     this.onRectChanged,
     this.isNew = false,
+    this.selectAll = false,
   });
 
   @override
@@ -37,9 +39,12 @@ class _CanvasInlineTextEditorState extends State<CanvasInlineTextEditor> {
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.shape.textContent);
-    _focusNode = FocusNode(debugLabel: 'CanvasInlineTextEditorFocus');
+    _focusNode = FocusNode(
+      debugLabel: 'CanvasInlineTextEditorFocus',
+      onKeyEvent: _handleKeyEvent,
+    );
 
-    if (widget.isNew) {
+    if (widget.isNew || widget.selectAll) {
       if (widget.shape.textContent.isEmpty) {
         _controller.text = '';
       } else {
@@ -166,55 +171,52 @@ class _CanvasInlineTextEditorState extends State<CanvasInlineTextEditor> {
       child: Transform.rotate(
         angle: shape.rotation * math.pi / 180.0,
         alignment: Alignment.center,
-        child: Focus(
-          focusNode: _focusNode,
-          onKeyEvent: _handleKeyEvent,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // Signature Figma text frame outline
-              Container(
-                width: width,
-                height: height,
-                decoration: BoxDecoration(
-                  border: Border.all(color: colorScheme.primary, width: 1.5),
-                  borderRadius: BorderRadius.circular(2.0),
-                  color: colorScheme.surface.withValues(alpha: 0.1),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 2.0,
-                  vertical: 1.0,
-                ),
-                alignment: _getAlignment(
-                  shape.textAlign,
-                  shape.textVerticalAlign,
-                ),
-                child: TextField(
-                  controller: _controller,
-                  autofocus: true,
-                  maxLines: null,
-                  keyboardType: TextInputType.multiline,
-                  textAlign: shape.textAlign,
-                  style: textStyle,
-                  cursorColor: colorScheme.primary,
-                  cursorWidth: 2.0,
-                  cursorRadius: const Radius.circular(1.0),
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  onChanged: _handleTextChanged,
-                ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // Signature Figma text frame outline
+            Container(
+              width: width,
+              height: height,
+              decoration: BoxDecoration(
+                border: Border.all(color: colorScheme.primary, width: 1.5),
+                borderRadius: BorderRadius.circular(2.0),
+                color: colorScheme.surface.withValues(alpha: 0.1),
               ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 2.0,
+                vertical: 1.0,
+              ),
+              alignment: _getAlignment(
+                shape.textAlign,
+                shape.textVerticalAlign,
+              ),
+              child: TextField(
+                focusNode: _focusNode,
+                controller: _controller,
+                autofocus: true,
+                maxLines: null,
+                keyboardType: TextInputType.multiline,
+                textAlign: shape.textAlign,
+                style: textStyle,
+                cursorColor: colorScheme.primary,
+                cursorWidth: 2.0,
+                cursorRadius: const Radius.circular(1.0),
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                onChanged: _handleTextChanged,
+              ),
+            ),
 
-              // Figma-style corner anchor pips
-              _buildCornerPip(Alignment.topLeft, colorScheme.primary),
-              _buildCornerPip(Alignment.topRight, colorScheme.primary),
-              _buildCornerPip(Alignment.bottomLeft, colorScheme.primary),
-              _buildCornerPip(Alignment.bottomRight, colorScheme.primary),
-            ],
-          ),
+            // Figma-style corner anchor pips
+            _buildCornerPip(Alignment.topLeft, colorScheme.primary),
+            _buildCornerPip(Alignment.topRight, colorScheme.primary),
+            _buildCornerPip(Alignment.bottomLeft, colorScheme.primary),
+            _buildCornerPip(Alignment.bottomRight, colorScheme.primary),
+          ],
         ),
       ),
     );

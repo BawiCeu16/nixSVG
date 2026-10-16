@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -296,12 +297,23 @@ class PropertiesSidebar extends StatelessWidget {
                             'X',
                             selectedShape!.rect.left,
                             (val) {
-                              final newRect = Rect.fromLTWH(
-                                val,
-                                selectedShape!.rect.top,
-                                selectedShape!.rect.width,
-                                selectedShape!.rect.height,
-                              );
+                              final isLine =
+                                  selectedShape!.type == ShapeType.line;
+                              final newRect = isLine
+                                  ? Rect.fromLTRB(
+                                      val,
+                                      selectedShape!.rect.top,
+                                      val +
+                                          (selectedShape!.rect.right -
+                                              selectedShape!.rect.left),
+                                      selectedShape!.rect.bottom,
+                                    )
+                                  : Rect.fromLTWH(
+                                      val,
+                                      selectedShape!.rect.top,
+                                      selectedShape!.rect.width,
+                                      selectedShape!.rect.height,
+                                    );
                               final updated = selectedShape!.copyWith(
                                 rect: newRect,
                               );
@@ -317,12 +329,23 @@ class PropertiesSidebar extends StatelessWidget {
                             'Y',
                             selectedShape!.rect.top,
                             (val) {
-                              final newRect = Rect.fromLTWH(
-                                selectedShape!.rect.left,
-                                val,
-                                selectedShape!.rect.width,
-                                selectedShape!.rect.height,
-                              );
+                              final isLine =
+                                  selectedShape!.type == ShapeType.line;
+                              final newRect = isLine
+                                  ? Rect.fromLTRB(
+                                      selectedShape!.rect.left,
+                                      val,
+                                      selectedShape!.rect.right,
+                                      val +
+                                          (selectedShape!.rect.bottom -
+                                              selectedShape!.rect.top),
+                                    )
+                                  : Rect.fromLTWH(
+                                      selectedShape!.rect.left,
+                                      val,
+                                      selectedShape!.rect.width,
+                                      selectedShape!.rect.height,
+                                    );
                               final updated = selectedShape!.copyWith(
                                 rect: newRect,
                               );
@@ -334,51 +357,146 @@ class PropertiesSidebar extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildNumberField(
-                            context,
-                            'W',
-                            selectedShape!.rect.width,
-                            (val) {
-                              final newRect = Rect.fromLTWH(
-                                selectedShape!.rect.left,
-                                selectedShape!.rect.top,
-                                val.clamp(5, 5000),
-                                selectedShape!.rect.height,
-                              );
-                              final updated = selectedShape!.copyWith(
-                                rect: newRect,
-                              );
-                              onShapeChanged(updated);
-                              onShapeChangeEnd?.call(updated);
-                            },
+                    if (selectedShape!.type == ShapeType.line) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildNumberField(
+                              context,
+                              'L',
+                              math.sqrt(
+                                (selectedShape!.rect.right -
+                                            selectedShape!.rect.left) *
+                                        (selectedShape!.rect.right -
+                                            selectedShape!.rect.left) +
+                                    (selectedShape!.rect.bottom -
+                                            selectedShape!.rect.top) *
+                                        (selectedShape!.rect.bottom -
+                                            selectedShape!.rect.top),
+                              ),
+                              (val) {
+                                final p1 = selectedShape!.rect.topLeft;
+                                final p2 = selectedShape!.rect.bottomRight;
+                                final dx = p2.dx - p1.dx;
+                                final dy = p2.dy - p1.dy;
+                                final currentLen = math.sqrt(dx * dx + dy * dy);
+                                final angle = currentLen > 0
+                                    ? math.atan2(dy, dx)
+                                    : 0.0;
+                                final newLen = val.clamp(1.0, 10000.0);
+                                final newEnd =
+                                    p1 +
+                                    Offset(
+                                      newLen * math.cos(angle),
+                                      newLen * math.sin(angle),
+                                    );
+                                final newRect = Rect.fromLTRB(
+                                  p1.dx,
+                                  p1.dy,
+                                  newEnd.dx,
+                                  newEnd.dy,
+                                );
+                                final updated = selectedShape!.copyWith(
+                                  rect: newRect,
+                                );
+                                onShapeChanged(updated);
+                                onShapeChangeEnd?.call(updated);
+                              },
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildNumberField(
-                            context,
-                            'H',
-                            selectedShape!.rect.height,
-                            (val) {
-                              final newRect = Rect.fromLTWH(
-                                selectedShape!.rect.left,
-                                selectedShape!.rect.top,
-                                selectedShape!.rect.width,
-                                val.clamp(5, 5000),
-                              );
-                              final updated = selectedShape!.copyWith(
-                                rect: newRect,
-                              );
-                              onShapeChanged(updated);
-                              onShapeChangeEnd?.call(updated);
-                            },
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildNumberField(
+                              context,
+                              'A°',
+                              (math.atan2(
+                                        selectedShape!.rect.bottom -
+                                            selectedShape!.rect.top,
+                                        selectedShape!.rect.right -
+                                            selectedShape!.rect.left,
+                                      ) *
+                                      180 /
+                                      math.pi)
+                                  .roundToDouble(),
+                              (val) {
+                                final p1 = selectedShape!.rect.topLeft;
+                                final p2 = selectedShape!.rect.bottomRight;
+                                final dx = p2.dx - p1.dx;
+                                final dy = p2.dy - p1.dy;
+                                final currentLen = math.max(
+                                  1.0,
+                                  math.sqrt(dx * dx + dy * dy),
+                                );
+                                final rad = val * math.pi / 180.0;
+                                final newEnd =
+                                    p1 +
+                                    Offset(
+                                      currentLen * math.cos(rad),
+                                      currentLen * math.sin(rad),
+                                    );
+                                final newRect = Rect.fromLTRB(
+                                  p1.dx,
+                                  p1.dy,
+                                  newEnd.dx,
+                                  newEnd.dy,
+                                );
+                                final updated = selectedShape!.copyWith(
+                                  rect: newRect,
+                                );
+                                onShapeChanged(updated);
+                                onShapeChangeEnd?.call(updated);
+                              },
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ] else ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildNumberField(
+                              context,
+                              'W',
+                              selectedShape!.rect.width,
+                              (val) {
+                                final newRect = Rect.fromLTWH(
+                                  selectedShape!.rect.left,
+                                  selectedShape!.rect.top,
+                                  val.clamp(5, 5000),
+                                  selectedShape!.rect.height,
+                                );
+                                final updated = selectedShape!.copyWith(
+                                  rect: newRect,
+                                );
+                                onShapeChanged(updated);
+                                onShapeChangeEnd?.call(updated);
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildNumberField(
+                              context,
+                              'H',
+                              selectedShape!.rect.height,
+                              (val) {
+                                final newRect = Rect.fromLTWH(
+                                  selectedShape!.rect.left,
+                                  selectedShape!.rect.top,
+                                  selectedShape!.rect.width,
+                                  val.clamp(5, 5000),
+                                );
+                                final updated = selectedShape!.copyWith(
+                                  rect: newRect,
+                                );
+                                onShapeChanged(updated);
+                                onShapeChangeEnd?.call(updated);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     Row(
                       children: [

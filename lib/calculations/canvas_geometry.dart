@@ -63,15 +63,41 @@ class CanvasGeometry {
       switch (handle) {
         case ResizeHandle.topLeft:
           final rawStart = Offset(initial.left + dx, initial.top + dy);
-          final anchor = endPoint;
-          startPoint = isShiftPressed
-              ? snapLinePoint(anchor, rawStart)
-              : rawStart;
+          if (isAltPressed) {
+            final center = Offset(
+              (initial.left + initial.right) / 2,
+              (initial.top + initial.bottom) / 2,
+            );
+            final snapped = isShiftPressed
+                ? snapLinePoint(center, rawStart)
+                : rawStart;
+            final halfDelta = snapped - center;
+            startPoint = center + halfDelta;
+            endPoint = center - halfDelta;
+          } else {
+            final anchor = endPoint;
+            startPoint = isShiftPressed
+                ? snapLinePoint(anchor, rawStart)
+                : rawStart;
+          }
           break;
         case ResizeHandle.bottomRight:
           final rawEnd = Offset(initial.right + dx, initial.bottom + dy);
-          final anchor = startPoint;
-          endPoint = isShiftPressed ? snapLinePoint(anchor, rawEnd) : rawEnd;
+          if (isAltPressed) {
+            final center = Offset(
+              (initial.left + initial.right) / 2,
+              (initial.top + initial.bottom) / 2,
+            );
+            final snapped = isShiftPressed
+                ? snapLinePoint(center, rawEnd)
+                : rawEnd;
+            final halfDelta = snapped - center;
+            endPoint = center + halfDelta;
+            startPoint = center - halfDelta;
+          } else {
+            final anchor = startPoint;
+            endPoint = isShiftPressed ? snapLinePoint(anchor, rawEnd) : rawEnd;
+          }
           break;
         case ResizeHandle.topRight:
           final rawPoint = Offset(initial.right + dx, initial.top + dy);
@@ -459,9 +485,14 @@ class CanvasGeometry {
       if (isAltPressed) {
         // Expand symmetrically around start point
         final delta = endPos - start;
-        return Rect.fromPoints(start - delta, start + delta);
+        return Rect.fromLTRB(
+          start.dx - delta.dx,
+          start.dy - delta.dy,
+          start.dx + delta.dx,
+          start.dy + delta.dy,
+        );
       } else {
-        return Rect.fromPoints(start, endPos);
+        return Rect.fromLTRB(start.dx, start.dy, endPos.dx, endPos.dy);
       }
     }
 

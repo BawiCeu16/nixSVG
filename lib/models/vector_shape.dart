@@ -575,6 +575,29 @@ class VectorShape {
       defs.writeln(_gradientToSvgDef('grad-$id-stroke', strokeGradient!));
     }
 
+    if (type == ShapeType.line && isStroked) {
+      final hexColor = _colorToHex(strokeColor);
+      final opacity = strokeOpacity.toStringAsFixed(2);
+      if (startCap == LineCapStyle.arrow) {
+        defs.writeln(
+          '    <marker id="arrow-start-$id" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">',
+        );
+        defs.writeln(
+          '      <path d="M 10 2 L 2 5 L 10 8 z" fill="$hexColor" fill-opacity="$opacity" />',
+        );
+        defs.writeln('    </marker>');
+      }
+      if (endCap == LineCapStyle.arrow) {
+        defs.writeln(
+          '    <marker id="arrow-end-$id" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">',
+        );
+        defs.writeln(
+          '      <path d="M 0 2 L 8 5 L 0 8 z" fill="$hexColor" fill-opacity="$opacity" />',
+        );
+        defs.writeln('    </marker>');
+      }
+    }
+
     return defs.toString();
   }
 
@@ -668,6 +691,12 @@ class VectorShape {
         final capStr = strokeCap == StrokeCap.round
             ? 'round'
             : (strokeCap == StrokeCap.square ? 'square' : 'butt');
+        final markerStart = startCap == LineCapStyle.arrow
+            ? ' marker-start="url(#arrow-start-$id)"'
+            : '';
+        final markerEnd = endCap == LineCapStyle.arrow
+            ? ' marker-end="url(#arrow-end-$id)"'
+            : '';
         if (isCurved || curvature != 0.0) {
           final p1 = rect.topLeft;
           final p2 = rect.bottomRight;
@@ -677,9 +706,9 @@ class VectorShape {
           final len = math.sqrt(dx * dx + dy * dy);
           final perp = len > 0 ? Offset(-dy / len, dx / len) : Offset.zero;
           final ctrl = mid + perp * curvature;
-          return '  <path d="M ${p1.dx} ${p1.dy} Q ${ctrl.dx} ${ctrl.dy} ${p2.dx} ${p2.dy}" fill="none" $strokeAttr stroke-linecap="$capStr"$transformAttr />';
+          return '  <path d="M ${p1.dx} ${p1.dy} Q ${ctrl.dx} ${ctrl.dy} ${p2.dx} ${p2.dy}" fill="none" $strokeAttr stroke-linecap="$capStr"$markerStart$markerEnd$transformAttr />';
         }
-        return '  <line x1="${rect.left}" y1="${rect.top}" x2="${rect.right}" y2="${rect.bottom}" $strokeAttr stroke-linecap="$capStr"$transformAttr />';
+        return '  <line x1="${rect.left}" y1="${rect.top}" x2="${rect.right}" y2="${rect.bottom}" $strokeAttr stroke-linecap="$capStr"$markerStart$markerEnd$transformAttr />';
       case ShapeType.star:
         final points = _generateStarPointsSvg(rect);
         return '  <polygon points="$points" $fillAttr $strokeAttr$transformAttr />';

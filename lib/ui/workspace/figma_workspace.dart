@@ -123,6 +123,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   // Inline Canvas Text Editing State
   String? _editingTextShapeId;
   bool _isEditingNewText = false;
+  bool _selectAllText = false;
   DateTime? _lastPointerDownTime;
   Offset? _lastPointerDownPos;
 
@@ -284,10 +285,15 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     }
   }
 
-  void _startTextEditing(VectorShape shape, {bool isNew = false}) {
+  void _startTextEditing(
+    VectorShape shape, {
+    bool isNew = false,
+    bool selectAll = false,
+  }) {
     setState(() {
       _editingTextShapeId = shape.id;
       _isEditingNewText = isNew;
+      _selectAllText = selectAll;
       selectedShapeIds.clear();
       selectedShapeIds.add(shape.id);
       currentMode = EditorMode.select;
@@ -314,6 +320,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       }
       _editingTextShapeId = null;
       _isEditingNewText = false;
+      _selectAllText = false;
     });
     _workspaceFocusNode.requestFocus();
   }
@@ -378,7 +385,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         }
       }
       if (hitTextShape != null) {
-        _startTextEditing(hitTextShape);
+        _startTextEditing(hitTextShape, isNew: false, selectAll: true);
         return;
       }
     }
@@ -394,7 +401,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         }
       }
       if (hitTextShape != null) {
-        _startTextEditing(hitTextShape);
+        _startTextEditing(hitTextShape, isNew: false, selectAll: true);
         return;
       }
       draftShapeType = ShapeType.text;
@@ -436,15 +443,25 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
       if (hitShape != null) {
         final matchedShape = hitShape;
-        setState(() {
-          final isShiftPressed =
-              HardwareKeyboard.instance.logicalKeysPressed.contains(
-                LogicalKeyboardKey.shiftLeft,
-              ) ||
-              HardwareKeyboard.instance.logicalKeysPressed.contains(
-                LogicalKeyboardKey.shiftRight,
-              );
 
+        final isShiftPressed =
+            HardwareKeyboard.instance.logicalKeysPressed.contains(
+              LogicalKeyboardKey.shiftLeft,
+            ) ||
+            HardwareKeyboard.instance.logicalKeysPressed.contains(
+              LogicalKeyboardKey.shiftRight,
+            );
+
+        // Figma style: Clicking on an already selected text element enters text editing immediately
+        if (!isShiftPressed &&
+            matchedShape.type == ShapeType.text &&
+            selectedShapeIds.length == 1 &&
+            selectedShapeIds.contains(matchedShape.id)) {
+          _startTextEditing(matchedShape, isNew: false, selectAll: false);
+          return;
+        }
+
+        setState(() {
           if (isShiftPressed) {
             if (selectedShapeIds.contains(matchedShape.id)) {
               selectedShapeIds.remove(matchedShape.id);
@@ -559,13 +576,30 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
             (s) => s.id == selectedShapeIds.first,
           );
           final initialRect = initialShapeRects![target.id]!;
-          target.rect = CanvasGeometry.resizeRect(
-            initialRect,
-            panStartOffset!,
-            localPos,
-            activeResizeHandle,
-            isLine: target.type == ShapeType.line,
-          );
+          if (target.type == ShapeType.line &&
+              activeResizeHandle == ResizeHandle.topCenter) {
+            final p1 = initialRect.topLeft;
+            final p2 = initialRect.bottomRight;
+            final mid = Offset((p1.dx + p2.dx) / 2, (p1.dy + p2.dy) / 2);
+            final dx = p2.dx - p1.dx;
+            final dy = p2.dy - p1.dy;
+            final len = math.sqrt(dx * dx + dy * dy);
+            if (len > 0) {
+              final perp = Offset(-dy / len, dx / len);
+              final delta = localPos - mid;
+              final newCurvature = delta.dx * perp.dx + delta.dy * perp.dy;
+              target.curvature = newCurvature.clamp(-300.0, 300.0);
+              target.isCurved = target.curvature.abs() > 0.5;
+            }
+          } else {
+            target.rect = CanvasGeometry.resizeRect(
+              initialRect,
+              panStartOffset!,
+              localPos,
+              activeResizeHandle,
+              isLine: target.type == ShapeType.line,
+            );
+          }
         } else if (isMovingShapes && initialShapeRects != null) {
           var delta = localPos - panStartOffset!;
           if (snapToGrid) {
@@ -673,7 +707,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           selectedShapeIds.add(newShape.id);
           currentMode = EditorMode.select;
           if (isText) {
-            _startTextEditing(newShape, isNew: true);
+            _startTextEditing(newShape, isNew: true, selectAll: true);
           }
         });
         _saveHistorySnapshot();
@@ -732,6 +766,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       shapes.addAll(newShapes);
       selectedShapeIds.clear();
       selectedShapeIds.addAll(newIds);
+      if (newShapes.length == 1 && newShapes.first.type == ShapeType.text) {
+        _startTextEditing(newShapes.first, isNew: false, selectAll: true);
+      }
     });
     _saveHistorySnapshot();
   }
@@ -830,25 +867,65 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     _deleteSelected();
   }
 
-  void _pasteClipboard() {
-    if (_clipboard.isEmpty) return;
-    final newShapes = <VectorShape>[];
-    final newIds = <String>{};
-    for (final orig in _clipboard) {
-      final dup = orig.copyWith(
-        id: 'shape-${DateTime.now().millisecondsSinceEpoch}-${math.Random().nextInt(1000)}',
-        name: '${orig.name} Copy',
-        rect: orig.rect.shift(const Offset(20, 20)),
-      );
-      newShapes.add(dup);
-      newIds.add(dup.id);
+  Future<void> _pasteClipboard() async {
+    if (_clipboard.isNotEmpty) {
+      final newShapes = <VectorShape>[];
+      final newIds = <String>{};
+      for (final orig in _clipboard) {
+        final dup = orig.copyWith(
+          id: 'shape-${DateTime.now().millisecondsSinceEpoch}-${math.Random().nextInt(1000)}',
+          name: '${orig.name} Copy',
+          rect: orig.rect.shift(const Offset(20, 20)),
+        );
+        newShapes.add(dup);
+        newIds.add(dup.id);
+      }
+      setState(() {
+        shapes.addAll(newShapes);
+        selectedShapeIds.clear();
+        selectedShapeIds.addAll(newIds);
+      });
+      _saveHistorySnapshot();
+
+      // If a single text element was pasted, auto-focus for ready to write like Figma!
+      if (newShapes.length == 1 && newShapes.first.type == ShapeType.text) {
+        _startTextEditing(newShapes.first, isNew: false, selectAll: true);
+      }
+      return;
     }
-    setState(() {
-      shapes.addAll(newShapes);
-      selectedShapeIds.clear();
-      selectedShapeIds.addAll(newIds);
-    });
-    _saveHistorySnapshot();
+
+    try {
+      final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+      final text = clipboardData?.text;
+      if (text != null && text.trim().isNotEmpty) {
+        final focalPoint = (_isMouseOverCanvas && _lastMouseCanvasPosition != null)
+            ? _lastMouseCanvasPosition!
+            : _getViewportCanvasCenter();
+
+        final newShape = VectorShape(
+          id: 'shape-${DateTime.now().millisecondsSinceEpoch}',
+          name: 'Text $_shapeCounter',
+          type: ShapeType.text,
+          rect: Rect.fromLTWH(
+            focalPoint.dx - 80,
+            focalPoint.dy - 20,
+            math.max(160.0, text.length * 10.0).clamp(160.0, 800.0),
+            40,
+          ),
+          textContent: text,
+        );
+        _shapeCounter++;
+        setState(() {
+          shapes.add(newShape);
+          selectedShapeIds.clear();
+          selectedShapeIds.add(newShape.id);
+          _startTextEditing(newShape, isNew: false, selectAll: true);
+        });
+        _saveHistorySnapshot();
+      }
+    } catch (e) {
+      debugPrint('Error reading system clipboard: $e');
+    }
   }
 
   void _flipHorizontal() {
@@ -1338,6 +1415,18 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
             currentMode = EditorMode.select;
           });
           return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.enter ||
+            event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+          if (selectedShapeIds.length == 1) {
+            final selected = shapes.cast<VectorShape?>().firstWhere(
+              (s) => s?.id == selectedShapeIds.first,
+              orElse: () => null,
+            );
+            if (selected != null && selected.type == ShapeType.text) {
+              _startTextEditing(selected, isNew: false, selectAll: true);
+              return KeyEventResult.handled;
+            }
+          }
         } else if (event.logicalKey == LogicalKeyboardKey.delete ||
             event.logicalKey == LogicalKeyboardKey.backspace) {
           _deleteSelected();
@@ -1625,6 +1714,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                   activeResizeHandle != ResizeHandle.none,
                               editingTextShapeId: _editingTextShapeId,
                               isEditingNewText: _isEditingNewText,
+                              selectAllText: _selectAllText,
                               canvasBackgroundColor: canvasBackgroundColor,
                               onInlineTextChanged: (text) {
                                 final editingId = _editingTextShapeId;

@@ -395,5 +395,191 @@ void main() {
         expect(find.text('Existing Content'), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'Pasting a text element auto-focuses text field ready to write',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(1920, 1080));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        final textShape = VectorShape(
+          id: 'txt-copy-source',
+          name: 'Copied Text',
+          type: ShapeType.text,
+          rect: const Rect.fromLTWH(100, 100, 200, 40),
+          textContent: 'Copy Paste Me',
+        );
+
+        final project = ProjectModel(
+          id: 'proj-paste-test',
+          name: 'Paste Test',
+          shapes: [textShape],
+          lastModified: DateTime.now(),
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              home: Scaffold(body: FigmaWorkspace(initialProject: project)),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final state = tester.state<FigmaWorkspaceState>(
+          find.byType(FigmaWorkspace),
+        );
+
+        // Select the text shape
+        state.selectShape(textShape.id);
+        await tester.pumpAndSettle();
+
+        // Copy with Ctrl+C
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await tester.pumpAndSettle();
+
+        // Paste with Ctrl+V
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await tester.pumpAndSettle();
+
+        // The pasted text element should immediately have CanvasInlineTextEditor active and auto-focused!
+        expect(find.byType(CanvasInlineTextEditor), findsOneWidget);
+        final textFieldFinder = find.descendant(
+          of: find.byType(CanvasInlineTextEditor),
+          matching: find.byType(TextField),
+        );
+        expect(textFieldFinder, findsOneWidget);
+
+        final textField = tester.widget<TextField>(textFieldFinder);
+        expect(textField.focusNode?.hasFocus, isTrue);
+
+        // Type immediately without any additional clicks
+        await tester.enterText(textFieldFinder, 'Brand New Pasted Content');
+        await tester.pumpAndSettle();
+
+        expect(state.shapes.last.textContent, 'Brand New Pasted Content');
+      },
+    );
+
+    testWidgets(
+      'Clicking on already selected text element auto-focuses text field ready to write',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(1920, 1080));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        final textShape = VectorShape(
+          id: 'txt-click-selected',
+          name: 'Selected Text',
+          type: ShapeType.text,
+          rect: const Rect.fromLTWH(150, 150, 200, 40),
+          textContent: 'Click When Selected',
+        );
+
+        final project = ProjectModel(
+          id: 'proj-click-selected-test',
+          name: 'Click Selected Test',
+          shapes: [textShape],
+          lastModified: DateTime.now(),
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              home: Scaffold(body: FigmaWorkspace(initialProject: project)),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final state = tester.state<FigmaWorkspaceState>(
+          find.byType(FigmaWorkspace),
+        );
+
+        // Initially select the shape
+        state.selectShape(textShape.id);
+        await tester.pumpAndSettle();
+        expect(find.byType(CanvasInlineTextEditor), findsNothing);
+
+        // Click on the already selected text shape
+        final canvasOrigin = tester.getTopLeft(find.byType(InteractiveCanvas));
+        final clickLocation = canvasOrigin + textShape.rect.center;
+
+        final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+        await gesture.addPointer(location: clickLocation);
+        addTearDown(gesture.removePointer);
+
+        await gesture.down(clickLocation);
+        await tester.pump(const Duration(milliseconds: 50));
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        // CanvasInlineTextEditor opens and is focused ready to write!
+        expect(find.byType(CanvasInlineTextEditor), findsOneWidget);
+        final textFieldFinder = find.descendant(
+          of: find.byType(CanvasInlineTextEditor),
+          matching: find.byType(TextField),
+        );
+        expect(textFieldFinder, findsOneWidget);
+        final textField = tester.widget<TextField>(textFieldFinder);
+        expect(textField.focusNode?.hasFocus, isTrue);
+      },
+    );
+
+    testWidgets(
+      'Pressing Enter on selected text shape auto-focuses text field ready to write',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(1920, 1080));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        final textShape = VectorShape(
+          id: 'txt-enter-key',
+          name: 'Enter Key Text',
+          type: ShapeType.text,
+          rect: const Rect.fromLTWH(150, 150, 200, 40),
+          textContent: 'Press Enter On Me',
+        );
+
+        final project = ProjectModel(
+          id: 'proj-enter-test',
+          name: 'Enter Test',
+          shapes: [textShape],
+          lastModified: DateTime.now(),
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              home: Scaffold(body: FigmaWorkspace(initialProject: project)),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final state = tester.state<FigmaWorkspaceState>(
+          find.byType(FigmaWorkspace),
+        );
+        state.selectShape(textShape.id);
+        await tester.pumpAndSettle();
+        expect(find.byType(CanvasInlineTextEditor), findsNothing);
+
+        // Press Enter
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
+
+        // Editor is open and auto-focused!
+        expect(find.byType(CanvasInlineTextEditor), findsOneWidget);
+        final textFieldFinder = find.descendant(
+          of: find.byType(CanvasInlineTextEditor),
+          matching: find.byType(TextField),
+        );
+        expect(textFieldFinder, findsOneWidget);
+        final textField = tester.widget<TextField>(textFieldFinder);
+        expect(textField.focusNode?.hasFocus, isTrue);
+      },
+    );
   });
 }

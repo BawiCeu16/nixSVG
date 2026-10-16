@@ -304,18 +304,53 @@ class VectorCanvasPainter extends CustomPainter {
 
         final p1 = shape.rect.topLeft;
         final p2 = shape.rect.bottomRight;
+        final dx = p2.dx - p1.dx;
+        final dy = p2.dy - p1.dy;
+        final lineLen = math.sqrt(dx * dx + dy * dy);
+        if (lineLen == 0.0) break;
 
         Offset? markerCtrl;
         if (shape.isCurved || shape.curvature != 0.0) {
           final mid = Offset((p1.dx + p2.dx) / 2, (p1.dy + p2.dy) / 2);
-          final dx = p2.dx - p1.dx;
-          final dy = p2.dy - p1.dy;
-          final len = math.sqrt(dx * dx + dy * dy);
-          final perp = len > 0 ? Offset(-dy / len, dx / len) : Offset.zero;
+          final perp = Offset(-dy / lineLen, dx / lineLen);
           markerCtrl = mid + perp * shape.curvature;
         }
 
-        drawStrokedPath(shape.getPath());
+        final hasStartArrow = shape.startCap == LineCapStyle.arrow;
+        final hasEndArrow = shape.endCap == LineCapStyle.arrow;
+
+        final baseArrowSize = math.max(10.0, shape.strokeWidth * 3.0);
+        final startArrowSize = math.min(baseArrowSize, lineLen * 0.8);
+        final endArrowSize = math.min(baseArrowSize, lineLen * 0.8);
+
+        final trimStartDist = hasStartArrow ? startArrowSize * 0.7 : 0.0;
+        final trimEndDist = hasEndArrow ? endArrowSize * 0.7 : 0.0;
+
+        Path pathToStroke = shape.getPath();
+
+        if (hasStartArrow || hasEndArrow) {
+          final metrics = pathToStroke.computeMetrics().toList();
+          if (metrics.isNotEmpty) {
+            final totalLen = metrics.first.length;
+            final effectiveStartTrim = math.min(totalLen * 0.45, trimStartDist);
+            final effectiveEndTrim = math.min(totalLen * 0.45, trimEndDist);
+            if (effectiveStartTrim + effectiveEndTrim < totalLen) {
+              pathToStroke = metrics.first.extractPath(
+                effectiveStartTrim,
+                totalLen - effectiveEndTrim,
+              );
+            }
+          }
+        }
+
+        if (hasStartArrow || hasEndArrow) {
+          final origCap = strokePaint.strokeCap;
+          strokePaint.strokeCap = StrokeCap.butt;
+          drawStrokedPath(pathToStroke);
+          strokePaint.strokeCap = origCap;
+        } else {
+          drawStrokedPath(pathToStroke);
+        }
 
         if (markerCtrl != null) {
           _drawLineCapMarker(canvas, p1, markerCtrl, shape.startCap, shape);
@@ -640,6 +675,12 @@ class VectorCanvasPainter extends CustomPainter {
         cornerRadius != null &&
         cornerRadius > 0) {
       badgeText = '$width × $height  (r: ${cornerRadius.round()})';
+    } else if (shapeType == ShapeType.line) {
+      final dx = rect.right - rect.left;
+      final dy = rect.bottom - rect.top;
+      final length = math.sqrt(dx * dx + dy * dy).round();
+      final angleDeg = (math.atan2(dy, dx) * 180 / math.pi).round();
+      badgeText = 'L: $length  $angleDeg°';
     } else {
       badgeText = '$width × $height';
     }
@@ -698,8 +739,9 @@ class VectorCanvasPainter extends CustomPainter {
     if (dist == 0) return;
 
     final angle = math.atan2(dy, dx);
-    final color = shape.strokeColor;
-    final size = math.max(10.0, shape.strokeWidth * 3.0);
+    final color = shape.strokeColor.withValues(alpha: shape.strokeOpacity);
+    final baseSize = math.max(10.0, shape.strokeWidth * 3.0);
+    final size = math.min(baseSize, dist * 0.8);
 
     canvas.save();
     canvas.translate(point.dx, point.dy);

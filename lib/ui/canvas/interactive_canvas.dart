@@ -31,6 +31,7 @@ class InteractiveCanvas extends StatefulWidget {
   final bool isResizing;
   final String? editingTextShapeId;
   final bool isEditingNewText;
+  final bool selectAllText;
   final ValueChanged<String>? onInlineTextChanged;
   final VoidCallback? onInlineTextCommit;
   final VoidCallback? onInlineTextCancel;
@@ -64,6 +65,7 @@ class InteractiveCanvas extends StatefulWidget {
     this.isResizing = false,
     this.editingTextShapeId,
     this.isEditingNewText = false,
+    this.selectAllText = false,
     this.canvasBackgroundColor,
     this.onInlineTextChanged,
     this.onInlineTextCommit,
@@ -283,6 +285,7 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
           transformationController: widget.transformationController,
           panEnabled: false,
           scaleEnabled: false,
+          constrained: false,
           maxScale: CanvasTransformHelper.maxScale,
           minScale: CanvasTransformHelper.minScale,
           boundaryMargin: const EdgeInsets.all(double.infinity),
@@ -388,6 +391,7 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
                       key: ValueKey('canvas-text-editor-${editingShape.id}'),
                       shape: editingShape,
                       isNew: widget.isEditingNewText,
+                      selectAll: widget.selectAllText,
                       onTextChanged: (text) =>
                           widget.onInlineTextChanged?.call(text),
                       onCommit: () => widget.onInlineTextCommit?.call(),
