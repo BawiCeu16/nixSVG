@@ -352,6 +352,8 @@ class TopNavigationBar extends ConsumerWidget {
                                           : 'Show Layers Panel',
                                       onTap: () => onToggleLayers!(!showLayers),
                                     ),
+
+                                  const SizedBox(width: 2),
                                   if (onToggleLayers != null &&
                                       onToggleProperties != null)
                                     _buildInnerDivider(colorScheme),
@@ -571,7 +573,7 @@ class _MacPillContainer extends StatelessWidget {
         color: colorScheme.surfaceContainerHigh.withValues(
           alpha: isDark ? 0.65 : 0.85,
         ),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(100.0),
         border: Border.all(
           color: colorScheme.outlineVariant.withValues(
             alpha: isDark ? 0.35 : 0.45,
@@ -666,7 +668,7 @@ class _MacTogglePill extends StatelessWidget {
                 : colorScheme.surfaceContainerHigh.withValues(
                     alpha: isDark ? 0.65 : 0.85,
                   ),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(100.0),
             border: Border.all(
               color: selected
                   ? Colors.transparent
@@ -737,7 +739,7 @@ class _MacPanelToggleButton extends StatelessWidget {
             color: active
                 ? colorScheme.primary.withValues(alpha: 0.15)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(7),
+            borderRadius: BorderRadius.circular(100.0),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
