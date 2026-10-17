@@ -38,90 +38,107 @@ class ShortcutsDialog extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildShortcutRow(context, 'V', 'Selection Tool'),
-              _buildShortcutRow(context, 'H', 'Hand / Pan Canvas Tool'),
-              _buildShortcutRow(
+              _buildShortcutCard(
                 context,
-                'Space / Mid-Click',
-                'Hold Spacebar or Middle-Click to Pan',
+                children: [
+                  _buildShortcutRow(context, 'V', 'Selection Tool'),
+                  _buildShortcutRow(context, 'H', 'Hand / Pan Canvas Tool'),
+                  _buildShortcutRow(
+                    context,
+                    'Space / Mid-Click',
+                    'Hold Spacebar or Middle-Click to Pan',
+                  ),
+                  _buildShortcutRow(context, 'R', 'Draw Rectangle Tool'),
+                  _buildShortcutRow(context, 'U', 'Draw Rounded Rectangle Tool'),
+                  _buildShortcutRow(context, 'O', 'Draw Ellipse / Circle Tool'),
+                  _buildShortcutRow(
+                    context,
+                    'L',
+                    'Draw Line Tool (Hold Shift for 45°)',
+                  ),
+                  _buildShortcutRow(context, 'C / P', 'Draw Curve / Path Tool'),
+                  _buildShortcutRow(context, 'S', 'Draw Star Tool'),
+                  _buildShortcutRow(context, 'T', 'Draw Text Tool'),
+                ],
               ),
-              _buildShortcutRow(context, 'R', 'Draw Rectangle Tool'),
-              _buildShortcutRow(context, 'U', 'Draw Rounded Rectangle Tool'),
-              _buildShortcutRow(context, 'O', 'Draw Ellipse / Circle Tool'),
-              _buildShortcutRow(
+              _buildShortcutCard(
                 context,
-                'L',
-                'Draw Line Tool (Hold Shift for 45°)',
+                children: [
+                  _buildShortcutRow(context, 'Ctrl + C', 'Copy Selected Shapes'),
+                  _buildShortcutRow(context, 'Ctrl + X', 'Cut Selected Shapes'),
+                  _buildShortcutRow(context, 'Ctrl + V', 'Paste Shapes'),
+                  _buildShortcutRow(
+                    context,
+                    'Ctrl + D',
+                    'Duplicate Selected Shapes',
+                  ),
+                  _buildShortcutRow(
+                    context,
+                    'Delete / Backspace',
+                    'Delete Selected Shapes',
+                  ),
+                  _buildShortcutRow(context, 'Ctrl + A', 'Select All Shapes'),
+                  _buildShortcutRow(context, 'Ctrl + Z', 'Undo'),
+                  _buildShortcutRow(context, 'Ctrl + Shift + Z', 'Redo'),
+                ],
               ),
-              _buildShortcutRow(context, 'C / P', 'Draw Curve / Path Tool'),
-              _buildShortcutRow(context, 'S', 'Draw Star Tool'),
-              _buildShortcutRow(context, 'T', 'Draw Text Tool'),
-              const Divider(height: 16),
-              _buildShortcutRow(context, 'Ctrl + C', 'Copy Selected Shapes'),
-              _buildShortcutRow(context, 'Ctrl + X', 'Cut Selected Shapes'),
-              _buildShortcutRow(context, 'Ctrl + V', 'Paste Shapes'),
-              _buildShortcutRow(
+              _buildShortcutCard(
                 context,
-                'Ctrl + D',
-                'Duplicate Selected Shapes',
+                children: [
+                  _buildShortcutRow(
+                    context,
+                    'Ctrl + ] / ]',
+                    'Bring Forward (Layer Up)',
+                  ),
+                  _buildShortcutRow(
+                    context,
+                    'Ctrl + [ / [',
+                    'Send Backward (Layer Down)',
+                  ),
+                  _buildShortcutRow(context, 'Shift + H', 'Flip Horizontally'),
+                  _buildShortcutRow(context, 'Shift + V', 'Flip Vertically'),
+                ],
               ),
-              _buildShortcutRow(
+              _buildShortcutCard(
                 context,
-                'Delete / Backspace',
-                'Delete Selected Shapes',
-              ),
-              _buildShortcutRow(context, 'Ctrl + A', 'Select All Shapes'),
-              _buildShortcutRow(context, 'Ctrl + Z', 'Undo'),
-              _buildShortcutRow(context, 'Ctrl + Shift + Z', 'Redo'),
-              const Divider(height: 16),
-              _buildShortcutRow(
-                context,
-                'Ctrl + ] / ]',
-                'Bring Forward (Layer Up)',
-              ),
-              _buildShortcutRow(
-                context,
-                'Ctrl + [ / [',
-                'Send Backward (Layer Down)',
-              ),
-              _buildShortcutRow(context, 'Shift + H', 'Flip Horizontally'),
-              _buildShortcutRow(context, 'Shift + V', 'Flip Vertically'),
-              const Divider(height: 16),
-              _buildShortcutRow(
-                context,
-                'Ctrl + 0 / Shift + 0',
-                'Reset Zoom (100%)',
-              ),
-              _buildShortcutRow(
-                context,
-                'Shift + 1 / Ctrl + 1',
-                'Zoom to Fit All',
-              ),
-              _buildShortcutRow(
-                context,
-                'Shift + 2 / Ctrl + 2',
-                'Zoom to Selection',
-              ),
-              _buildShortcutRow(context, 'Ctrl + / -', 'Zoom In / Out'),
-              _buildShortcutRow(
-                context,
-                'Arrow Keys',
-                'Nudge 1px (Hold Shift for 10px)',
-              ),
-              _buildShortcutRow(
-                context,
-                'Shift + Resize',
-                'Constrain Proportions (Aspect Ratio)',
-              ),
-              _buildShortcutRow(
-                context,
-                'Alt + Resize',
-                'Resize Symmetrically from Center',
-              ),
-              _buildShortcutRow(
-                context,
-                'Shift + Rotate',
-                'Snap Rotation to 15° Increments',
+                children: [
+                  _buildShortcutRow(
+                    context,
+                    'Ctrl + 0 / Shift + 0',
+                    'Reset Zoom (100%)',
+                  ),
+                  _buildShortcutRow(
+                    context,
+                    'Shift + 1 / Ctrl + 1',
+                    'Zoom to Fit All',
+                  ),
+                  _buildShortcutRow(
+                    context,
+                    'Shift + 2 / Ctrl + 2',
+                    'Zoom to Selection',
+                  ),
+                  _buildShortcutRow(context, 'Ctrl + / -', 'Zoom In / Out'),
+                  _buildShortcutRow(
+                    context,
+                    'Arrow Keys',
+                    'Nudge 1px (Hold Shift for 10px)',
+                  ),
+                  _buildShortcutRow(
+                    context,
+                    'Shift + Resize',
+                    'Constrain Proportions (Aspect Ratio)',
+                  ),
+                  _buildShortcutRow(
+                    context,
+                    'Alt + Resize',
+                    'Resize Symmetrically from Center',
+                  ),
+                  _buildShortcutRow(
+                    context,
+                    'Shift + Rotate',
+                    'Snap Rotation to 15° Increments',
+                  ),
+                ],
               ),
             ],
           ),
@@ -140,6 +157,29 @@ class ShortcutsDialog extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildShortcutCard(
+    BuildContext context, {
+    required List<Widget> children,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      elevation: 0,
+      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide.none,
+      ),
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: children,
+        ),
+      ),
     );
   }
 

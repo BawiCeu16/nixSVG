@@ -84,31 +84,32 @@ class _CanvasInlineTextEditorState extends State<CanvasInlineTextEditor> {
   void _handleTextChanged(String newText) {
     widget.onTextChanged(newText);
 
-    // Dynamic auto-expansion if text overflows bounding box
+    // Dynamic auto-expansion without arbitrary distortion
     final style = widget.shape.getTextStyle();
     final painter = TextPainter(
       text: TextSpan(text: newText.isEmpty ? ' ' : newText, style: style),
       textAlign: widget.shape.textAlign,
       textDirection: TextDirection.ltr,
     );
-    painter.layout(minWidth: 10.0, maxWidth: double.infinity);
+    painter.layout();
 
-    final requiredWidth = math.max(
-      widget.shape.rect.width,
-      painter.width + 16.0,
-    );
-    final requiredHeight = math.max(
-      widget.shape.rect.height,
-      painter.height + 8.0,
-    );
+    final textWidth = math.max(24.0, painter.width + 4.0);
+    final textHeight = math.max(18.0, painter.height);
 
-    if (requiredWidth > widget.shape.rect.width ||
-        requiredHeight > widget.shape.rect.height) {
+    if (widget.isNew ||
+        textWidth > widget.shape.rect.width ||
+        textHeight > widget.shape.rect.height) {
+      final updatedWidth = widget.isNew
+          ? textWidth
+          : math.max(widget.shape.rect.width, textWidth);
+      final updatedHeight = widget.isNew
+          ? textHeight
+          : math.max(widget.shape.rect.height, textHeight);
       final updatedRect = Rect.fromLTWH(
         widget.shape.rect.left,
         widget.shape.rect.top,
-        requiredWidth,
-        requiredHeight,
+        updatedWidth,
+        updatedHeight,
       );
       widget.onRectChanged?.call(updatedRect);
     }
@@ -158,10 +159,19 @@ class _CanvasInlineTextEditorState extends State<CanvasInlineTextEditor> {
     final shape = widget.shape;
     final textStyle = shape.getTextStyle();
 
-    // Editor frame coordinates matching shape.rect and rotation
+    // Editor frame coordinates matching shape.rect and rotation exactly
     final rect = shape.rect;
-    final width = math.max(rect.width, 100.0);
-    final height = math.max(rect.height, 36.0);
+    final width = math.max(rect.width, 20.0);
+    final height = math.max(rect.height, 16.0);
+
+    // Calculate vertical offset matching VectorCanvasPainter._drawShape
+    final textPainter = shape.getTextPainter();
+    double offsetY = 0.0;
+    if (shape.textVerticalAlign == TextVerticalAlign.center) {
+      offsetY = math.max(0.0, (height - textPainter.height) / 2);
+    } else if (shape.textVerticalAlign == TextVerticalAlign.bottom) {
+      offsetY = math.max(0.0, height - textPainter.height);
+    }
 
     return Positioned(
       left: rect.left,
@@ -171,52 +181,68 @@ class _CanvasInlineTextEditorState extends State<CanvasInlineTextEditor> {
       child: Transform.rotate(
         angle: shape.rotation * math.pi / 180.0,
         alignment: Alignment.center,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            // Signature Figma text frame outline
-            Container(
-              width: width,
-              height: height,
-              decoration: BoxDecoration(
-                border: Border.all(color: colorScheme.primary, width: 1.5),
-                borderRadius: BorderRadius.circular(2.0),
-                color: colorScheme.surface.withValues(alpha: 0.1),
-              ),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 2.0,
-                vertical: 1.0,
-              ),
-              alignment: _getAlignment(
-                shape.textAlign,
-                shape.textVerticalAlign,
-              ),
-              child: TextField(
-                focusNode: _focusNode,
-                controller: _controller,
-                autofocus: true,
-                maxLines: null,
-                keyboardType: TextInputType.multiline,
-                textAlign: shape.textAlign,
-                style: textStyle,
-                cursorColor: colorScheme.primary,
-                cursorWidth: 2.0,
-                cursorRadius: const Radius.circular(1.0),
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
+        child: MediaQuery.withNoTextScaling(
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // Signature Figma text frame outline (placed outside text bounds)
+              Positioned(
+                left: -2,
+                top: -2,
+                right: -2,
+                bottom: -2,
+                child: IgnorePointer(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: colorScheme.primary,
+                        width: 1.5,
+                      ),
+                      borderRadius: BorderRadius.circular(2.0),
+                      color: colorScheme.surface.withValues(alpha: 0.05),
+                    ),
+                  ),
                 ),
-                onChanged: _handleTextChanged,
               ),
-            ),
 
-            // Figma-style corner anchor pips
-            _buildCornerPip(Alignment.topLeft, colorScheme.primary),
-            _buildCornerPip(Alignment.topRight, colorScheme.primary),
-            _buildCornerPip(Alignment.bottomLeft, colorScheme.primary),
-            _buildCornerPip(Alignment.bottomRight, colorScheme.primary),
-          ],
+              // TextField positioned with pixel-perfect alignment matching TextPainter
+              Positioned(
+                left: 0,
+                top: offsetY,
+                width: width,
+                height: math.max(height - offsetY, (textStyle.fontSize ?? 16.0) * 1.2),
+                child: TextField(
+                  focusNode: _focusNode,
+                  controller: _controller,
+                  autofocus: true,
+                  maxLines: null,
+                  keyboardType: TextInputType.multiline,
+                  textAlign: shape.textAlign,
+                  style: textStyle,
+                  strutStyle: StrutStyle.fromTextStyle(
+                    textStyle,
+                    forceStrutHeight: true,
+                  ),
+                  cursorColor: colorScheme.primary,
+                  cursorWidth: 2.0,
+                  cursorRadius: const Radius.circular(1.0),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    isDense: true,
+                    isCollapsed: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  onChanged: _handleTextChanged,
+                ),
+              ),
+
+              // Figma-style corner anchor pips
+              _buildCornerPip(Alignment.topLeft, colorScheme.primary),
+              _buildCornerPip(Alignment.topRight, colorScheme.primary),
+              _buildCornerPip(Alignment.bottomLeft, colorScheme.primary),
+              _buildCornerPip(Alignment.bottomRight, colorScheme.primary),
+            ],
+          ),
         ),
       ),
     );
@@ -235,23 +261,5 @@ class _CanvasInlineTextEditorState extends State<CanvasInlineTextEditor> {
         ),
       ),
     );
-  }
-
-  Alignment _getAlignment(TextAlign hAlign, TextVerticalAlign vAlign) {
-    double x = -1.0;
-    if (hAlign == TextAlign.center) {
-      x = 0.0;
-    } else if (hAlign == TextAlign.right) {
-      x = 1.0;
-    }
-
-    double y = -1.0;
-    if (vAlign == TextVerticalAlign.center) {
-      y = 0.0;
-    } else if (vAlign == TextVerticalAlign.bottom) {
-      y = 1.0;
-    }
-
-    return Alignment(x, y);
   }
 }

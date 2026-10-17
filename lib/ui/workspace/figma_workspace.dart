@@ -314,6 +314,20 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           shapes.removeWhere((s) => s.id == editingId);
           selectedShapeIds.remove(editingId);
         } else {
+          if (_isEditingNewText && editingShape.textContent.isNotEmpty) {
+            final style = editingShape.getTextStyle();
+            final tp = TextPainter(
+              text: TextSpan(text: editingShape.textContent, style: style),
+              textDirection: TextDirection.ltr,
+            );
+            tp.layout();
+            editingShape.rect = Rect.fromLTWH(
+              editingShape.rect.left,
+              editingShape.rect.top,
+              math.max(24.0, tp.width + 4.0),
+              math.max(18.0, tp.height),
+            );
+          }
           editingShape.invalidateCache();
           _saveHistorySnapshot();
         }
@@ -821,8 +835,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           finalRect = Rect.fromLTWH(
             panStartOffset!.dx,
             panStartOffset!.dy,
-            160,
-            40,
+            48,
+            24,
           );
         }
         isValidShape = true;

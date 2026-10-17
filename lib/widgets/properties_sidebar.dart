@@ -107,187 +107,200 @@ class PropertiesSidebar extends StatelessWidget {
                     vertical: 14,
                   ),
                   children: [
-                    // Header M3 & Quick Actions with RemixIcons & M3EButtons
-                    Row(
-                      children: [
-                        Icon(
-                          _getShapeIcon(selectedShape!.type),
-                          size: 18,
-                          color: colorScheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            selectedShape!.name,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: colorScheme.onSurface,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        M3EButton(
-                          onPressed: onDuplicateShape,
-                          style: M3EButtonStyle.tonal,
-                          size: M3EButtonSize.sm,
-                          tooltip: 'Duplicate (Ctrl+D)',
-                          child: Icon(
-                            RemixIcons.file_copy_line,
-                            size: 16,
-                            color: colorScheme.onSecondaryContainer,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        M3EButton(
-                          onPressed: onDeleteSelected,
-                          style: M3EButtonStyle.tonal,
-                          size: M3EButtonSize.sm,
-                          tooltip: 'Delete (Del)',
-                          decoration: M3EButtonDecoration(
-                            backgroundColor: WidgetStatePropertyAll(
-                              colorScheme.errorContainer,
-                            ),
-                            foregroundColor: WidgetStatePropertyAll(
-                              colorScheme.onErrorContainer,
-                            ),
-                          ),
-                          child: Icon(
-                            RemixIcons.delete_bin_line,
-                            size: 16,
-                            color: colorScheme.onErrorContainer,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    Divider(
-                      color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                      height: 24,
-                    ),
-
-                    // Alignment Controls M3 with RemixIcons & M3E Connected Rows
-                    Text('ALIGNMENT', style: _getSectionHeaderStyle(theme)),
-                    const SizedBox(height: 10),
-
-                    // Row 1: Horizontal Alignment (Left, Center, Right - connected)
-                    M3ESegmentedRow(
-                      onTap: (index) {
-                        const types = ['left', 'center', 'right'];
-                        onAlignShape(types[index]);
-                      },
-                      equalWidth: true,
-                      gap: 2.0,
-                      decoration: M3ESegmentedListDecoration(
-                        outerRadius: 14.0,
-                        innerRadius: 4.0,
-                        gap: 2.0,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
-                        ),
-                        color: colorScheme.surfaceContainerHigh,
-                        hoverColor: colorScheme.surfaceContainerHighest,
-                        pressedRadius: 8.0,
-                        pressedScale: 0.96,
+                    // Header Card
+                    _buildSectionCard(
+                      context,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
                       ),
-                      children: [
-                        Tooltip(
-                          message: 'Align Left',
-                          child: Center(
-                            child: Icon(
-                              RemixIcons.align_left,
-                              size: 18,
-                              color: colorScheme.onSurfaceVariant,
+                      child: Row(
+                        children: [
+                          Icon(
+                            _getShapeIcon(selectedShape!.type),
+                            size: 18,
+                            color: colorScheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              selectedShape!.name,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: colorScheme.onSurface,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
-                        Tooltip(
-                          message: 'Align Center',
-                          child: Center(
+                          M3EButton(
+                            onPressed: onDuplicateShape,
+                            style: M3EButtonStyle.tonal,
+                            size: M3EButtonSize.sm,
+                            tooltip: 'Duplicate (Ctrl+D)',
                             child: Icon(
-                              RemixIcons.align_center,
-                              size: 18,
-                              color: colorScheme.onSurfaceVariant,
+                              RemixIcons.file_copy_line,
+                              size: 16,
+                              color: colorScheme.onSecondaryContainer,
                             ),
                           ),
-                        ),
-                        Tooltip(
-                          message: 'Align Right',
-                          child: Center(
+                          const SizedBox(width: 4),
+                          M3EButton(
+                            onPressed: onDeleteSelected,
+                            style: M3EButtonStyle.tonal,
+                            size: M3EButtonSize.sm,
+                            tooltip: 'Delete (Del)',
+                            decoration: M3EButtonDecoration(
+                              backgroundColor: WidgetStatePropertyAll(
+                                colorScheme.errorContainer,
+                              ),
+                              foregroundColor: WidgetStatePropertyAll(
+                                colorScheme.onErrorContainer,
+                              ),
+                            ),
                             child: Icon(
-                              RemixIcons.align_right,
-                              size: 18,
-                              color: colorScheme.onSurfaceVariant,
+                              RemixIcons.delete_bin_line,
+                              size: 16,
+                              color: colorScheme.onErrorContainer,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Row 2: Vertical Alignment (Top, Middle, Bottom - connected)
-                    M3ESegmentedRow(
-                      onTap: (index) {
-                        const types = ['top', 'middle', 'bottom'];
-                        onAlignShape(types[index]);
-                      },
-                      equalWidth: true,
-                      gap: 2.0,
-                      decoration: M3ESegmentedListDecoration(
-                        outerRadius: 14.0,
-                        innerRadius: 4.0,
-                        gap: 2.0,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
-                        ),
-                        color: colorScheme.surfaceContainerHigh,
-                        hoverColor: colorScheme.surfaceContainerHighest,
-                        pressedRadius: 8.0,
-                        pressedScale: 0.96,
+                        ],
                       ),
-                      children: [
-                        Tooltip(
-                          message: 'Align Top',
-                          child: Center(
-                            child: Icon(
-                              RemixIcons.align_top,
-                              size: 18,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                        Tooltip(
-                          message: 'Align Middle',
-                          child: Center(
-                            child: Icon(
-                              RemixIcons.align_vertically,
-                              size: 18,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                        Tooltip(
-                          message: 'Align Bottom',
-                          child: Center(
-                            child: Icon(
-                              RemixIcons.align_bottom,
-                              size: 18,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
                     ),
 
-                    Divider(
-                      color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                      height: 28,
+                    // Alignment Card
+                    _buildSectionCard(
+                      context,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'ALIGNMENT',
+                            style: _getSectionHeaderStyle(theme),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // Row 1: Horizontal Alignment (Left, Center, Right - connected)
+                          M3ESegmentedRow(
+                            onTap: (index) {
+                              const types = ['left', 'center', 'right'];
+                              onAlignShape(types[index]);
+                            },
+                            equalWidth: true,
+                            gap: 2.0,
+                            decoration: M3ESegmentedListDecoration(
+                              outerRadius: 14.0,
+                              innerRadius: 4.0,
+                              gap: 2.0,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                              color: colorScheme.surfaceContainerHigh,
+                              hoverColor: colorScheme.surfaceContainerHighest,
+                              pressedRadius: 8.0,
+                              pressedScale: 0.96,
+                            ),
+                            children: [
+                              Tooltip(
+                                message: 'Align Left',
+                                child: Center(
+                                  child: Icon(
+                                    RemixIcons.align_left,
+                                    size: 18,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                              Tooltip(
+                                message: 'Align Center',
+                                child: Center(
+                                  child: Icon(
+                                    RemixIcons.align_center,
+                                    size: 18,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                              Tooltip(
+                                message: 'Align Right',
+                                child: Center(
+                                  child: Icon(
+                                    RemixIcons.align_right,
+                                    size: 18,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+
+                          // Row 2: Vertical Alignment (Top, Middle, Bottom - connected)
+                          M3ESegmentedRow(
+                            onTap: (index) {
+                              const types = ['top', 'middle', 'bottom'];
+                              onAlignShape(types[index]);
+                            },
+                            equalWidth: true,
+                            gap: 2.0,
+                            decoration: M3ESegmentedListDecoration(
+                              outerRadius: 14.0,
+                              innerRadius: 4.0,
+                              gap: 2.0,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                              color: colorScheme.surfaceContainerHigh,
+                              hoverColor: colorScheme.surfaceContainerHighest,
+                              pressedRadius: 8.0,
+                              pressedScale: 0.96,
+                            ),
+                            children: [
+                              Tooltip(
+                                message: 'Align Top',
+                                child: Center(
+                                  child: Icon(
+                                    RemixIcons.align_top,
+                                    size: 18,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                              Tooltip(
+                                message: 'Align Middle',
+                                child: Center(
+                                  child: Icon(
+                                    RemixIcons.align_vertically,
+                                    size: 18,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                              Tooltip(
+                                message: 'Align Bottom',
+                                child: Center(
+                                  child: Icon(
+                                    RemixIcons.align_bottom,
+                                    size: 18,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
 
-                    // Transform Geometry (X, Y, W, H, Rotation)
-                    Text('TRANSFORM', style: _getSectionHeaderStyle(theme)),
-                    const SizedBox(height: 10),
+                    // Transform Card
+                    _buildSectionCard(
+                      context,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('TRANSFORM', style: _getSectionHeaderStyle(theme)),
+                          const SizedBox(height: 10),
 
                     Row(
                       children: [
@@ -503,7 +516,7 @@ class PropertiesSidebar extends StatelessWidget {
                         Expanded(
                           child: _buildNumberField(
                             context,
-                            'Rotate °',
+                            '°',
                             selectedShape!.rotation,
                             (val) {
                               final updated = selectedShape!.copyWith(
@@ -520,7 +533,7 @@ class PropertiesSidebar extends StatelessWidget {
                           Expanded(
                             child: _buildNumberField(
                               context,
-                              'Radius',
+                              'R',
                               selectedShape!.cornerRadius,
                               (val) {
                                 final updated = selectedShape!.copyWith(
@@ -589,40 +602,43 @@ class PropertiesSidebar extends StatelessWidget {
                         ),
                       ],
                     ),
-
-                    Divider(
-                      color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                      height: 28,
-                    ),
+                  ],
+                ),
+              ),
 
                     // Fill Color, Gradient & Opacity
                     if (selectedShape!.type != ShapeType.line &&
-                        selectedShape!.type != ShapeType.image) ...[
-                      Row(
-                        children: [
-                          Text(
-                            selectedShape!.type == ShapeType.text
-                                ? 'TEXT COLOR'
-                                : 'FILL',
-                            style: _getSectionHeaderStyle(theme),
-                          ),
-                          const Spacer(),
-                          Switch(
-                            value: selectedShape!.isFilled,
-                            activeTrackColor: colorScheme.primary,
-                            onChanged: (val) {
-                              FocusManager.instance.primaryFocus?.unfocus();
-                              final updated = selectedShape!.copyWith(
-                                isFilled: val,
-                              );
-                              onShapeChanged(updated);
-                              onShapeChangeEnd?.call(updated);
-                            },
-                          ),
-                        ],
-                      ),
-                      if (selectedShape!.isFilled) ...[
-                        const SizedBox(height: 8),
+                        selectedShape!.type != ShapeType.image)
+                      _buildSectionCard(
+                        context,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  selectedShape!.type == ShapeType.text
+                                      ? 'TEXT COLOR'
+                                      : 'FILL',
+                                  style: _getSectionHeaderStyle(theme),
+                                ),
+                                const Spacer(),
+                                Switch(
+                                  value: selectedShape!.isFilled,
+                                  activeTrackColor: colorScheme.primary,
+                                  onChanged: (val) {
+                                    FocusManager.instance.primaryFocus?.unfocus();
+                                    final updated = selectedShape!.copyWith(
+                                      isFilled: val,
+                                    );
+                                    onShapeChanged(updated);
+                                    onShapeChangeEnd?.call(updated);
+                                  },
+                                ),
+                              ],
+                            ),
+                            if (selectedShape!.isFilled) ...[
+                              const SizedBox(height: 8),
                         _buildToggleGroup(
                           selectedIndex: switch (selectedShape!.fillType) {
                             PaintFillType.solid => 0,
@@ -815,33 +831,35 @@ class PropertiesSidebar extends StatelessWidget {
                         ),
                       ],
                     ],
-
-                    Divider(
-                      color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                      height: 28,
-                    ),
+                  ),
+                ),
 
                     // Stroke Color, Gradient, Opacity & Styles
                     if (selectedShape!.type != ShapeType.image &&
-                        selectedShape!.type != ShapeType.text) ...[
-                      Row(
-                        children: [
-                          Text('STROKE', style: _getSectionHeaderStyle(theme)),
-                          const Spacer(),
-                          Switch(
-                            value: selectedShape!.isStroked,
-                            activeTrackColor: colorScheme.primary,
-                            onChanged: (val) {
-                              FocusManager.instance.primaryFocus?.unfocus();
-                              final updated = selectedShape!.copyWith(
-                                isStroked: val,
-                              );
-                              onShapeChanged(updated);
-                              onShapeChangeEnd?.call(updated);
-                            },
-                          ),
-                        ],
-                      ),
+                        selectedShape!.type != ShapeType.text)
+                      _buildSectionCard(
+                        context,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text('STROKE', style: _getSectionHeaderStyle(theme)),
+                                const Spacer(),
+                                Switch(
+                                  value: selectedShape!.isStroked,
+                                  activeTrackColor: colorScheme.primary,
+                                  onChanged: (val) {
+                                    FocusManager.instance.primaryFocus?.unfocus();
+                                    final updated = selectedShape!.copyWith(
+                                      isStroked: val,
+                                    );
+                                    onShapeChanged(updated);
+                                    onShapeChangeEnd?.call(updated);
+                                  },
+                                ),
+                              ],
+                            ),
                       if (selectedShape!.isStroked) ...[
                         const SizedBox(height: 8),
                         _buildToggleGroup(
@@ -1691,32 +1709,33 @@ class PropertiesSidebar extends StatelessWidget {
                         ],
                       ],
                     ],
+                  ),
+                ),
 
                     // Text properties (If text shape selected)
-                    if (selectedShape!.type == ShapeType.text) ...[
-                      Divider(
-                        color: colorScheme.outlineVariant.withValues(
-                          alpha: 0.3,
-                        ),
-                        height: 28,
-                      ),
-                      Text(
-                        'TEXT CONTENT',
-                        style: _getSectionHeaderStyle(theme),
-                      ),
-                      const SizedBox(height: 8),
-                      _TextContentInputField(
-                        key: ValueKey('text-content-${selectedShape!.id}'),
-                        textContent: selectedShape!.textContent,
-                        onChanged: (val) {
-                          onShapeChanged(
-                            selectedShape!.copyWith(textContent: val),
-                          );
-                        },
-                        onCommit: () {
-                          (onShapeChangeEnd ?? onShapeChanged)(selectedShape!);
-                        },
-                      ),
+                    if (selectedShape!.type == ShapeType.text)
+                      _buildSectionCard(
+                        context,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'TEXT CONTENT',
+                              style: _getSectionHeaderStyle(theme),
+                            ),
+                            const SizedBox(height: 8),
+                            _TextContentInputField(
+                              key: ValueKey('text-content-${selectedShape!.id}'),
+                              textContent: selectedShape!.textContent,
+                              onChanged: (val) {
+                                onShapeChanged(
+                                  selectedShape!.copyWith(textContent: val),
+                                );
+                              },
+                              onCommit: () {
+                                (onShapeChangeEnd ?? onShapeChanged)(selectedShape!);
+                              },
+                            ),
                       const SizedBox(height: 12),
                       const SizedBox(height: 14),
                       // Typography Header
@@ -2162,9 +2181,32 @@ class PropertiesSidebar extends StatelessWidget {
                         },
                       ),
                     ],
-                  ],
+                  ),
                 ),
+              ],
+            ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionCard(
+    BuildContext context, {
+    required Widget child,
+    EdgeInsetsGeometry padding = const EdgeInsets.all(12),
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      elevation: 0,
+      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+        side: BorderSide.none,
+      ),
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: padding,
+        child: child,
       ),
     );
   }
@@ -2297,583 +2339,598 @@ class PropertiesSidebar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       children: [
         // Header M3 & Quick Actions
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: colorScheme.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                RemixIcons.artboard_line,
-                size: 18,
-                color: colorScheme.primary,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'PAGE / CANVAS',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: colorScheme.onSurface,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                  Text(
-                    totalShapesCount == 1
-                        ? '1 layer'
-                        : '$totalShapesCount layers',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.75,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (onSelectAll != null)
-              M3EButton(
-                onPressed: totalShapesCount > 0 ? onSelectAll : null,
-                style: M3EButtonStyle.tonal,
-                size: M3EButtonSize.sm,
-                tooltip: totalShapesCount > 0
-                    ? 'Select All (Ctrl+A)'
-                    : 'No layers to select',
-                child: Icon(
-                  RemixIcons.checkbox_multiple_line,
-                  size: 16,
-                  color: totalShapesCount > 0
-                      ? colorScheme.onSecondaryContainer
-                      : colorScheme.onSurface.withValues(alpha: 0.38),
-                ),
-              ),
-          ],
-        ),
-
-        Divider(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-          height: 24,
-        ),
-
-        // Section: Navigation & Tools
-        Text('TOOL & NAVIGATION', style: _getSectionHeaderStyle(theme)),
-        const SizedBox(height: 10),
-
-        M3ESegmentedRow(
-          onTap: (index) {
-            if (index == 0 && isPanMode) {
-              onTogglePanMode?.call();
-            } else if (index == 1 && !isPanMode) {
-              onTogglePanMode?.call();
-            }
-          },
-          equalWidth: true,
-          gap: 2.0,
-          decoration: M3ESegmentedListDecoration(
-            outerRadius: 10.0,
-            innerRadius: 4.0,
-            gap: 2.0,
-            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
-            color: colorScheme.surfaceContainerHigh,
-            hoverColor: colorScheme.surfaceContainerHighest,
-            pressedRadius: 8.0,
-            pressedScale: 0.97,
-          ),
-          children: [
-            Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    RemixIcons.cursor_line,
-                    size: 14,
-                    color: !isPanMode
-                        ? colorScheme.primary
-                        : colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      'Select (V)',
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: !isPanMode
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        color: !isPanMode
-                            ? colorScheme.primary
-                            : colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    RemixIcons.hand,
-                    size: 14,
-                    color: isPanMode
-                        ? colorScheme.primary
-                        : colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      'Move (H)',
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: isPanMode
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        color: isPanMode
-                            ? colorScheme.primary
-                            : colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 8),
-
-        Row(
-          children: [
-            Expanded(
-              child: M3EButton(
-                onPressed: onCenterCanvas,
-                style: M3EButtonStyle.tonal,
-                size: M3EButtonSize.sm,
-                tooltip: 'Center Canvas in Viewport',
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(RemixIcons.focus_3_line, size: 14),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        'Center',
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: M3EButton(
-                onPressed: onZoomToFit,
-                style: M3EButtonStyle.tonal,
-                size: M3EButtonSize.sm,
-                tooltip: 'Zoom to Fit (Shift+1)',
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(RemixIcons.aspect_ratio_line, size: 14),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        'Fit',
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-
-        Divider(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-          height: 24,
-        ),
-
-        // Section: Zoom Controls
-        Text('ZOOM CONTROLS', style: _getSectionHeaderStyle(theme)),
-        const SizedBox(height: 10),
-
-        // Zoom Out | % Pill | Zoom In
-        Row(
-          children: [
-            M3EButton(
-              onPressed: onZoomOut,
-              style: M3EButtonStyle.tonal,
-              size: M3EButtonSize.sm,
-              tooltip: 'Zoom Out (Ctrl+-)',
-              child: Icon(
-                RemixIcons.subtract_line,
-                size: 16,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Tooltip(
-                message: 'Reset to 100% (Ctrl+0)',
-                child: InkWell(
-                  onTap: onResetZoom,
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    height: 32,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: colorScheme.outlineVariant.withValues(
-                          alpha: 0.3,
-                        ),
-                        width: 0.8,
-                      ),
-                    ),
-                    child: Text(
-                      '${(zoomScale * 100).round()}%',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontFamily: 'monospace',
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            M3EButton(
-              onPressed: onZoomIn,
-              style: M3EButtonStyle.tonal,
-              size: M3EButtonSize.sm,
-              tooltip: 'Zoom In (Ctrl++)',
-              child: Icon(
-                RemixIcons.add_line,
-                size: 16,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 8),
-
-        // Presets: 50%, 100%, 200%, Fit
-        M3ESegmentedRow(
-          onTap: (index) {
-            switch (index) {
-              case 0:
-                onSetZoomScale?.call(0.5);
-                break;
-              case 1:
-                onResetZoom?.call();
-                break;
-              case 2:
-                onSetZoomScale?.call(2.0);
-                break;
-              case 3:
-                onZoomToFit?.call();
-                break;
-            }
-          },
-          equalWidth: true,
-          gap: 2.0,
-          decoration: M3ESegmentedListDecoration(
-            outerRadius: 10.0,
-            innerRadius: 4.0,
-            gap: 2.0,
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-            color: colorScheme.surfaceContainerHigh,
-            hoverColor: colorScheme.surfaceContainerHighest,
-          ),
-          children: [
-            Center(
-              child: Text(
-                '50%',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: (zoomScale - 0.5).abs() < 0.05
-                      ? FontWeight.bold
-                      : FontWeight.normal,
-                  color: (zoomScale - 0.5).abs() < 0.05
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-            Center(
-              child: Text(
-                '100%',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: (zoomScale - 1.0).abs() < 0.05
-                      ? FontWeight.bold
-                      : FontWeight.normal,
-                  color: (zoomScale - 1.0).abs() < 0.05
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-            Center(
-              child: Text(
-                '200%',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: (zoomScale - 2.0).abs() < 0.05
-                      ? FontWeight.bold
-                      : FontWeight.normal,
-                  color: (zoomScale - 2.0).abs() < 0.05
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-            Center(
-              child: Text(
-                'Fit',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.normal,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 10),
-
-        // Interactive Zoom Slider
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Zoom Range',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            Text(
-              '${(zoomScale * 100).round()}%',
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontFamily: 'monospace',
-                fontWeight: FontWeight.w600,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-        NixSlider(
-          value: zoomScale.clamp(0.25, 4.0),
-          min: 0.25,
-          max: 4.0,
-          onChanged: onSetZoomScale,
-        ),
-
-        Divider(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-          height: 24,
-        ),
-
-        // Section: Canvas Background
-        Text('CANVAS BACKGROUND', style: _getSectionHeaderStyle(theme)),
-        const SizedBox(height: 10),
-
-        // Color Chip + Hex Field + Opacity
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-              width: 0.8,
-            ),
-          ),
+        _buildSectionCard(
+          context,
           child: Row(
             children: [
-              GestureDetector(
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => ColorPickerDialog(
-                      initialColor: effectiveBg,
-                      title: 'Canvas Background Color',
-                      onColorSelected: (col) {
-                        onCanvasBackgroundColorChanged?.call(col);
-                      },
-                    ),
-                  );
-                },
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: effectiveBg,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: colorScheme.outline.withValues(alpha: 0.4),
-                      width: 1.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 4,
-                      ),
-                    ],
-                  ),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  RemixIcons.artboard_line,
+                  size: 18,
+                  color: colorScheme.primary,
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _CanvasHexInputField(
-                  effectiveBg: effectiveBg,
-                  onColorChanged: onCanvasBackgroundColorChanged,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'PAGE / CANVAS',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: colorScheme.onSurface,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    Text(
+                      totalShapesCount == 1
+                          ? '1 layer'
+                          : '$totalShapesCount layers',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.75,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '$opacityPct%',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurfaceVariant,
+              if (onSelectAll != null)
+                M3EButton(
+                  onPressed: totalShapesCount > 0 ? onSelectAll : null,
+                  style: M3EButtonStyle.tonal,
+                  size: M3EButtonSize.sm,
+                  tooltip: totalShapesCount > 0
+                      ? 'Select All (Ctrl+A)'
+                      : 'No layers to select',
+                  child: Icon(
+                    RemixIcons.checkbox_multiple_line,
+                    size: 16,
+                    color: totalShapesCount > 0
+                        ? colorScheme.onSecondaryContainer
+                        : colorScheme.onSurface.withValues(alpha: 0.38),
                   ),
                 ),
+            ],
+          ),
+        ),
+
+        // Section: Navigation & Tools
+        _buildSectionCard(
+          context,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('TOOL & NAVIGATION', style: _getSectionHeaderStyle(theme)),
+              const SizedBox(height: 10),
+
+              M3ESegmentedRow(
+                onTap: (index) {
+                  if (index == 0 && isPanMode) {
+                    onTogglePanMode?.call();
+                  } else if (index == 1 && !isPanMode) {
+                    onTogglePanMode?.call();
+                  }
+                },
+                equalWidth: true,
+                gap: 2.0,
+                decoration: M3ESegmentedListDecoration(
+                  outerRadius: 10.0,
+                  innerRadius: 4.0,
+                  gap: 2.0,
+                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+                  color: colorScheme.surfaceContainerHigh,
+                  hoverColor: colorScheme.surfaceContainerHighest,
+                  pressedRadius: 8.0,
+                  pressedScale: 0.97,
+                ),
+                children: [
+                  Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          RemixIcons.cursor_line,
+                          size: 14,
+                          color: !isPanMode
+                              ? colorScheme.primary
+                              : colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            'Select (V)',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: !isPanMode
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: !isPanMode
+                                  ? colorScheme.primary
+                                  : colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          RemixIcons.hand,
+                          size: 14,
+                          color: isPanMode
+                              ? colorScheme.primary
+                              : colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            'Move (H)',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: isPanMode
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: isPanMode
+                                  ? colorScheme.primary
+                                  : colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 8),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: M3EButton(
+                      onPressed: onCenterCanvas,
+                      style: M3EButtonStyle.tonal,
+                      size: M3EButtonSize.sm,
+                      tooltip: 'Center Canvas in Viewport',
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(RemixIcons.focus_3_line, size: 14),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'Center',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: M3EButton(
+                      onPressed: onZoomToFit,
+                      style: M3EButtonStyle.tonal,
+                      size: M3EButtonSize.sm,
+                      tooltip: 'Zoom to Fit (Shift+1)',
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(RemixIcons.aspect_ratio_line, size: 14),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'Fit',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
 
-        const SizedBox(height: 10),
+        // Section: Zoom Controls
+        _buildSectionCard(
+          context,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('ZOOM CONTROLS', style: _getSectionHeaderStyle(theme)),
+              const SizedBox(height: 10),
 
-        // Quick Preset Swatches (No glow)
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: canvasPresets.map((preset) {
-            final isSelected =
-                (effectiveBg.toARGB32() & 0x00FFFFFF) ==
-                (preset.toARGB32() & 0x00FFFFFF);
-            return GestureDetector(
-              onTap: () => onCanvasBackgroundColorChanged?.call(preset),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                width: 26,
-                height: 26,
-                decoration: BoxDecoration(
-                  color: preset,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: isSelected
-                        ? colorScheme.primary
-                        : colorScheme.outlineVariant.withValues(alpha: 0.4),
-                    width: isSelected ? 2.5 : 1.0,
+              // Zoom Out | % Pill | Zoom In
+              Row(
+                children: [
+                  M3EButton(
+                    onPressed: onZoomOut,
+                    style: M3EButtonStyle.tonal,
+                    size: M3EButtonSize.sm,
+                    tooltip: 'Zoom Out (Ctrl+-)',
+                    child: Icon(
+                      RemixIcons.subtract_line,
+                      size: 16,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                  boxShadow: null,
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Tooltip(
+                      message: 'Reset to 100% (Ctrl+0)',
+                      child: InkWell(
+                        onTap: onResetZoom,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          height: 32,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainerHigh,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: colorScheme.outlineVariant.withValues(
+                                alpha: 0.3,
+                              ),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Text(
+                            '${(zoomScale * 100).round()}%',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontFamily: 'monospace',
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  M3EButton(
+                    onPressed: onZoomIn,
+                    style: M3EButtonStyle.tonal,
+                    size: M3EButtonSize.sm,
+                    tooltip: 'Zoom In (Ctrl++)',
+                    child: Icon(
+                      RemixIcons.add_line,
+                      size: 16,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
-            );
-          }).toList(),
+
+              const SizedBox(height: 8),
+
+              // Presets: 50%, 100%, 200%, Fit
+              M3ESegmentedRow(
+                onTap: (index) {
+                  switch (index) {
+                    case 0:
+                      onSetZoomScale?.call(0.5);
+                      break;
+                    case 1:
+                      onResetZoom?.call();
+                      break;
+                    case 2:
+                      onSetZoomScale?.call(2.0);
+                      break;
+                    case 3:
+                      onZoomToFit?.call();
+                      break;
+                  }
+                },
+                equalWidth: true,
+                gap: 2.0,
+                decoration: M3ESegmentedListDecoration(
+                  outerRadius: 10.0,
+                  innerRadius: 4.0,
+                  gap: 2.0,
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  color: colorScheme.surfaceContainerHigh,
+                  hoverColor: colorScheme.surfaceContainerHighest,
+                ),
+                children: [
+                  Center(
+                    child: Text(
+                      '50%',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: (zoomScale - 0.5).abs() < 0.05
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: (zoomScale - 0.5).abs() < 0.05
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  Center(
+                    child: Text(
+                      '100%',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: (zoomScale - 1.0).abs() < 0.05
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: (zoomScale - 1.0).abs() < 0.05
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  Center(
+                    child: Text(
+                      '200%',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: (zoomScale - 2.0).abs() < 0.05
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: (zoomScale - 2.0).abs() < 0.05
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  Center(
+                    child: Text(
+                      'Fit',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.normal,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 10),
+
+              // Interactive Zoom Slider
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Zoom Range',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  Text(
+                    '${(zoomScale * 100).round()}%',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontFamily: 'monospace',
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+              NixSlider(
+                value: zoomScale.clamp(0.25, 4.0),
+                min: 0.25,
+                max: 4.0,
+                onChanged: onSetZoomScale,
+              ),
+            ],
+          ),
         ),
 
-        Divider(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-          height: 24,
+        // Section: Canvas Background
+        _buildSectionCard(
+          context,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('CANVAS BACKGROUND', style: _getSectionHeaderStyle(theme)),
+              const SizedBox(height: 10),
+
+              // Color Chip + Hex Field + Opacity
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    width: 0.8,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => ColorPickerDialog(
+                            initialColor: effectiveBg,
+                            title: 'Canvas Background Color',
+                            onColorSelected: (col) {
+                              onCanvasBackgroundColorChanged?.call(col);
+                            },
+                          ),
+                        );
+                      },
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: effectiveBg,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: colorScheme.outline.withValues(alpha: 0.4),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _CanvasHexInputField(
+                        effectiveBg: effectiveBg,
+                        onColorChanged: onCanvasBackgroundColorChanged,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '$opacityPct%',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              // Quick Preset Swatches (No glow)
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: canvasPresets.map((preset) {
+                  final isSelected =
+                      (effectiveBg.toARGB32() & 0x00FFFFFF) ==
+                      (preset.toARGB32() & 0x00FFFFFF);
+                  return GestureDetector(
+                    onTap: () => onCanvasBackgroundColorChanged?.call(preset),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: preset,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected
+                              ? colorScheme.primary
+                              : colorScheme.outlineVariant.withValues(alpha: 0.4),
+                          width: isSelected ? 2.5 : 1.0,
+                        ),
+                        boxShadow: null,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
         ),
 
         // Section: Grid & Snapping
-        Text('GRID & SNAPPING', style: _getSectionHeaderStyle(theme)),
-        const SizedBox(height: 10),
-
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Snap to Grid',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurface,
-                ),
-              ),
-            ),
-            Switch.adaptive(
-              value: snapToGrid ?? true,
-              onChanged: onToggleSnapToGrid,
-            ),
-          ],
-        ),
-
-        if (gridSpacing != null) ...[
-          const SizedBox(height: 8),
-          Row(
+        _buildSectionCard(
+          context,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Spacing: ${gridSpacing!.round()} px',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+              Text('GRID & SNAPPING', style: _getSectionHeaderStyle(theme)),
+              const SizedBox(height: 10),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Snap to Grid',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                  Switch.adaptive(
+                    value: snapToGrid ?? true,
+                    onChanged: onToggleSnapToGrid,
+                  ),
+                ],
+              ),
+
+              if (gridSpacing != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Text(
+                      'Spacing: ${gridSpacing!.round()} px',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const Spacer(),
+                  ],
                 ),
-              ),
-              const Spacer(),
+                const SizedBox(height: 6),
+                _buildToggleGroup(
+                  selectedIndex: switch (gridSpacing!.round()) {
+                    10 => 0,
+                    20 => 1,
+                    40 => 2,
+                    80 => 3,
+                    _ => 2,
+                  },
+                  onChanged: (idx) {
+                    final spacings = [10.0, 20.0, 40.0, 80.0];
+                    onGridSpacingChanged?.call(spacings[idx]);
+                  },
+                  actions: const [
+                    M3EToggleButtonGroupAction(
+                      label: Text('10', style: TextStyle(fontSize: 11)),
+                      tooltip: '10px Grid',
+                    ),
+                    M3EToggleButtonGroupAction(
+                      label: Text('20', style: TextStyle(fontSize: 11)),
+                      tooltip: '20px Grid',
+                    ),
+                    M3EToggleButtonGroupAction(
+                      label: Text('40', style: TextStyle(fontSize: 11)),
+                      tooltip: '40px Grid',
+                    ),
+                    M3EToggleButtonGroupAction(
+                      label: Text('80', style: TextStyle(fontSize: 11)),
+                      tooltip: '80px Grid',
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
-          const SizedBox(height: 6),
-          _buildToggleGroup(
-            selectedIndex: switch (gridSpacing!.round()) {
-              10 => 0,
-              20 => 1,
-              40 => 2,
-              80 => 3,
-              _ => 2,
-            },
-            onChanged: (idx) {
-              final spacings = [10.0, 20.0, 40.0, 80.0];
-              onGridSpacingChanged?.call(spacings[idx]);
-            },
-            actions: const [
-              M3EToggleButtonGroupAction(
-                label: Text('10', style: TextStyle(fontSize: 11)),
-                tooltip: '10px Grid',
-              ),
-              M3EToggleButtonGroupAction(
-                label: Text('20', style: TextStyle(fontSize: 11)),
-                tooltip: '20px Grid',
-              ),
-              M3EToggleButtonGroupAction(
-                label: Text('40', style: TextStyle(fontSize: 11)),
-                tooltip: '40px Grid',
-              ),
-              M3EToggleButtonGroupAction(
-                label: Text('80', style: TextStyle(fontSize: 11)),
-                tooltip: '80px Grid',
-              ),
-            ],
-          ),
-        ],
+        ),
       ],
     );
   }
@@ -3225,12 +3282,16 @@ class _NumberInputFieldState extends State<_NumberInputField> {
       ),
       child: Row(
         children: [
-          Text(
-            widget.label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: colorScheme.primary,
-              fontWeight: FontWeight.bold,
-              fontSize: 11,
+          Flexible(
+            child: Text(
+              widget.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+              ),
             ),
           ),
           const SizedBox(width: 4),

@@ -64,15 +64,14 @@ class FloatingToolBar extends StatelessWidget {
               mode: EditorMode.pan,
               tooltip: 'Hand / Pan (H)',
             ),
-            const SizedBox(width: 6),
-            SizedBox(
-              height: 24,
-              child: VerticalDivider(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-                width: 12,
-              ),
+            const SizedBox(width: 8),
+            VerticalDivider(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+
+              indent: 16.0,
+              endIndent: 16.0,
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             _buildExpressiveToolBtn(
               context,
               icon: RemixIcons.checkbox_blank_line,
