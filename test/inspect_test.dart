@@ -85,8 +85,8 @@ void main() {
           body: PropertiesSidebar(
             selectedShape: shape,
             onShapeChanged: (_) {},
-            onOpenColorPickerFill: () {},
-            onOpenColorPickerStroke: () {},
+            onOpenColorPickerFill: ([_]) {},
+            onOpenColorPickerStroke: ([_]) {},
             onDuplicateShape: () {},
             onDeleteSelected: () {},
             onAlignShape: (val) => aligned = val,

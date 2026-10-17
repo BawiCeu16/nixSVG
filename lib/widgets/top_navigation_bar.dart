@@ -6,6 +6,7 @@ import 'package:m3e_buttons/m3e_buttons.dart';
 import 'package:nixsvg/controllers/theme_controller.dart';
 import 'package:nixsvg/providers/theme_provider.dart';
 import 'package:nixsvg/theme/components/responsive_layout_tokens.dart';
+import 'package:nixsvg/widgets/color_picker_dialog.dart';
 import 'package:remixicon/remixicon.dart';
 
 /// Redesigned macOS Unified Toolbar aesthetic for nixSVG.
@@ -452,6 +453,21 @@ class TopNavigationBar extends ConsumerWidget {
                                     ref
                                         .read(themeProvider.notifier)
                                         .toggleThemeMode();
+                                  },
+                                ),
+
+                                _buildInnerDivider(colorScheme),
+
+                                // Color & Gradient Studio (Main Color Picker)
+                                _MacIconButton(
+                                  icon: RemixIcons.palette_line,
+                                  tooltip: 'Color & Gradient Studio',
+                                  enabled: true,
+                                  onTap: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (ctx) => const ColorPickerExperimentWidget(),
+                                    );
                                   },
                                 ),
 

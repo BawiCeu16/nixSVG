@@ -1338,29 +1338,82 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     showDialog(context: context, builder: (context) => const ShortcutsDialog());
   }
 
-  void _openColorPicker(bool isFill) {
+  void _openColorPicker(bool isFill, [Rect? anchorRect]) {
     FocusManager.instance.primaryFocus?.unfocus();
     if (selectedShapeIds.isEmpty) return;
     final target = shapes.firstWhere((s) => s.id == selectedShapeIds.first);
-    showDialog(
+    final initialGrad = isFill ? target.fillGradient : target.strokeGradient;
+    final initialMode = isFill
+        ? (target.fillType == PaintFillType.linearGradient
+            ? ColorPickerMode.linearGradient
+            : (target.fillType == PaintFillType.radialGradient
+                ? ColorPickerMode.radialGradient
+                : ColorPickerMode.solid))
+        : (target.strokeType == PaintFillType.linearGradient
+            ? ColorPickerMode.linearGradient
+            : (target.strokeType == PaintFillType.radialGradient
+                ? ColorPickerMode.radialGradient
+                : ColorPickerMode.solid));
+
+    showNixColorPicker(
       context: context,
-      builder: (context) => ColorPickerDialog(
-        initialColor: isFill ? target.fillColor : target.strokeColor,
-        onColorSelected: (color) {
-          setState(() {
-            shapes = List.of(shapes);
-            for (final id in selectedShapeIds) {
-              final s = shapes.firstWhere((s) => s.id == id);
-              if (isFill) {
-                s.fillColor = color;
-              } else {
-                s.strokeColor = color;
-              }
+      initialColor: isFill ? target.fillColor : target.strokeColor,
+      initialGradient: initialGrad,
+      enableGradient: true,
+      initialMode: initialMode,
+      anchorRect: anchorRect,
+      title: isFill ? 'Fill Color & Gradient' : 'Stroke Color & Gradient',
+      onColorChanged: (color) {
+        setState(() {
+          shapes = List.of(shapes);
+          for (final id in selectedShapeIds) {
+            final s = shapes.firstWhere((s) => s.id == id);
+            if (isFill) {
+              s.fillColor = color;
+              s.fillType = PaintFillType.solid;
+            } else {
+              s.strokeColor = color;
+              s.strokeType = PaintFillType.solid;
             }
-          });
-          _saveHistorySnapshot();
-        },
-      ),
+          }
+        });
+        _saveHistorySnapshot();
+      },
+      onGradientChanged: (grad) {
+        setState(() {
+          shapes = List.of(shapes);
+          for (final id in selectedShapeIds) {
+            final s = shapes.firstWhere((s) => s.id == id);
+            if (isFill) {
+              s.fillGradient = grad;
+              s.fillType = grad.type;
+            } else {
+              s.strokeGradient = grad;
+              s.strokeType = grad.type;
+            }
+          }
+        });
+        _saveHistorySnapshot();
+      },
+      onModeChanged: (mode) {
+        setState(() {
+          shapes = List.of(shapes);
+          for (final id in selectedShapeIds) {
+            final s = shapes.firstWhere((s) => s.id == id);
+            final pft = mode == ColorPickerMode.linearGradient
+                ? PaintFillType.linearGradient
+                : (mode == ColorPickerMode.radialGradient
+                    ? PaintFillType.radialGradient
+                    : PaintFillType.solid);
+            if (isFill) {
+              s.fillType = pft;
+            } else {
+              s.strokeType = pft;
+            }
+          }
+        });
+        _saveHistorySnapshot();
+      },
     );
   }
 
@@ -2017,10 +2070,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                       onShapeChanged: _onPropertiesShapeChanged,
                                       onShapeChangeEnd:
                                           _onPropertiesShapeChangeEnd,
-                                      onOpenColorPickerFill: () =>
-                                          _openColorPicker(true),
-                                      onOpenColorPickerStroke: () =>
-                                          _openColorPicker(false),
+                                      onOpenColorPickerFill: ([anchorRect]) =>
+                                          _openColorPicker(true, anchorRect),
+                                      onOpenColorPickerStroke: ([anchorRect]) =>
+                                          _openColorPicker(false, anchorRect),
                                       onDuplicateShape: _duplicateSelected,
                                       onDeleteSelected: _deleteSelected,
                                       onAlignShape: _alignShapes,
@@ -2120,9 +2173,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                             selectedShape: selectedShape,
                             onShapeChanged: _onPropertiesShapeChanged,
                             onShapeChangeEnd: _onPropertiesShapeChangeEnd,
-                            onOpenColorPickerFill: () => _openColorPicker(true),
-                            onOpenColorPickerStroke: () =>
-                                _openColorPicker(false),
+                            onOpenColorPickerFill: ([anchorRect]) =>
+                                _openColorPicker(true, anchorRect),
+                            onOpenColorPickerStroke: ([anchorRect]) =>
+                                _openColorPicker(false, anchorRect),
                             onDuplicateShape: _duplicateSelected,
                             onDeleteSelected: _deleteSelected,
                             onAlignShape: _alignShapes,

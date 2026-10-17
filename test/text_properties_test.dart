@@ -136,8 +136,8 @@ void main() {
                   onShapeChanged: (updated) {
                     setState(() => currentShape = updated);
                   },
-                  onOpenColorPickerFill: () {},
-                  onOpenColorPickerStroke: () {},
+                  onOpenColorPickerFill: ([_]) {},
+                  onOpenColorPickerStroke: ([_]) {},
                   onDuplicateShape: () {},
                   onDeleteSelected: () {},
                   onAlignShape: (_) {},

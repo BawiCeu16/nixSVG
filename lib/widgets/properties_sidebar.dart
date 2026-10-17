@@ -15,8 +15,8 @@ class PropertiesSidebar extends StatelessWidget {
   final VectorShape? selectedShape;
   final ValueChanged<VectorShape> onShapeChanged;
   final ValueChanged<VectorShape>? onShapeChangeEnd;
-  final VoidCallback onOpenColorPickerFill;
-  final VoidCallback onOpenColorPickerStroke;
+  final void Function([Rect? anchorRect]) onOpenColorPickerFill;
+  final void Function([Rect? anchorRect]) onOpenColorPickerStroke;
   final VoidCallback onDuplicateShape;
   final VoidCallback onDeleteSelected;
   final Function(String align) onAlignShape;
@@ -639,159 +639,88 @@ class PropertiesSidebar extends StatelessWidget {
                             ),
                             if (selectedShape!.isFilled) ...[
                               const SizedBox(height: 8),
-                        _buildToggleGroup(
-                          selectedIndex: switch (selectedShape!.fillType) {
-                            PaintFillType.solid => 0,
-                            PaintFillType.linearGradient => 1,
-                            PaintFillType.radialGradient => 2,
-                          },
-                          onChanged: (index) {
-                            FocusManager.instance.primaryFocus?.unfocus();
-                            final types = [
-                              PaintFillType.solid,
-                              PaintFillType.linearGradient,
-                              PaintFillType.radialGradient,
-                            ];
-                            final targetType = types[index];
-                            ShapeGradient? nextGradient;
-                            if (targetType != PaintFillType.solid) {
-                              final existing = selectedShape!.fillGradient;
-                              if (existing != null) {
-                                nextGradient = existing.copyWith(
-                                  type: targetType,
-                                );
-                              } else {
-                                nextGradient = ShapeGradient(
-                                  type: targetType,
-                                  stops: [
-                                    GradientColorStop(
-                                      offset: 0.0,
-                                      color: selectedShape!.fillColor,
-                                    ),
-                                    const GradientColorStop(
-                                      offset: 1.0,
-                                      color: Color(0xFF38BDF8),
-                                    ),
-                                  ],
-                                );
-                              }
-                            } else {
-                              nextGradient = selectedShape!.fillGradient;
-                            }
-
-                            final updated = selectedShape!.copyWith(
-                              fillType: targetType,
-                              fillGradient: nextGradient,
-                            );
-                            onShapeChanged(updated);
-                            onShapeChangeEnd?.call(updated);
-                          },
-                          actions: const [
-                            M3EToggleButtonGroupAction(
-                              label: Text(
-                                'Solid',
-                                style: TextStyle(fontSize: 11),
-                              ),
-                              tooltip: 'Solid Fill',
-                            ),
-                            M3EToggleButtonGroupAction(
-                              label: Text(
-                                'Linear',
-                                style: TextStyle(fontSize: 11),
-                              ),
-                              tooltip: 'Linear Gradient',
-                            ),
-                            M3EToggleButtonGroupAction(
-                              label: Text(
-                                'Radial',
-                                style: TextStyle(fontSize: 11),
-                              ),
-                              tooltip: 'Radial Gradient',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        // If Solid: show color swatch and hex
-                        if (selectedShape!.fillType == PaintFillType.solid) ...[
-                          Row(
-                            children: [
-                              GestureDetector(
-                                onTap: () {
-                                  FocusManager.instance.primaryFocus?.unfocus();
-                                  onOpenColorPickerFill();
-                                },
-                                child: Container(
-                                  width: 32,
-                                  height: 32,
-                                  decoration: BoxDecoration(
-                                    color: selectedShape!.fillColor,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: colorScheme.outlineVariant,
+                              Row(
+                                children: [
+                                  GestureDetector(
+                                    onTapUp: (details) {
+                                      FocusManager.instance.primaryFocus?.unfocus();
+                                      onOpenColorPickerFill(
+                                        Rect.fromCenter(
+                                          center: details.globalPosition,
+                                          width: 32,
+                                          height: 32,
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      width: 32,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        color: selectedShape!.fillType == PaintFillType.solid
+                                            ? selectedShape!.fillColor
+                                            : null,
+                                        gradient: selectedShape!.fillType != PaintFillType.solid &&
+                                                selectedShape!.fillGradient != null
+                                            ? LinearGradient(
+                                                colors: selectedShape!.fillGradient!.stops
+                                                    .map((s) => s.color)
+                                                    .toList(),
+                                                stops: selectedShape!.fillGradient!.stops
+                                                    .map((s) => s.offset)
+                                                    .toList(),
+                                              )
+                                            : null,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: colorScheme.outlineVariant,
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              InkWell(
-                                onTap: () {
-                                  FocusManager.instance.primaryFocus?.unfocus();
-                                  onOpenColorPickerFill();
-                                },
-                                borderRadius: BorderRadius.circular(6),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 4,
+                                  const SizedBox(width: 8),
+                                  InkWell(
+                                    onTapUp: (details) {
+                                      FocusManager.instance.primaryFocus?.unfocus();
+                                      onOpenColorPickerFill(
+                                        Rect.fromCenter(
+                                          center: details.globalPosition,
+                                          width: 60,
+                                          height: 24,
+                                        ),
+                                      );
+                                    },
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 4,
+                                      ),
+                                      child: Text(
+                                        selectedShape!.fillType == PaintFillType.solid
+                                            ? _colorToHex(selectedShape!.fillColor)
+                                            : (selectedShape!.fillType == PaintFillType.linearGradient
+                                                ? 'Linear'
+                                                : 'Radial'),
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          fontFamily: selectedShape!.fillType == PaintFillType.solid
+                                              ? 'monospace'
+                                              : null,
+                                          fontWeight: FontWeight.bold,
+                                          color: colorScheme.onSurface,
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                  child: Text(
-                                    _colorToHex(selectedShape!.fillColor),
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      fontFamily: 'monospace',
+                                  const Spacer(),
+                                  Text(
+                                    '${(selectedShape!.fillOpacity * 100).round()}%',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
                                       fontWeight: FontWeight.bold,
-                                      color: colorScheme.onSurface,
                                     ),
                                   ),
-                                ),
+                                ],
                               ),
-                              const Spacer(),
-                              Text(
-                                '${(selectedShape!.fillOpacity * 100).round()}%',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ] else ...[
-                          // Gradient Controls (Stops chips + angle if linear)
-                          _buildGradientControls(
-                            context: context,
-                            gradient:
-                                selectedShape!.fillGradient ??
-                                ShapeGradient(
-                                  type: selectedShape!.fillType,
-                                  stops: [
-                                    GradientColorStop(
-                                      offset: 0.0,
-                                      color: selectedShape!.fillColor,
-                                    ),
-                                    const GradientColorStop(
-                                      offset: 1.0,
-                                      color: Color(0xFF38BDF8),
-                                    ),
-                                  ],
-                                ),
-                            onGradientChanged: (newGrad) {
-                              final updated = selectedShape!.copyWith(
-                                fillGradient: newGrad,
-                              );
-                              onShapeChanged(updated);
-                              onShapeChangeEnd?.call(updated);
-                            },
-                          ),
-                        ],
                         const SizedBox(height: 6),
                         Row(
                           children: [
@@ -862,159 +791,88 @@ class PropertiesSidebar extends StatelessWidget {
                             ),
                       if (selectedShape!.isStroked) ...[
                         const SizedBox(height: 8),
-                        _buildToggleGroup(
-                          selectedIndex: switch (selectedShape!.strokeType) {
-                            PaintFillType.solid => 0,
-                            PaintFillType.linearGradient => 1,
-                            PaintFillType.radialGradient => 2,
-                          },
-                          onChanged: (index) {
-                            FocusManager.instance.primaryFocus?.unfocus();
-                            final types = [
-                              PaintFillType.solid,
-                              PaintFillType.linearGradient,
-                              PaintFillType.radialGradient,
-                            ];
-                            final targetType = types[index];
-                            ShapeGradient? nextGradient;
-                            if (targetType != PaintFillType.solid) {
-                              final existing = selectedShape!.strokeGradient;
-                              if (existing != null) {
-                                nextGradient = existing.copyWith(
-                                  type: targetType,
+                        Row(
+                          children: [
+                            GestureDetector(
+                              onTapUp: (details) {
+                                FocusManager.instance.primaryFocus?.unfocus();
+                                onOpenColorPickerStroke(
+                                  Rect.fromCenter(
+                                    center: details.globalPosition,
+                                    width: 32,
+                                    height: 32,
+                                  ),
                                 );
-                              } else {
-                                nextGradient = ShapeGradient(
-                                  type: targetType,
-                                  stops: [
-                                    GradientColorStop(
-                                      offset: 0.0,
-                                      color: selectedShape!.strokeColor,
-                                    ),
-                                    const GradientColorStop(
-                                      offset: 1.0,
-                                      color: Color(0xFFEC4899),
-                                    ),
-                                  ],
+                              },
+                              child: Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: selectedShape!.strokeType == PaintFillType.solid
+                                      ? selectedShape!.strokeColor
+                                      : null,
+                                  gradient: selectedShape!.strokeType != PaintFillType.solid &&
+                                          selectedShape!.strokeGradient != null
+                                      ? LinearGradient(
+                                          colors: selectedShape!.strokeGradient!.stops
+                                              .map((s) => s.color)
+                                              .toList(),
+                                          stops: selectedShape!.strokeGradient!.stops
+                                              .map((s) => s.offset)
+                                              .toList(),
+                                        )
+                                      : null,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: colorScheme.outlineVariant,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            InkWell(
+                              onTapUp: (details) {
+                                FocusManager.instance.primaryFocus?.unfocus();
+                                onOpenColorPickerStroke(
+                                  Rect.fromCenter(
+                                    center: details.globalPosition,
+                                    width: 60,
+                                    height: 24,
+                                  ),
                                 );
-                              }
-                            } else {
-                              nextGradient = selectedShape!.strokeGradient;
-                            }
-
-                            final updated = selectedShape!.copyWith(
-                              strokeType: targetType,
-                              strokeGradient: nextGradient,
-                            );
-                            onShapeChanged(updated);
-                            onShapeChangeEnd?.call(updated);
-                          },
-                          actions: const [
-                            M3EToggleButtonGroupAction(
-                              label: Text(
-                                'Solid',
-                                style: TextStyle(fontSize: 11),
+                              },
+                              borderRadius: BorderRadius.circular(6),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 4,
+                                ),
+                                child: Text(
+                                  selectedShape!.strokeType == PaintFillType.solid
+                                      ? _colorToHex(selectedShape!.strokeColor)
+                                      : (selectedShape!.strokeType == PaintFillType.linearGradient
+                                          ? 'Linear'
+                                          : 'Radial'),
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontFamily: selectedShape!.strokeType == PaintFillType.solid
+                                        ? 'monospace'
+                                        : null,
+                                    fontWeight: FontWeight.bold,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                ),
                               ),
-                              tooltip: 'Solid Stroke',
                             ),
-                            M3EToggleButtonGroupAction(
-                              label: Text(
-                                'Linear',
-                                style: TextStyle(fontSize: 11),
+                            const Spacer(),
+                            Text(
+                              '${selectedShape!.strokeWidth.round()} px',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.bold,
                               ),
-                              tooltip: 'Linear Gradient Stroke',
-                            ),
-                            M3EToggleButtonGroupAction(
-                              label: Text(
-                                'Radial',
-                                style: TextStyle(fontSize: 11),
-                              ),
-                              tooltip: 'Radial Gradient Stroke',
                             ),
                           ],
                         ),
-                        const SizedBox(height: 10),
-                        // Stroke Color or Gradient Controls
-                        if (selectedShape!.strokeType ==
-                            PaintFillType.solid) ...[
-                          Row(
-                            children: [
-                              GestureDetector(
-                                onTap: () {
-                                  FocusManager.instance.primaryFocus?.unfocus();
-                                  onOpenColorPickerStroke();
-                                },
-                                child: Container(
-                                  width: 32,
-                                  height: 32,
-                                  decoration: BoxDecoration(
-                                    color: selectedShape!.strokeColor,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: colorScheme.outlineVariant,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              InkWell(
-                                onTap: () {
-                                  FocusManager.instance.primaryFocus?.unfocus();
-                                  onOpenColorPickerStroke();
-                                },
-                                borderRadius: BorderRadius.circular(6),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 4,
-                                  ),
-                                  child: Text(
-                                    _colorToHex(selectedShape!.strokeColor),
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      fontFamily: 'monospace',
-                                      fontWeight: FontWeight.bold,
-                                      color: colorScheme.onSurface,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const Spacer(),
-                              Text(
-                                '${selectedShape!.strokeWidth.round()} px',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ] else ...[
-                          _buildGradientControls(
-                            context: context,
-                            gradient:
-                                selectedShape!.strokeGradient ??
-                                ShapeGradient(
-                                  type: selectedShape!.strokeType,
-                                  stops: [
-                                    GradientColorStop(
-                                      offset: 0.0,
-                                      color: selectedShape!.strokeColor,
-                                    ),
-                                    const GradientColorStop(
-                                      offset: 1.0,
-                                      color: Color(0xFFEC4899),
-                                    ),
-                                  ],
-                                ),
-                            onGradientChanged: (newGrad) {
-                              final updated = selectedShape!.copyWith(
-                                strokeGradient: newGrad,
-                              );
-                              onShapeChanged(updated);
-                              onShapeChangeEnd?.call(updated);
-                            },
-                          ),
-                        ],
                         const SizedBox(height: 8),
                         // Stroke Width Slider
                         Row(
@@ -2263,17 +2121,6 @@ class PropertiesSidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildGradientControls({
-    required BuildContext context,
-    required ShapeGradient gradient,
-    required ValueChanged<ShapeGradient> onGradientChanged,
-  }) {
-    return _FigmaGradientControls(
-      gradient: gradient,
-      onGradientChanged: onGradientChanged,
-    );
-  }
-
   Widget _buildNumberField(
     BuildContext context,
     String label,
@@ -2765,16 +2612,19 @@ class PropertiesSidebar extends StatelessWidget {
                 child: Row(
                   children: [
                     GestureDetector(
-                      onTap: () {
-                        showDialog(
+                      onTapUp: (details) {
+                        showNixColorPicker(
                           context: context,
-                          builder: (ctx) => ColorPickerDialog(
-                            initialColor: effectiveBg,
-                            title: 'Canvas Background Color',
-                            onColorSelected: (col) {
-                              onCanvasBackgroundColorChanged?.call(col);
-                            },
+                          initialColor: effectiveBg,
+                          title: 'Canvas Background',
+                          anchorRect: Rect.fromCenter(
+                            center: details.globalPosition,
+                            width: 28,
+                            height: 28,
                           ),
+                          onColorChanged: (col) {
+                            onCanvasBackgroundColorChanged?.call(col);
+                          },
                         );
                       },
                       child: Container(
@@ -3460,396 +3310,3 @@ class _TextContentInputFieldState extends State<_TextContentInputField> {
   }
 }
 
-/// Figma-style interactive Gradient Controls.
-/// Provides a continuous horizontal gradient spectrum bar with draggable stop handles,
-/// click-to-add stops, selected stop color/position preview, delete button,
-/// and a compact angle control for linear gradients.
-class _FigmaGradientControls extends StatefulWidget {
-  final ShapeGradient gradient;
-  final ValueChanged<ShapeGradient> onGradientChanged;
-
-  const _FigmaGradientControls({
-    required this.gradient,
-    required this.onGradientChanged,
-  });
-
-  @override
-  State<_FigmaGradientControls> createState() => _FigmaGradientControlsState();
-}
-
-class _FigmaGradientControlsState extends State<_FigmaGradientControls> {
-  int _selectedStopIndex = 0;
-
-  @override
-  void didUpdateWidget(covariant _FigmaGradientControls oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (_selectedStopIndex >= widget.gradient.stops.length) {
-      _selectedStopIndex = widget.gradient.stops.length - 1;
-    }
-  }
-
-  void _addStopAt(double offset) {
-    if (widget.gradient.stops.length >= 8) return;
-    final stops = List<GradientColorStop>.from(widget.gradient.stops);
-    final clampedOffset = offset.clamp(0.0, 1.0);
-
-    // Lerp color between surrounding stops
-    Color newColor = const Color(0xFF6366F1);
-    if (stops.isNotEmpty) {
-      GradientColorStop? prev;
-      GradientColorStop? next;
-      for (final s in stops) {
-        if (s.offset <= clampedOffset) {
-          if (prev == null || s.offset > prev.offset) prev = s;
-        }
-        if (s.offset >= clampedOffset) {
-          if (next == null || s.offset < next.offset) next = s;
-        }
-      }
-      if (prev != null && next != null && prev != next) {
-        final t = (clampedOffset - prev.offset) / (next.offset - prev.offset);
-        newColor = Color.lerp(prev.color, next.color, t) ?? prev.color;
-      } else if (prev != null) {
-        newColor = prev.color;
-      } else if (next != null) {
-        newColor = next.color;
-      }
-    }
-
-    stops.add(GradientColorStop(offset: clampedOffset, color: newColor));
-    stops.sort((a, b) => a.offset.compareTo(b.offset));
-    final newIdx = stops.indexWhere(
-      (s) => (s.offset - clampedOffset).abs() < 0.001,
-    );
-
-    setState(() {
-      _selectedStopIndex = newIdx != -1 ? newIdx : stops.length - 1;
-    });
-
-    widget.onGradientChanged(widget.gradient.copyWith(stops: stops));
-  }
-
-  void _updateStopOffset(int index, double newOffset) {
-    final stops = List<GradientColorStop>.from(widget.gradient.stops);
-    final clamped = newOffset.clamp(0.0, 1.0);
-    stops[index] = stops[index].copyWith(offset: clamped);
-    stops.sort((a, b) => a.offset.compareTo(b.offset));
-    final newIdx = stops.indexOf(
-      stops.firstWhere(
-        (s) =>
-            s.color == widget.gradient.stops[index].color &&
-            (s.offset - clamped).abs() < 0.001,
-        orElse: () => stops[0],
-      ),
-    );
-
-    setState(() {
-      _selectedStopIndex = newIdx >= 0 ? newIdx : index;
-    });
-
-    widget.onGradientChanged(widget.gradient.copyWith(stops: stops));
-  }
-
-  void _removeStop(int index) {
-    if (widget.gradient.stops.length <= 2) return;
-    final stops = List<GradientColorStop>.from(widget.gradient.stops);
-    stops.removeAt(index);
-    setState(() {
-      _selectedStopIndex = (_selectedStopIndex >= stops.length)
-          ? stops.length - 1
-          : _selectedStopIndex;
-    });
-    widget.onGradientChanged(widget.gradient.copyWith(stops: stops));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final stops = widget.gradient.stops;
-    if (_selectedStopIndex >= stops.length) {
-      _selectedStopIndex = stops.length - 1;
-    }
-    final currentStop = stops[_selectedStopIndex];
-
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-          width: 0.8,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header: Stops count & Add Stop hint
-          Row(
-            children: [
-              Text(
-                'GRADIENT BAR',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 10,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                'Click bar to add',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: colorScheme.outline,
-                  fontSize: 10,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          // Figma-style Gradient Track with interactive stop thumbs
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final trackWidth = constraints.maxWidth;
-              const handleSize = 18.0;
-
-              return SizedBox(
-                height: 32,
-                width: trackWidth,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  alignment: Alignment.centerLeft,
-                  children: [
-                    // The continuous gradient bar (Clickable to add stops)
-                    GestureDetector(
-                      onTapUp: (details) {
-                        FocusManager.instance.primaryFocus?.unfocus();
-                        final localX = details.localPosition.dx;
-                        final offset = (localX / trackWidth).clamp(0.0, 1.0);
-                        _addStopAt(offset);
-                      },
-                      child: Container(
-                        height: 14,
-                        width: trackWidth,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(7),
-                          border: Border.all(
-                            color: colorScheme.outlineVariant.withValues(
-                              alpha: 0.6,
-                            ),
-                            width: 1.0,
-                          ),
-                          gradient: LinearGradient(
-                            colors: stops.map((s) => s.color).toList(),
-                            stops: stops.map((s) => s.offset).toList(),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Draggable Stop Thumbs (Figma teardrop / circle pins)
-                    ...stops.asMap().entries.map((entry) {
-                      final idx = entry.key;
-                      final stop = entry.value;
-                      final isSelected = idx == _selectedStopIndex;
-                      final thumbCenter = stop.offset * trackWidth;
-                      final left = (thumbCenter - (handleSize / 2)).clamp(
-                        0.0,
-                        trackWidth - handleSize,
-                      );
-
-                      return Positioned(
-                        left: left,
-                        top: 7, // Center on 32-high stack (32 - 18) / 2 = 7
-                        child: GestureDetector(
-                          onTap: () {
-                            FocusManager.instance.primaryFocus?.unfocus();
-                            setState(() => _selectedStopIndex = idx);
-                          },
-                          onPanUpdate: (details) {
-                            final deltaOffset = details.delta.dx / trackWidth;
-                            _updateStopOffset(idx, stop.offset + deltaOffset);
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 100),
-                            width: handleSize,
-                            height: handleSize,
-                            decoration: BoxDecoration(
-                              color: stop.color,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isSelected
-                                    ? colorScheme.primary
-                                    : Colors.white,
-                                width: isSelected ? 2.5 : 1.8,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.35),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 1.5),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 10),
-
-          // Selected Stop Editor Bar: Color chip + Hex + Position Slider + Delete button
-          Row(
-            children: [
-              // Color Chip
-              GestureDetector(
-                onTap: () {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                  showDialog(
-                    context: context,
-                    builder: (context) => ColorPickerDialog(
-                      title: 'Stop ${_selectedStopIndex + 1} Color',
-                      initialColor: currentStop.color,
-                      onColorSelected: (col) {
-                        final newStops = List<GradientColorStop>.from(stops);
-                        newStops[_selectedStopIndex] = currentStop.copyWith(
-                          color: col,
-                        );
-                        widget.onGradientChanged(
-                          widget.gradient.copyWith(stops: newStops),
-                        );
-                      },
-                    ),
-                  );
-                },
-                child: Container(
-                  width: 26,
-                  height: 26,
-                  decoration: BoxDecoration(
-                    color: currentStop.color,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: colorScheme.outlineVariant,
-                      width: 1.0,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-
-              // Position % indicator / slider
-              Expanded(
-                child: Row(
-                  children: [
-                    Text(
-                      'Pos',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                        fontSize: 10,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: NixSlider(
-                        value: currentStop.offset,
-                        min: 0.0,
-                        max: 1.0,
-                        onChangeStart: (_) =>
-                            FocusManager.instance.primaryFocus?.unfocus(),
-                        onChanged: (val) {
-                          _updateStopOffset(_selectedStopIndex, val);
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${(currentStop.offset * 100).round()}%',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontFamily: 'monospace',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
-                        color: colorScheme.onSurface,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              if (stops.length > 2) ...[
-                const SizedBox(width: 4),
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  iconSize: 14,
-                  tooltip: 'Delete Stop',
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 24,
-                    minHeight: 24,
-                  ),
-                  icon: Icon(LucideIcons.trash2, color: colorScheme.error),
-                  onPressed: () {
-                    FocusManager.instance.primaryFocus?.unfocus();
-                    _removeStop(_selectedStopIndex);
-                  },
-                ),
-              ],
-            ],
-          ),
-
-          // Linear Gradient Angle Control (compact)
-          if (widget.gradient.type == PaintFillType.linearGradient) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(
-                  LucideIcons.compass,
-                  size: 14,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Angle',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    fontSize: 11,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: NixSlider(
-                    value: widget.gradient.angle,
-                    min: 0.0,
-                    max: 360.0,
-                    onChangeStart: (_) =>
-                        FocusManager.instance.primaryFocus?.unfocus(),
-                    onChanged: (val) {
-                      widget.onGradientChanged(
-                        widget.gradient.copyWith(angle: val),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '${widget.gradient.angle.round()}°',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontFamily: 'monospace',
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
