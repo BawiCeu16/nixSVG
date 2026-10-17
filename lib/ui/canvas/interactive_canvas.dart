@@ -194,7 +194,7 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
     // 1. Active drag action cursors take absolute precedence:
     if (widget.isRotatingShape ||
         widget.activeResizeHandle == ResizeHandle.rotation) {
-      return SystemMouseCursors.grab;
+      return SystemMouseCursors.alias;
     }
     if (widget.activeResizeHandle.isRadius) {
       return SystemMouseCursors.precise;
@@ -223,6 +223,10 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
       return;
     }
 
+    final zoomScale = CanvasTransformHelper.getScale(
+      widget.transformationController.value,
+    );
+
     MouseCursor targetCursor = SystemMouseCursors.basic;
     ResizeHandle targetHandle = ResizeHandle.none;
 
@@ -232,7 +236,11 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
         orElse: () => null,
       );
       if (s != null && !s.isLocked && s.isVisible) {
-        final handle = CanvasHitTester.hitTestHandle(canvasPos, s);
+        final handle = CanvasHitTester.hitTestHandle(
+          canvasPos,
+          s,
+          zoomScale: zoomScale,
+        );
         if (handle != ResizeHandle.none) {
           targetHandle = handle;
           targetCursor = CanvasGeometry.getHandleCursor(handle, s.rotation);
@@ -251,8 +259,11 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
         }
       }
       if (combinedBounds != null) {
-        final rectHandle =
-            CanvasHitTester.hitTestRectHandles(canvasPos, combinedBounds);
+        final rectHandle = CanvasHitTester.hitTestRectHandles(
+          canvasPos,
+          combinedBounds,
+          zoomScale: zoomScale,
+        );
         if (rectHandle != ResizeHandle.none) {
           targetHandle = rectHandle;
           targetCursor = CanvasGeometry.getHandleCursor(rectHandle, 0.0);
@@ -502,6 +513,9 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
                       snapGuidelineY: widget.snapGuidelineY,
                       colorScheme: colorScheme,
                       editingShapeId: widget.editingTextShapeId,
+                      zoomScale: CanvasTransformHelper.getScale(
+                        widget.transformationController.value,
+                      ),
                     ),
                   ),
                 ),

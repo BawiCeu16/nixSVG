@@ -415,10 +415,14 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         final singleSelected = shapes.firstWhere(
           (s) => s.id == selectedShapeIds.first,
         );
+        final zoomScale = CanvasTransformHelper.getScale(
+          _transformationController.value,
+        );
         if (!singleSelected.isLocked) {
           activeResizeHandle = CanvasHitTester.hitTestHandle(
             localPos,
             singleSelected,
+            zoomScale: zoomScale,
           );
           if (activeResizeHandle != ResizeHandle.none) {
             initialShapeRects = {singleSelected.id: singleSelected.rect};
@@ -430,6 +434,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           }
         }
       } else if (selectedShapeIds.length > 1) {
+        final zoomScale = CanvasTransformHelper.getScale(
+          _transformationController.value,
+        );
         Rect? combinedBounds;
         for (final s in shapes) {
           if (selectedShapeIds.contains(s.id) && s.isVisible && !s.isLocked) {
@@ -439,8 +446,11 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           }
         }
         if (combinedBounds != null) {
-          final handle =
-              CanvasHitTester.hitTestRectHandles(localPos, combinedBounds);
+          final handle = CanvasHitTester.hitTestRectHandles(
+            localPos,
+            combinedBounds,
+            zoomScale: zoomScale,
+          );
           if (handle != ResizeHandle.none) {
             activeResizeHandle = handle;
             initialShapeRects = {
@@ -737,9 +747,15 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
               (delta.dy / snapStep).round() * snapStep,
             );
           }
+          final zoomScale = CanvasTransformHelper.getScale(
+            _transformationController.value,
+          );
           final snapRes = CanvasGeometry.calculateSnapGuidelines(
             shapes: shapes,
             selectedShapeIds: selectedShapeIds,
+            initialShapeRects: initialShapeRects,
+            proposedDelta: delta,
+            snapThreshold: 6.0 / (zoomScale > 0 ? zoomScale : 1.0),
           );
           if (snapRes.snapDelta != Offset.zero) {
             delta += snapRes.snapDelta;

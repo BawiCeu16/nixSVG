@@ -22,6 +22,7 @@ class VectorCanvasPainter extends CustomPainter {
   final Offset? snapGuidelineY;
   final ColorScheme colorScheme;
   final String? editingShapeId;
+  final double zoomScale;
 
   VectorCanvasPainter({
     required this.shapes,
@@ -40,6 +41,7 @@ class VectorCanvasPainter extends CustomPainter {
     this.snapGuidelineY,
     required this.colorScheme,
     this.editingShapeId,
+    this.zoomScale = 1.0,
   });
 
   @override
@@ -107,22 +109,24 @@ class VectorCanvasPainter extends CustomPainter {
         math.max(marqueeRect!.left, marqueeRect!.right),
         math.max(marqueeRect!.top, marqueeRect!.bottom),
       );
+      final s = (1.0 / (zoomScale > 0 ? zoomScale : 1.0)).clamp(0.02, 50.0);
       final marqueePaint = Paint()
         ..color = colorScheme.primaryContainer.withValues(alpha: 0.3)
         ..style = PaintingStyle.fill;
       final marqueeBorder = Paint()
         ..color = colorScheme.primary
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2;
+        ..strokeWidth = 1.2 * s;
       canvas.drawRect(normalized, marqueePaint);
       canvas.drawRect(normalized, marqueeBorder);
     }
 
     // 5. Draw snap guidelines
+    final s = (1.0 / (zoomScale > 0 ? zoomScale : 1.0)).clamp(0.02, 50.0);
     if (snapGuidelineX != null) {
       final snapPaint = Paint()
         ..color = colorScheme.tertiary
-        ..strokeWidth = 1.2;
+        ..strokeWidth = 1.2 * s;
       canvas.drawLine(
         snapGuidelineX!,
         Offset(snapGuidelineX!.dx, size.height),
@@ -132,7 +136,7 @@ class VectorCanvasPainter extends CustomPainter {
     if (snapGuidelineY != null) {
       final snapPaint = Paint()
         ..color = colorScheme.tertiary
-        ..strokeWidth = 1.2;
+        ..strokeWidth = 1.2 * s;
       canvas.drawLine(
         snapGuidelineY!,
         Offset(size.width, snapGuidelineY!.dy),
@@ -434,13 +438,15 @@ class VectorCanvasPainter extends CustomPainter {
       canvas.translate(-center.dx, -center.dy);
     }
 
+    final s = (1.0 / (zoomScale > 0 ? zoomScale : 1.0)).clamp(0.02, 50.0);
+
     final handleFill = Paint()
       ..color = colorScheme.surface
       ..style = PaintingStyle.fill;
     final handleBorder = Paint()
       ..color = colorScheme.primary
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8;
+      ..strokeWidth = 1.5 * s;
 
     if (shape.type == ShapeType.line) {
       final startPt = shape.rect.topLeft;
@@ -449,7 +455,7 @@ class VectorCanvasPainter extends CustomPainter {
       final linePaint = Paint()
         ..color = colorScheme.primary
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5;
+        ..strokeWidth = 1.6 * s;
 
       if (shape.isCurved || shape.curvature != 0.0) {
         final mid = Offset(
@@ -471,21 +477,32 @@ class VectorCanvasPainter extends CustomPainter {
         final guidePaint = Paint()
           ..color = colorScheme.primary.withValues(alpha: 0.4)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.0;
+          ..strokeWidth = 1.0 * s;
         canvas.drawLine(startPt, controlPt, guidePaint);
         canvas.drawLine(endPt, controlPt, guidePaint);
 
         // Circular Bend Handle
-        canvas.drawCircle(controlPt, 6, handleFill);
-        canvas.drawCircle(controlPt, 6, handleBorder);
+        canvas.drawCircle(controlPt, 6 * s, handleFill);
+        canvas.drawCircle(
+          controlPt,
+          6 * s,
+          handleBorder..strokeWidth = 1.5 * s,
+        );
       } else {
         canvas.drawLine(startPt, endPt, linePaint);
       }
 
       for (final pt in [startPt, endPt]) {
-        final handleRect = Rect.fromCenter(center: pt, width: 10, height: 10);
+        final handleRect = Rect.fromCenter(
+          center: pt,
+          width: 10 * s,
+          height: 10 * s,
+        );
         canvas.drawRect(handleRect, handleFill);
-        canvas.drawRect(handleRect, handleBorder);
+        canvas.drawRect(
+          handleRect,
+          handleBorder..strokeWidth = 1.5 * s,
+        );
       }
 
       canvas.restore();
@@ -496,7 +513,7 @@ class VectorCanvasPainter extends CustomPainter {
     final boxPaint = Paint()
       ..color = colorScheme.primary
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6;
+      ..strokeWidth = 1.6 * s;
 
     canvas.drawRect(rect, boxPaint);
 
@@ -515,15 +532,15 @@ class VectorCanvasPainter extends CustomPainter {
       final pt = entry.value;
       final isHovered = hoveredHandle == entry.key ||
           activeResizeHandle == entry.key;
-      final size = isHovered ? 12.0 : 10.0;
+      final size = (isHovered ? 12.0 : 10.0) * s;
       final handleRect = Rect.fromCenter(center: pt, width: size, height: size);
 
       // Subtle shadow for Mac-like polish
       canvas.drawRect(
-        handleRect.shift(const Offset(0, 0.8)),
+        handleRect.shift(Offset(0, 0.8 * s)),
         Paint()
           ..color = Colors.black.withValues(alpha: 0.18)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2),
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 1.2 * s),
       );
 
       canvas.drawRect(
@@ -535,36 +552,39 @@ class VectorCanvasPainter extends CustomPainter {
       canvas.drawRect(
         handleRect,
         isHovered
-            ? (Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 1.5)
-            : handleBorder,
+            ? (Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 1.5 * s)
+            : (handleBorder..strokeWidth = 1.5 * s),
       );
     }
 
     // Top rotation handle
-    final rotCenter = Offset(rect.topCenter.dx, rect.topCenter.dy - 20);
+    final rotCenter = Offset(rect.topCenter.dx, rect.topCenter.dy - 20 * s);
     final isRotHovered = hoveredHandle == ResizeHandle.rotation ||
         activeResizeHandle == ResizeHandle.rotation;
     final linePaint = Paint()
       ..color = colorScheme.primary.withValues(alpha: 0.85)
-      ..strokeWidth = 1.5;
+      ..strokeWidth = 1.5 * s;
     canvas.drawLine(rect.topCenter, rotCenter, linePaint);
     canvas.drawCircle(
       rotCenter,
-      isRotHovered ? 6.5 : 5.0,
+      (isRotHovered ? 6.5 : 5.0) * s,
       isRotHovered
           ? (Paint()..color = colorScheme.primary..style = PaintingStyle.fill)
           : handleFill,
     );
     canvas.drawCircle(
       rotCenter,
-      isRotHovered ? 6.5 : 5.0,
+      (isRotHovered ? 6.5 : 5.0) * s,
       isRotHovered
-          ? (Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 1.5)
-          : handleBorder,
+          ? (Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 1.5 * s)
+          : (handleBorder..strokeWidth = 1.5 * s),
     );
 
     // Figma-style corner radius handles inside rectangles
-    final radiusHandles = CanvasHitTester.getRadiusHandlePositions(shape);
+    final radiusHandles = CanvasHitTester.getRadiusHandlePositions(
+      shape,
+      zoomScale: zoomScale,
+    );
     if (radiusHandles.isNotEmpty) {
       final radiusHandleFill = Paint()
         ..color = colorScheme.surface
@@ -572,7 +592,7 @@ class VectorCanvasPainter extends CustomPainter {
       final radiusHandleBorder = Paint()
         ..color = colorScheme.primary
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.4;
+        ..strokeWidth = 1.4 * s;
       final radiusHoverFill = Paint()
         ..color = colorScheme.primary
         ..style = PaintingStyle.fill;
@@ -584,26 +604,26 @@ class VectorCanvasPainter extends CustomPainter {
 
         // Shadow behind corner radius handle for crispness
         canvas.drawCircle(
-          pt + const Offset(0, 0.8),
-          isHovered ? 5.5 : 4.5,
+          pt + Offset(0, 0.8 * s),
+          (isHovered ? 5.5 : 4.5) * s,
           Paint()
             ..color = Colors.black.withValues(alpha: 0.22)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5),
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, 1.5 * s),
         );
 
         canvas.drawCircle(
           pt,
-          isHovered ? 5.5 : 4.2,
+          (isHovered ? 5.5 : 4.2) * s,
           isHovered ? radiusHoverFill : radiusHandleFill,
         );
         canvas.drawCircle(
           pt,
-          isHovered ? 5.5 : 4.2,
+          (isHovered ? 5.5 : 4.2) * s,
           isHovered
               ? (Paint()
                 ..color = Colors.white
                 ..style = PaintingStyle.stroke
-                ..strokeWidth = 1.5)
+                ..strokeWidth = 1.5 * s)
               : radiusHandleBorder,
         );
       }
@@ -633,19 +653,21 @@ class VectorCanvasPainter extends CustomPainter {
       canvas.rotate(shape.rotation * math.pi / 180.0);
       canvas.translate(-center.dx, -center.dy);
     }
+    final s = (1.0 / (zoomScale > 0 ? zoomScale : 1.0)).clamp(0.02, 50.0);
     final outlinePaint = Paint()
       ..color = colorScheme.primary.withValues(alpha: 0.6)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
+      ..strokeWidth = 1.0 * s;
     canvas.drawRect(shape.rect, outlinePaint);
     canvas.restore();
   }
 
   void _drawMultiSelectionBoundingBox(Canvas canvas, Rect bounds) {
+    final s = (1.0 / (zoomScale > 0 ? zoomScale : 1.0)).clamp(0.02, 50.0);
     final boxPaint = Paint()
       ..color = colorScheme.primary
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6;
+      ..strokeWidth = 1.6 * s;
     canvas.drawRect(bounds, boxPaint);
 
     final handleFill = Paint()
@@ -654,7 +676,7 @@ class VectorCanvasPainter extends CustomPainter {
     final handleBorder = Paint()
       ..color = colorScheme.primary
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6;
+      ..strokeWidth = 1.6 * s;
 
     final handlePoints = [
       bounds.topLeft,
@@ -668,7 +690,11 @@ class VectorCanvasPainter extends CustomPainter {
     ];
 
     for (final pt in handlePoints) {
-      final handleRect = Rect.fromCenter(center: pt, width: 9, height: 9);
+      final handleRect = Rect.fromCenter(
+        center: pt,
+        width: 9 * s,
+        height: 9 * s,
+      );
       canvas.drawRect(handleRect, handleFill);
       canvas.drawRect(handleRect, handleBorder);
     }
@@ -716,6 +742,7 @@ class VectorCanvasPainter extends CustomPainter {
     ShapeType? shapeType,
     double? cornerRadius,
   }) {
+    final s = (1.0 / (zoomScale > 0 ? zoomScale : 1.0)).clamp(0.02, 50.0);
     final width = rect.width.abs().round();
     final height = rect.height.abs().round();
 
@@ -751,7 +778,7 @@ class VectorCanvasPainter extends CustomPainter {
       text: badgeText,
       style: TextStyle(
         color: colorScheme.onSurface,
-        fontSize: 11,
+        fontSize: 11 * s,
         fontWeight: FontWeight.bold,
       ),
     );
@@ -763,25 +790,25 @@ class VectorCanvasPainter extends CustomPainter {
 
     final left = math.min(rect.left, rect.right);
     final bottom = math.max(rect.top, rect.bottom);
-    final badgePos = Offset(left, bottom + 8);
+    final badgePos = Offset(left, bottom + 8 * s);
     final bgRect = Rect.fromLTWH(
-      badgePos.dx - 6,
-      badgePos.dy - 3,
-      textPainter.width + 12,
-      textPainter.height + 6,
+      badgePos.dx - 6 * s,
+      badgePos.dy - 3 * s,
+      textPainter.width + 12 * s,
+      textPainter.height + 6 * s,
     );
 
     canvas.drawRRect(
-      RRect.fromRectAndRadius(bgRect, const Radius.circular(6)),
+      RRect.fromRectAndRadius(bgRect, Radius.circular(6 * s)),
       Paint()
         ..color = colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
     );
     canvas.drawRRect(
-      RRect.fromRectAndRadius(bgRect, const Radius.circular(6)),
+      RRect.fromRectAndRadius(bgRect, Radius.circular(6 * s)),
       Paint()
         ..color = colorScheme.outlineVariant.withValues(alpha: 0.5)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0,
+        ..strokeWidth = 1.0 * s,
     );
     textPainter.paint(canvas, badgePos);
   }

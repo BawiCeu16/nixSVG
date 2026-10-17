@@ -155,10 +155,10 @@ void main() {
         SystemMouseCursors.resizeLeftRight,
       );
 
-      // Rotation -> grab cursor
+      // Rotation -> alias (curved rotation cursor)
       expect(
         CanvasGeometry.getHandleCursor(ResizeHandle.rotation),
-        SystemMouseCursors.grab,
+        SystemMouseCursors.alias,
       );
 
       // Rotated shape changes cursor orientation (90 degrees rotation flips vertical/horizontal)
@@ -230,6 +230,113 @@ void main() {
 
         expect(state.activeResizeHandle, ResizeHandle.none);
         expect(rectShape.cornerRadius, greaterThan(30.0));
+      },
+    );
+
+    test('Handles and radius handles scale hit areas with zoomScale', () {
+      final rectShape = VectorShape(
+        id: 'test-rect',
+        name: 'Test Rectangle',
+        type: ShapeType.rectangle,
+        rect: const Rect.fromLTWH(200, 200, 200, 200),
+      );
+
+      // At zoom 1.0, topCenter is at (300, 200)
+      expect(
+        CanvasHitTester.hitTestHandle(
+          const Offset(300, 200),
+          rectShape,
+          zoomScale: 1.0,
+        ),
+        ResizeHandle.topCenter,
+      );
+
+      // When zoomed out far (0.2x), points on screen are 5x larger in canvas units
+      // A point 10px away outside the rect is only 2 screen px away, so it hits easily
+      expect(
+        CanvasHitTester.hitTestHandle(
+          const Offset(300, 195),
+          rectShape,
+          zoomScale: 0.2,
+        ),
+        ResizeHandle.topCenter,
+      );
+
+      // Rotation handle when zoomed out (rotCenter is at (300, 200 - 20 * 5) = (300, 100))
+      expect(
+        CanvasHitTester.hitTestHandle(
+          const Offset(300, 100),
+          rectShape,
+          zoomScale: 0.2,
+        ),
+        ResizeHandle.rotation,
+      );
+
+      // Radius handle positions scale with zoomScale
+      final normalRadiusHandles = CanvasHitTester.getRadiusHandlePositions(
+        rectShape,
+        zoomScale: 1.0,
+      );
+      final zoomedOutRadiusHandles = CanvasHitTester.getRadiusHandlePositions(
+        rectShape,
+        zoomScale: 0.5,
+      );
+      expect(normalRadiusHandles.isNotEmpty, isTrue);
+      expect(zoomedOutRadiusHandles.isNotEmpty, isTrue);
+    });
+
+    test(
+      'Smart snapping with initialShapeRects and proposedDelta does not oscillate or shake',
+      () {
+        final shapeA = VectorShape(
+          id: 'shape-a',
+          name: 'Shape A',
+          type: ShapeType.rectangle,
+          rect: const Rect.fromLTWH(100, 100, 100, 100),
+        );
+        final shapeB = VectorShape(
+          id: 'shape-b',
+          name: 'Shape B',
+          type: ShapeType.rectangle,
+          rect: const Rect.fromLTWH(300, 100, 100, 100),
+        );
+
+        final initialRects = {shapeA.id: shapeA.rect};
+
+        // Frame 1: move by (98, 0) -> target right would be 200 + 98 = 298.
+        // Target right (298) is within 6px of shapeB.left (300).
+        final res1 = CanvasGeometry.calculateSnapGuidelines(
+          shapes: [shapeA, shapeB],
+          selectedShapeIds: {shapeA.id},
+          initialShapeRects: initialRects,
+          proposedDelta: const Offset(98, 0),
+          snapThreshold: 6.0,
+        );
+        expect(res1.snapDelta.dx, 2.0); // snaps +2 to reach 300
+        expect(res1.guidelineX?.dx, 300.0);
+
+        // Frame 2: move slightly further by (99, 0) -> target right would be 299.
+        final res2 = CanvasGeometry.calculateSnapGuidelines(
+          shapes: [shapeA, shapeB],
+          selectedShapeIds: {shapeA.id},
+          initialShapeRects: initialRects,
+          proposedDelta: const Offset(99, 0),
+          snapThreshold: 6.0,
+        );
+        // Snapping smoothly aligns to 300 without jittering or flipping back and forth
+        expect(res2.snapDelta.dx, 1.0);
+        expect(res2.guidelineX?.dx, 300.0);
+
+        // Frame 3: move by (100, 0) -> target right is exactly 300.
+        final res3 = CanvasGeometry.calculateSnapGuidelines(
+          shapes: [shapeA, shapeB],
+          selectedShapeIds: {shapeA.id},
+          initialShapeRects: initialRects,
+          proposedDelta: const Offset(100, 0),
+          snapThreshold: 6.0,
+        );
+        expect(res3.snapDelta.dx, 0.0);
+        expect(res3.guidelineX?.dx, 300.0);
       },
     );
   });

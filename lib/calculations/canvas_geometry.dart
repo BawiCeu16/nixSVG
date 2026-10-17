@@ -275,7 +275,8 @@ class CanvasGeometry {
   /// adjusting angle dynamically based on [rotation].
   static MouseCursor getHandleCursor(ResizeHandle handle, [double rotation = 0.0]) {
     if (handle == ResizeHandle.none) return SystemMouseCursors.basic;
-    if (handle == ResizeHandle.rotation) return SystemMouseCursors.grab;
+    // Rotation handle & corner rotation zones: curved rotation cursor
+    if (handle == ResizeHandle.rotation) return SystemMouseCursors.alias;
     if (handle.isRadius) return SystemMouseCursors.precise;
 
     double baseAngle = 0.0;
@@ -324,28 +325,50 @@ class CanvasGeometry {
   }
 
   /// Calculates dynamic smart snapping guidelines relative to other shapes.
+  /// Uses [initialShapeRects] and [proposedDelta] to prevent oscillating shaking
+  /// while moving shapes.
   static SnapGuidelinesResult calculateSnapGuidelines({
     required List<VectorShape> shapes,
     required Set<String> selectedShapeIds,
+    Map<String, Rect>? initialShapeRects,
+    Offset? proposedDelta,
     double snapThreshold = 6.0,
   }) {
     if (selectedShapeIds.isEmpty) {
       return const SnapGuidelinesResult();
     }
-    final selectedShapes = shapes
-        .where((s) => selectedShapeIds.contains(s.id))
-        .toList();
-    if (selectedShapes.isEmpty) return const SnapGuidelinesResult();
 
-    Rect targetBounds = selectedShapes.first.rect;
-    for (int i = 1; i < selectedShapes.length; i++) {
-      targetBounds = targetBounds.expandToInclude(selectedShapes[i].rect);
+    Rect targetBounds;
+    if (initialShapeRects != null && proposedDelta != null) {
+      Rect? initialCombined;
+      for (final id in selectedShapeIds) {
+        final r = initialShapeRects[id];
+        if (r != null) {
+          initialCombined = initialCombined == null
+              ? r
+              : initialCombined.expandToInclude(r);
+        }
+      }
+      if (initialCombined == null) return const SnapGuidelinesResult();
+      targetBounds = initialCombined.shift(proposedDelta);
+    } else {
+      final selectedShapes = shapes
+          .where((s) => selectedShapeIds.contains(s.id))
+          .toList();
+      if (selectedShapes.isEmpty) return const SnapGuidelinesResult();
+
+      targetBounds = selectedShapes.first.rect;
+      for (int i = 1; i < selectedShapes.length; i++) {
+        targetBounds = targetBounds.expandToInclude(selectedShapes[i].rect);
+      }
     }
 
     Offset? guideX;
     Offset? guideY;
     double snapDx = 0.0;
     double snapDy = 0.0;
+    double minDiffX = snapThreshold + 0.001;
+    double minDiffY = snapThreshold + 0.001;
 
     final tLeft = targetBounds.left;
     final tCenterX = targetBounds.center.dx;
@@ -365,69 +388,29 @@ class CanvasGeometry {
       final oCenterY = s.rect.center.dy;
       final oBottom = s.rect.bottom;
 
-      if (guideX == null) {
-        if ((tLeft - oLeft).abs() <= snapThreshold) {
-          guideX = Offset(oLeft, 0);
-          snapDx = oLeft - tLeft;
-        } else if ((tLeft - oCenterX).abs() <= snapThreshold) {
-          guideX = Offset(oCenterX, 0);
-          snapDx = oCenterX - tLeft;
-        } else if ((tLeft - oRight).abs() <= snapThreshold) {
-          guideX = Offset(oRight, 0);
-          snapDx = oRight - tLeft;
-        } else if ((tCenterX - oLeft).abs() <= snapThreshold) {
-          guideX = Offset(oLeft, 0);
-          snapDx = oLeft - tCenterX;
-        } else if ((tCenterX - oCenterX).abs() <= snapThreshold) {
-          guideX = Offset(oCenterX, 0);
-          snapDx = oCenterX - tCenterX;
-        } else if ((tCenterX - oRight).abs() <= snapThreshold) {
-          guideX = Offset(oRight, 0);
-          snapDx = oRight - tCenterX;
-        } else if ((tRight - oLeft).abs() <= snapThreshold) {
-          guideX = Offset(oLeft, 0);
-          snapDx = oLeft - tRight;
-        } else if ((tRight - oCenterX).abs() <= snapThreshold) {
-          guideX = Offset(oCenterX, 0);
-          snapDx = oCenterX - tRight;
-        } else if ((tRight - oRight).abs() <= snapThreshold) {
-          guideX = Offset(oRight, 0);
-          snapDx = oRight - tRight;
+      // X Snap alignments (find closest alignment within threshold)
+      for (final tx in [tLeft, tCenterX, tRight]) {
+        for (final ox in [oLeft, oCenterX, oRight]) {
+          final diff = (tx - ox).abs();
+          if (diff <= snapThreshold && diff < minDiffX) {
+            minDiffX = diff;
+            snapDx = ox - tx;
+            guideX = Offset(ox, 0);
+          }
         }
       }
 
-      if (guideY == null) {
-        if ((tTop - oTop).abs() <= snapThreshold) {
-          guideY = Offset(0, oTop);
-          snapDy = oTop - tTop;
-        } else if ((tTop - oCenterY).abs() <= snapThreshold) {
-          guideY = Offset(0, oCenterY);
-          snapDy = oCenterY - tTop;
-        } else if ((tTop - oBottom).abs() <= snapThreshold) {
-          guideY = Offset(0, oBottom);
-          snapDy = oBottom - tTop;
-        } else if ((tCenterY - oTop).abs() <= snapThreshold) {
-          guideY = Offset(0, oTop);
-          snapDy = oTop - tCenterY;
-        } else if ((tCenterY - oCenterY).abs() <= snapThreshold) {
-          guideY = Offset(0, oCenterY);
-          snapDy = oCenterY - tCenterY;
-        } else if ((tCenterY - oBottom).abs() <= snapThreshold) {
-          guideY = Offset(0, oBottom);
-          snapDy = oBottom - tCenterY;
-        } else if ((tBottom - oTop).abs() <= snapThreshold) {
-          guideY = Offset(0, oTop);
-          snapDy = oTop - tBottom;
-        } else if ((tBottom - oCenterY).abs() <= snapThreshold) {
-          guideY = Offset(0, oCenterY);
-          snapDy = oCenterY - tBottom;
-        } else if ((tBottom - oBottom).abs() <= snapThreshold) {
-          guideY = Offset(0, oBottom);
-          snapDy = oBottom - tBottom;
+      // Y Snap alignments (find closest alignment within threshold)
+      for (final ty in [tTop, tCenterY, tBottom]) {
+        for (final oy in [oTop, oCenterY, oBottom]) {
+          final diff = (ty - oy).abs();
+          if (diff <= snapThreshold && diff < minDiffY) {
+            minDiffY = diff;
+            snapDy = oy - ty;
+            guideY = Offset(0, oy);
+          }
         }
       }
-
-      if (guideX != null && guideY != null) break;
     }
 
     return SnapGuidelinesResult(

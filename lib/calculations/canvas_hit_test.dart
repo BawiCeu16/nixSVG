@@ -69,12 +69,18 @@ class CanvasHitTester {
     return effectiveRect.contains(unrotatedPoint);
   }
 
-  /// Returns the unrotated local positions for corner radius handles inside a rectangle.
-  static Map<ResizeHandle, Offset> getRadiusHandlePositions(VectorShape shape) {
+  /// Returns the unrotated local positions for corner radius handles inside a rectangle,
+  /// dynamically adjusting for [zoomScale].
+  static Map<ResizeHandle, Offset> getRadiusHandlePositions(
+    VectorShape shape, {
+    double zoomScale = 1.0,
+  }) {
+    final s = (1.0 / (zoomScale > 0 ? zoomScale : 1.0)).clamp(0.02, 50.0);
+    final minSize = 24.0 * s;
     if ((shape.type != ShapeType.rectangle &&
             shape.type != ShapeType.roundedRectangle) ||
-        shape.rect.width < 32 ||
-        shape.rect.height < 32) {
+        shape.rect.width < minSize ||
+        shape.rect.height < minSize) {
       return const {};
     }
     final rect = shape.rect;
@@ -84,8 +90,8 @@ class CanvasHitTester {
             : 0.0)
         .clamp(0.0, maxRadius);
     final handleInset = currentRadius > 0
-        ? currentRadius.clamp(8.0, maxRadius)
-        : math.min(16.0, maxRadius * 0.4);
+        ? currentRadius.clamp(8.0 * s, maxRadius)
+        : math.min(16.0 * s, maxRadius * 0.4);
 
     return {
       ResizeHandle.radiusTopLeft:
@@ -100,13 +106,19 @@ class CanvasHitTester {
   }
 
   /// Hit-tests whether a given canvas point touches a shape's resize, rotation, or radius handle.
-  static ResizeHandle hitTestHandle(Offset pos, VectorShape shape) {
+  /// Dynamically scales hit areas with [zoomScale] so handles are equally easy to hit at all zoom levels.
+  static ResizeHandle hitTestHandle(
+    Offset pos,
+    VectorShape shape, {
+    double zoomScale = 1.0,
+  }) {
+    final s = (1.0 / (zoomScale > 0 ? zoomScale : 1.0)).clamp(0.02, 50.0);
     final rect = shape.rect;
-    const double hitSize = 26.0;
+    final double hitSize = 26.0 * s;
 
     // Fast handle rejection using cached bounding box
     final bounds = shape.getBoundingBox();
-    if (!bounds.inflate(40.0).contains(pos)) {
+    if (!bounds.inflate(45.0 * s).contains(pos)) {
       return ResizeHandle.none;
     }
 
@@ -162,22 +174,22 @@ class CanvasHitTester {
       return ResizeHandle.none;
     }
 
-    // 1. Top Rotation Handle (located 20px above top center)
-    final rotCenter = Offset(rect.topCenter.dx, rect.topCenter.dy - 20);
-    if ((testPos - rotCenter).distance <= 14.0) {
+    // 1. Top Rotation Handle (located 20 * s pixels above top center)
+    final rotCenter = Offset(rect.topCenter.dx, rect.topCenter.dy - 20.0 * s);
+    if ((testPos - rotCenter).distance <= 16.0 * s) {
       return ResizeHandle.rotation;
     }
 
     // 2. Corner Radius Handles (inside rectangles)
-    final radiusHandles = getRadiusHandlePositions(shape);
+    final radiusHandles = getRadiusHandlePositions(shape, zoomScale: zoomScale);
     for (final entry in radiusHandles.entries) {
-      if ((testPos - entry.value).distance <= 13.0) {
+      if ((testPos - entry.value).distance <= 14.0 * s) {
         return entry.key;
       }
     }
 
     // 3. Corner Resize Handles (highest priority corner hits)
-    const double cornerHitSize = 24.0;
+    final double cornerHitSize = 24.0 * s;
     if (Rect.fromCenter(
       center: rect.topLeft,
       width: cornerHitSize,
@@ -208,7 +220,7 @@ class CanvasHitTester {
     }
 
     // 4. Edge Midpoint Resize Handles
-    const double edgeHitSize = 22.0;
+    final double edgeHitSize = 22.0 * s;
     if (Rect.fromCenter(
       center: rect.topCenter,
       width: edgeHitSize,
@@ -239,7 +251,7 @@ class CanvasHitTester {
     }
 
     // 5. Outer corner rotation zones (Figma rotates when cursor is slightly outside corner handles)
-    if (!rect.deflate(2.0).contains(testPos)) {
+    if (!rect.deflate(2.0 * s).contains(testPos)) {
       for (final c in [
         rect.topLeft,
         rect.topRight,
@@ -247,7 +259,7 @@ class CanvasHitTester {
         rect.bottomRight,
       ]) {
         final dist = (testPos - c).distance;
-        if (dist > 12.0 && dist <= 28.0) {
+        if (dist > 12.0 * s && dist <= 32.0 * s) {
           return ResizeHandle.rotation;
         }
       }
@@ -257,8 +269,13 @@ class CanvasHitTester {
   }
 
   /// Hit-tests handles on a multi-selection union bounding box.
-  static ResizeHandle hitTestRectHandles(Offset pos, Rect rect) {
-    const double hitSize = 22.0;
+  static ResizeHandle hitTestRectHandles(
+    Offset pos,
+    Rect rect, {
+    double zoomScale = 1.0,
+  }) {
+    final s = (1.0 / (zoomScale > 0 ? zoomScale : 1.0)).clamp(0.02, 50.0);
+    final double hitSize = 22.0 * s;
     if (Rect.fromCenter(center: rect.topLeft, width: hitSize, height: hitSize).contains(pos)) {
       return ResizeHandle.topLeft;
     }
