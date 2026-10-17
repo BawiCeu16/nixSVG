@@ -218,6 +218,10 @@ class CanvasGeometry {
           left = initial.left - dx;
           break;
         case ResizeHandle.rotation:
+        case ResizeHandle.radiusTopLeft:
+        case ResizeHandle.radiusTopRight:
+        case ResizeHandle.radiusBottomLeft:
+        case ResizeHandle.radiusBottomRight:
         case ResizeHandle.none:
           break;
       }
@@ -252,6 +256,10 @@ class CanvasGeometry {
           right = math.max(initial.right + dx, left + minSize);
           break;
         case ResizeHandle.rotation:
+        case ResizeHandle.radiusTopLeft:
+        case ResizeHandle.radiusTopRight:
+        case ResizeHandle.radiusBottomLeft:
+        case ResizeHandle.radiusBottomRight:
         case ResizeHandle.none:
           break;
       }
@@ -261,6 +269,58 @@ class CanvasGeometry {
     if (bottom - top < minSize) bottom = top + minSize;
 
     return Rect.fromLTRB(left, top, right, bottom);
+  }
+
+  /// Returns the corresponding [MouseCursor] for an active or hovered [ResizeHandle],
+  /// adjusting angle dynamically based on [rotation].
+  static MouseCursor getHandleCursor(ResizeHandle handle, [double rotation = 0.0]) {
+    if (handle == ResizeHandle.none) return SystemMouseCursors.basic;
+    if (handle == ResizeHandle.rotation) return SystemMouseCursors.grab;
+    if (handle.isRadius) return SystemMouseCursors.precise;
+
+    double baseAngle = 0.0;
+    switch (handle) {
+      case ResizeHandle.centerRight:
+        baseAngle = 0.0;
+        break;
+      case ResizeHandle.bottomRight:
+        baseAngle = 45.0;
+        break;
+      case ResizeHandle.bottomCenter:
+        baseAngle = 90.0;
+        break;
+      case ResizeHandle.bottomLeft:
+        baseAngle = 135.0;
+        break;
+      case ResizeHandle.centerLeft:
+        baseAngle = 180.0;
+        break;
+      case ResizeHandle.topLeft:
+        baseAngle = 225.0;
+        break;
+      case ResizeHandle.topCenter:
+        baseAngle = 270.0;
+        break;
+      case ResizeHandle.topRight:
+        baseAngle = 315.0;
+        break;
+      default:
+        return SystemMouseCursors.basic;
+    }
+
+    final effectiveAngle = (baseAngle + rotation) % 180.0;
+    final normalized =
+        effectiveAngle < 0 ? effectiveAngle + 180.0 : effectiveAngle;
+
+    if (normalized >= 22.5 && normalized < 67.5) {
+      return SystemMouseCursors.resizeUpLeftDownRight;
+    } else if (normalized >= 67.5 && normalized < 112.5) {
+      return SystemMouseCursors.resizeUpDown;
+    } else if (normalized >= 112.5 && normalized < 157.5) {
+      return SystemMouseCursors.resizeUpRightDownLeft;
+    } else {
+      return SystemMouseCursors.resizeLeftRight;
+    }
   }
 
   /// Calculates dynamic smart snapping guidelines relative to other shapes.

@@ -410,7 +410,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     }
 
     if (currentMode == EditorMode.select) {
-      // 1. Check if hit resize or rotation handle of single selected shape
+      // 1. Check if hit resize, rotation, or radius handle of selected shape(s)
       if (selectedShapeIds.length == 1) {
         final singleSelected = shapes.firstWhere(
           (s) => s.id == selectedShapeIds.first,
@@ -425,6 +425,28 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
             if (activeResizeHandle == ResizeHandle.rotation) {
               isRotatingShape = true;
             }
+            setState(() {});
+            return;
+          }
+        }
+      } else if (selectedShapeIds.length > 1) {
+        Rect? combinedBounds;
+        for (final s in shapes) {
+          if (selectedShapeIds.contains(s.id) && s.isVisible && !s.isLocked) {
+            combinedBounds = combinedBounds == null
+                ? s.rect
+                : combinedBounds.expandToInclude(s.rect);
+          }
+        }
+        if (combinedBounds != null) {
+          final handle =
+              CanvasHitTester.hitTestRectHandles(localPos, combinedBounds);
+          if (handle != ResizeHandle.none) {
+            activeResizeHandle = handle;
+            initialShapeRects = {
+              for (final id in selectedShapeIds)
+                id: shapes.firstWhere((s) => s.id == id).rect,
+            };
             setState(() {});
             return;
           }
@@ -569,6 +591,60 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
             angle = (angle / 15).round() * 15;
           }
           target.rotation = (angle % 360).roundToDouble();
+        } else if (activeResizeHandle.isRadius &&
+            selectedShapeIds.length == 1) {
+          final target = shapes.firstWhere(
+            (s) => s.id == selectedShapeIds.first,
+          );
+          Offset testPos = localPos;
+          if (target.rotation != 0.0) {
+            final center = target.rect.center;
+            final rad = -target.rotation * math.pi / 180.0;
+            final cosVal = math.cos(rad);
+            final sinVal = math.sin(rad);
+            final dx = localPos.dx - center.dx;
+            final dy = localPos.dy - center.dy;
+            testPos = Offset(
+              center.dx + dx * cosVal - dy * sinVal,
+              center.dy + dx * sinVal + dy * cosVal,
+            );
+          }
+
+          final rect = target.rect;
+          final maxRadius = math.min(rect.width, rect.height) / 2;
+          double dragDistance = 0.0;
+
+          switch (activeResizeHandle) {
+            case ResizeHandle.radiusTopLeft:
+              final dx = testPos.dx - rect.left;
+              final dy = testPos.dy - rect.top;
+              dragDistance = (dx + dy) / 2;
+              break;
+            case ResizeHandle.radiusTopRight:
+              final dx = rect.right - testPos.dx;
+              final dy = testPos.dy - rect.top;
+              dragDistance = (dx + dy) / 2;
+              break;
+            case ResizeHandle.radiusBottomLeft:
+              final dx = testPos.dx - rect.left;
+              final dy = rect.bottom - testPos.dy;
+              dragDistance = (dx + dy) / 2;
+              break;
+            case ResizeHandle.radiusBottomRight:
+              final dx = rect.right - testPos.dx;
+              final dy = rect.bottom - testPos.dy;
+              dragDistance = (dx + dy) / 2;
+              break;
+            default:
+              break;
+          }
+
+          final newRadius = dragDistance.clamp(0.0, maxRadius);
+          if (target.type == ShapeType.rectangle && newRadius > 0.0) {
+            target.type = ShapeType.roundedRectangle;
+          }
+          target.cornerRadius = newRadius.roundToDouble();
+          target.invalidateCache();
         } else if (activeResizeHandle != ResizeHandle.none &&
             selectedShapeIds.length == 1 &&
             initialShapeRects != null) {
@@ -590,15 +666,67 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
               final newCurvature = delta.dx * perp.dx + delta.dy * perp.dy;
               target.curvature = newCurvature.clamp(-300.0, 300.0);
               target.isCurved = target.curvature.abs() > 0.5;
+              target.invalidateCache();
             }
           } else {
+            Offset unrotatedCurrent = localPos;
+            if (target.rotation != 0.0) {
+              final rad = -target.rotation * math.pi / 180.0;
+              final cosVal = math.cos(rad);
+              final sinVal = math.sin(rad);
+              final dx = localPos.dx - panStartOffset!.dx;
+              final dy = localPos.dy - panStartOffset!.dy;
+              final localDx = dx * cosVal - dy * sinVal;
+              final localDy = dx * sinVal + dy * cosVal;
+              unrotatedCurrent = panStartOffset! + Offset(localDx, localDy);
+            }
             target.rect = CanvasGeometry.resizeRect(
               initialRect,
               panStartOffset!,
-              localPos,
+              unrotatedCurrent,
               activeResizeHandle,
               isLine: target.type == ShapeType.line,
             );
+            target.invalidateCache();
+          }
+        } else if (activeResizeHandle != ResizeHandle.none &&
+            selectedShapeIds.length > 1 &&
+            initialShapeRects != null) {
+          Rect? initialCombined;
+          for (final id in selectedShapeIds) {
+            final r = initialShapeRects![id];
+            if (r != null) {
+              initialCombined = initialCombined == null
+                  ? r
+                  : initialCombined.expandToInclude(r);
+            }
+          }
+          if (initialCombined != null &&
+              initialCombined.width > 0 &&
+              initialCombined.height > 0) {
+            final newCombined = CanvasGeometry.resizeRect(
+              initialCombined,
+              panStartOffset!,
+              localPos,
+              activeResizeHandle,
+            );
+            final scaleX = newCombined.width / initialCombined.width;
+            final scaleY = newCombined.height / initialCombined.height;
+            for (final id in selectedShapeIds) {
+              final s = shapes.firstWhere((shape) => shape.id == id);
+              final initR = initialShapeRects![id]!;
+              final relLeft = (initR.left - initialCombined.left) * scaleX;
+              final relTop = (initR.top - initialCombined.top) * scaleY;
+              final newW = initR.width * scaleX;
+              final newH = initR.height * scaleY;
+              s.rect = Rect.fromLTWH(
+                newCombined.left + relLeft,
+                newCombined.top + relTop,
+                math.max(4.0, newW),
+                math.max(4.0, newH),
+              );
+              s.invalidateCache();
+            }
           }
         } else if (isMovingShapes && initialShapeRects != null) {
           var delta = localPos - panStartOffset!;
@@ -1709,9 +1837,12 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                               snapGuidelineY: snapGuidelineY,
                               gridSpacing: gridSpacing,
                               isPanningWithMouse: _isPanningWithMouse,
-                              isSpacePressed: isSpacePressed,
+                              isSpacePressed: _isSpacePressed,
                               isResizing:
                                   activeResizeHandle != ResizeHandle.none,
+                              activeResizeHandle: activeResizeHandle,
+                              isRotatingShape: isRotatingShape,
+                              isMovingShapes: isMovingShapes,
                               editingTextShapeId: _editingTextShapeId,
                               isEditingNewText: _isEditingNewText,
                               selectAllText: _selectAllText,

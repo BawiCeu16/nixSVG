@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nixsvg/calculations/canvas_geometry.dart';
 import 'package:nixsvg/calculations/canvas_hit_test.dart';
 import 'package:nixsvg/calculations/canvas_transform.dart';
 import 'package:nixsvg/models/vector_shape.dart';
@@ -29,6 +30,9 @@ class InteractiveCanvas extends StatefulWidget {
   final bool isPanningWithMouse;
   final bool isSpacePressed;
   final bool isResizing;
+  final ResizeHandle activeResizeHandle;
+  final bool isRotatingShape;
+  final bool isMovingShapes;
   final String? editingTextShapeId;
   final bool isEditingNewText;
   final bool selectAllText;
@@ -63,6 +67,9 @@ class InteractiveCanvas extends StatefulWidget {
     required this.isPanningWithMouse,
     required this.isSpacePressed,
     this.isResizing = false,
+    this.activeResizeHandle = ResizeHandle.none,
+    this.isRotatingShape = false,
+    this.isMovingShapes = false,
     this.editingTextShapeId,
     this.isEditingNewText = false,
     this.selectAllText = false,
@@ -160,24 +167,132 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
     }
   }
 
-  MouseCursor _getCanvasCursor(bool isPanActive) {
+  MouseCursor _hoverCursor = SystemMouseCursors.basic;
+  ResizeHandle _hoveredHandle = ResizeHandle.none;
+
+  MouseCursor _resolveCursor(bool isPanActive) {
     if (widget.isPanningWithMouse) return SystemMouseCursors.grabbing;
     if (isPanActive || widget.currentMode == EditorMode.pan) {
       return SystemMouseCursors.grab;
     }
-    switch (widget.currentMode) {
-      case EditorMode.drawText:
-        return SystemMouseCursors.text;
-      case EditorMode.drawRectangle:
-      case EditorMode.drawRoundedRectangle:
-      case EditorMode.drawEllipse:
-      case EditorMode.drawLine:
-      case EditorMode.drawCurve:
-      case EditorMode.drawStar:
-        return SystemMouseCursors.precise;
-      case EditorMode.select:
-      case EditorMode.pan:
-        return SystemMouseCursors.basic;
+    if (widget.currentMode != EditorMode.select) {
+      switch (widget.currentMode) {
+        case EditorMode.drawText:
+          return SystemMouseCursors.text;
+        case EditorMode.drawRectangle:
+        case EditorMode.drawRoundedRectangle:
+        case EditorMode.drawEllipse:
+        case EditorMode.drawLine:
+        case EditorMode.drawCurve:
+        case EditorMode.drawStar:
+          return SystemMouseCursors.precise;
+        default:
+          return SystemMouseCursors.basic;
+      }
+    }
+
+    // 1. Active drag action cursors take absolute precedence:
+    if (widget.isRotatingShape ||
+        widget.activeResizeHandle == ResizeHandle.rotation) {
+      return SystemMouseCursors.grab;
+    }
+    if (widget.activeResizeHandle.isRadius) {
+      return SystemMouseCursors.precise;
+    }
+    if (widget.activeResizeHandle != ResizeHandle.none) {
+      double rot = 0.0;
+      if (widget.selectedShapeIds.length == 1) {
+        final s = widget.shapes.cast<VectorShape?>().firstWhere(
+          (shape) => shape?.id == widget.selectedShapeIds.first,
+          orElse: () => null,
+        );
+        if (s != null) rot = s.rotation;
+      }
+      return CanvasGeometry.getHandleCursor(widget.activeResizeHandle, rot);
+    }
+    if (widget.isMovingShapes) {
+      return SystemMouseCursors.move;
+    }
+
+    // 2. Hover state cursor:
+    return _hoverCursor;
+  }
+
+  void _updateHoverCursor(Offset canvasPos) {
+    if (widget.currentMode != EditorMode.select || widget.isPanningWithMouse) {
+      return;
+    }
+
+    MouseCursor targetCursor = SystemMouseCursors.basic;
+    ResizeHandle targetHandle = ResizeHandle.none;
+
+    if (widget.selectedShapeIds.length == 1) {
+      final s = widget.shapes.cast<VectorShape?>().firstWhere(
+        (shape) => shape?.id == widget.selectedShapeIds.first,
+        orElse: () => null,
+      );
+      if (s != null && !s.isLocked && s.isVisible) {
+        final handle = CanvasHitTester.hitTestHandle(canvasPos, s);
+        if (handle != ResizeHandle.none) {
+          targetHandle = handle;
+          targetCursor = CanvasGeometry.getHandleCursor(handle, s.rotation);
+        } else if (CanvasHitTester.hitTestShape(canvasPos, s)) {
+          targetCursor = SystemMouseCursors.move;
+        }
+      }
+    } else if (widget.selectedShapeIds.length > 1) {
+      // Check multi-selection union bounds handles
+      Rect? combinedBounds;
+      for (final s in widget.shapes) {
+        if (widget.selectedShapeIds.contains(s.id) && s.isVisible) {
+          combinedBounds = combinedBounds == null
+              ? s.rect
+              : combinedBounds.expandToInclude(s.rect);
+        }
+      }
+      if (combinedBounds != null) {
+        final rectHandle =
+            CanvasHitTester.hitTestRectHandles(canvasPos, combinedBounds);
+        if (rectHandle != ResizeHandle.none) {
+          targetHandle = rectHandle;
+          targetCursor = CanvasGeometry.getHandleCursor(rectHandle, 0.0);
+        }
+      }
+
+      if (targetHandle == ResizeHandle.none) {
+        bool hitSelected = false;
+        for (int i = widget.shapes.length - 1; i >= 0; i--) {
+          final shape = widget.shapes[i];
+          if (widget.selectedShapeIds.contains(shape.id) &&
+              CanvasHitTester.hitTestShape(canvasPos, shape)) {
+            hitSelected = true;
+            break;
+          }
+        }
+        if (hitSelected) {
+          targetCursor = SystemMouseCursors.move;
+        }
+      }
+    }
+
+    // If still basic, check if hovering over any other shape on the canvas
+    if (targetCursor == SystemMouseCursors.basic) {
+      for (int i = widget.shapes.length - 1; i >= 0; i--) {
+        final shape = widget.shapes[i];
+        if (!shape.isLocked &&
+            shape.isVisible &&
+            CanvasHitTester.hitTestShape(canvasPos, shape)) {
+          targetCursor = SystemMouseCursors.click;
+          break;
+        }
+      }
+    }
+
+    if (targetCursor != _hoverCursor || targetHandle != _hoveredHandle) {
+      setState(() {
+        _hoverCursor = targetCursor;
+        _hoveredHandle = targetHandle;
+      });
     }
   }
 
@@ -190,11 +305,21 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
     final effectiveCanvasBg = widget.canvasBackgroundColor ?? colorScheme.surface;
 
     return MouseRegion(
-      cursor: _getCanvasCursor(isPanActive),
+      cursor: _resolveCursor(isPanActive),
       onEnter: (_) => widget.onCanvasHoverChanged?.call(true),
-      onExit: (_) => widget.onCanvasHoverChanged?.call(false),
+      onExit: (_) {
+        if (_hoverCursor != SystemMouseCursors.basic ||
+            _hoveredHandle != ResizeHandle.none) {
+          setState(() {
+            _hoverCursor = SystemMouseCursors.basic;
+            _hoveredHandle = ResizeHandle.none;
+          });
+        }
+        widget.onCanvasHoverChanged?.call(false);
+      },
       onHover: (event) {
         final canvasPos = _toCanvasCoordinates(event.position);
+        _updateHoverCursor(canvasPos);
         widget.onPointerHover?.call(canvasPos);
       },
       child: Listener(
@@ -368,7 +493,11 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
                       draftIsAltPressed: widget.draftIsAltPressed,
                       marqueeRect: widget.marqueeRect,
                       currentMode: widget.currentMode,
-                      isResizing: widget.isResizing,
+                      isResizing:
+                          widget.isResizing ||
+                          widget.activeResizeHandle != ResizeHandle.none,
+                      activeResizeHandle: widget.activeResizeHandle,
+                      hoveredHandle: _hoveredHandle,
                       snapGuidelineX: widget.snapGuidelineX,
                       snapGuidelineY: widget.snapGuidelineY,
                       colorScheme: colorScheme,

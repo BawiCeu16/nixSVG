@@ -31,7 +31,31 @@ enum ResizeHandle {
   centerLeft,
   centerRight,
   rotation,
+  radiusTopLeft,
+  radiusTopRight,
+  radiusBottomLeft,
+  radiusBottomRight,
   none,
+}
+
+extension ResizeHandleExt on ResizeHandle {
+  bool get isRadius =>
+      this == ResizeHandle.radiusTopLeft ||
+      this == ResizeHandle.radiusTopRight ||
+      this == ResizeHandle.radiusBottomLeft ||
+      this == ResizeHandle.radiusBottomRight;
+
+  bool get isCorner =>
+      this == ResizeHandle.topLeft ||
+      this == ResizeHandle.topRight ||
+      this == ResizeHandle.bottomLeft ||
+      this == ResizeHandle.bottomRight;
+
+  bool get isEdge =>
+      this == ResizeHandle.topCenter ||
+      this == ResizeHandle.bottomCenter ||
+      this == ResizeHandle.centerLeft ||
+      this == ResizeHandle.centerRight;
 }
 
 enum LineCapStyle { none, round, square, arrow, circle }

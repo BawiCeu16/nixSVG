@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:nixsvg/calculations/canvas_geometry.dart';
+import 'package:nixsvg/calculations/canvas_hit_test.dart';
 import 'package:nixsvg/models/vector_shape.dart';
 
 class VectorCanvasPainter extends CustomPainter {
@@ -15,6 +16,8 @@ class VectorCanvasPainter extends CustomPainter {
   final Rect? marqueeRect;
   final EditorMode currentMode;
   final bool isResizing;
+  final ResizeHandle activeResizeHandle;
+  final ResizeHandle hoveredHandle;
   final Offset? snapGuidelineX;
   final Offset? snapGuidelineY;
   final ColorScheme colorScheme;
@@ -31,6 +34,8 @@ class VectorCanvasPainter extends CustomPainter {
     this.marqueeRect,
     required this.currentMode,
     this.isResizing = false,
+    this.activeResizeHandle = ResizeHandle.none,
+    this.hoveredHandle = ResizeHandle.none,
     this.snapGuidelineX,
     this.snapGuidelineY,
     required this.colorScheme,
@@ -491,71 +496,127 @@ class VectorCanvasPainter extends CustomPainter {
     final boxPaint = Paint()
       ..color = colorScheme.primary
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8;
+      ..strokeWidth = 1.6;
 
     canvas.drawRect(rect, boxPaint);
 
-    final handlePoints = [
-      rect.topLeft,
-      rect.topRight,
-      rect.bottomLeft,
-      rect.bottomRight,
-      rect.topCenter,
-      rect.bottomCenter,
-      rect.centerLeft,
-      rect.centerRight,
-    ];
+    final handlePoints = {
+      ResizeHandle.topLeft: rect.topLeft,
+      ResizeHandle.topRight: rect.topRight,
+      ResizeHandle.bottomLeft: rect.bottomLeft,
+      ResizeHandle.bottomRight: rect.bottomRight,
+      ResizeHandle.topCenter: rect.topCenter,
+      ResizeHandle.bottomCenter: rect.bottomCenter,
+      ResizeHandle.centerLeft: rect.centerLeft,
+      ResizeHandle.centerRight: rect.centerRight,
+    };
 
-    for (final pt in handlePoints) {
-      final handleRect = Rect.fromCenter(center: pt, width: 10, height: 10);
-      canvas.drawRect(handleRect, handleFill);
-      canvas.drawRect(handleRect, handleBorder);
+    for (final entry in handlePoints.entries) {
+      final pt = entry.value;
+      final isHovered = hoveredHandle == entry.key ||
+          activeResizeHandle == entry.key;
+      final size = isHovered ? 12.0 : 10.0;
+      final handleRect = Rect.fromCenter(center: pt, width: size, height: size);
+
+      // Subtle shadow for Mac-like polish
+      canvas.drawRect(
+        handleRect.shift(const Offset(0, 0.8)),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.18)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2),
+      );
+
+      canvas.drawRect(
+        handleRect,
+        isHovered
+            ? (Paint()..color = colorScheme.primary..style = PaintingStyle.fill)
+            : handleFill,
+      );
+      canvas.drawRect(
+        handleRect,
+        isHovered
+            ? (Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 1.5)
+            : handleBorder,
+      );
     }
 
     // Top rotation handle
     final rotCenter = Offset(rect.topCenter.dx, rect.topCenter.dy - 20);
+    final isRotHovered = hoveredHandle == ResizeHandle.rotation ||
+        activeResizeHandle == ResizeHandle.rotation;
     final linePaint = Paint()
-      ..color = colorScheme.primary
+      ..color = colorScheme.primary.withValues(alpha: 0.85)
       ..strokeWidth = 1.5;
     canvas.drawLine(rect.topCenter, rotCenter, linePaint);
-    canvas.drawCircle(rotCenter, 5, handleFill);
-    canvas.drawCircle(rotCenter, 5, handleBorder);
+    canvas.drawCircle(
+      rotCenter,
+      isRotHovered ? 6.5 : 5.0,
+      isRotHovered
+          ? (Paint()..color = colorScheme.primary..style = PaintingStyle.fill)
+          : handleFill,
+    );
+    canvas.drawCircle(
+      rotCenter,
+      isRotHovered ? 6.5 : 5.0,
+      isRotHovered
+          ? (Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 1.5)
+          : handleBorder,
+    );
 
     // Figma-style corner radius handles inside rectangles
-    if ((shape.type == ShapeType.rectangle ||
-            shape.type == ShapeType.roundedRectangle) &&
-        rect.width >= 40 &&
-        rect.height >= 40) {
-      final radiusInset = math.min(
-        16.0,
-        math.min(rect.width, rect.height) * 0.2,
-      );
+    final radiusHandles = CanvasHitTester.getRadiusHandlePositions(shape);
+    if (radiusHandles.isNotEmpty) {
       final radiusHandleFill = Paint()
         ..color = colorScheme.surface
         ..style = PaintingStyle.fill;
       final radiusHandleBorder = Paint()
-        ..color = colorScheme.primary.withValues(alpha: 0.8)
+        ..color = colorScheme.primary
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2;
-      final radiusHandles = [
-        Offset(rect.left + radiusInset, rect.top + radiusInset),
-        Offset(rect.right - radiusInset, rect.top + radiusInset),
-        Offset(rect.left + radiusInset, rect.bottom - radiusInset),
-        Offset(rect.right - radiusInset, rect.bottom - radiusInset),
-      ];
-      for (final pt in radiusHandles) {
-        canvas.drawCircle(pt, 3.5, radiusHandleFill);
-        canvas.drawCircle(pt, 3.5, radiusHandleBorder);
+        ..strokeWidth = 1.4;
+      final radiusHoverFill = Paint()
+        ..color = colorScheme.primary
+        ..style = PaintingStyle.fill;
+
+      for (final entry in radiusHandles.entries) {
+        final pt = entry.value;
+        final isHovered = hoveredHandle == entry.key ||
+            activeResizeHandle == entry.key;
+
+        // Shadow behind corner radius handle for crispness
+        canvas.drawCircle(
+          pt + const Offset(0, 0.8),
+          isHovered ? 5.5 : 4.5,
+          Paint()
+            ..color = Colors.black.withValues(alpha: 0.22)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5),
+        );
+
+        canvas.drawCircle(
+          pt,
+          isHovered ? 5.5 : 4.2,
+          isHovered ? radiusHoverFill : radiusHandleFill,
+        );
+        canvas.drawCircle(
+          pt,
+          isHovered ? 5.5 : 4.2,
+          isHovered
+              ? (Paint()
+                ..color = Colors.white
+                ..style = PaintingStyle.stroke
+                ..strokeWidth = 1.5)
+              : radiusHandleBorder,
+        );
       }
     }
 
-    // Show live width, height, and radius badge while resizing
-    if (isResizing) {
+    // Show live width, height, and radius badge while resizing or dragging radius
+    if (isResizing || activeResizeHandle != ResizeHandle.none) {
       _drawDimensionBadge(
         canvas,
         rect,
         shapeType: shape.type,
-        cornerRadius: shape.type == ShapeType.roundedRectangle
+        cornerRadius: (shape.type == ShapeType.roundedRectangle ||
+                shape.type == ShapeType.rectangle)
             ? shape.cornerRadius
             : null,
       );
@@ -671,7 +732,8 @@ class VectorCanvasPainter extends CustomPainter {
       final rx = (width / 2).round();
       final ry = (height / 2).round();
       badgeText = '$width × $height  (rx: $rx, ry: $ry)';
-    } else if (shapeType == ShapeType.roundedRectangle &&
+    } else if ((shapeType == ShapeType.roundedRectangle ||
+            shapeType == ShapeType.rectangle) &&
         cornerRadius != null &&
         cornerRadius > 0) {
       badgeText = '$width × $height  (r: ${cornerRadius.round()})';

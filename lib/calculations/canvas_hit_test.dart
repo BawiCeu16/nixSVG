@@ -69,14 +69,44 @@ class CanvasHitTester {
     return effectiveRect.contains(unrotatedPoint);
   }
 
-  /// Hit-tests whether a given canvas point touches a shape's resize or rotation handle.
+  /// Returns the unrotated local positions for corner radius handles inside a rectangle.
+  static Map<ResizeHandle, Offset> getRadiusHandlePositions(VectorShape shape) {
+    if ((shape.type != ShapeType.rectangle &&
+            shape.type != ShapeType.roundedRectangle) ||
+        shape.rect.width < 32 ||
+        shape.rect.height < 32) {
+      return const {};
+    }
+    final rect = shape.rect;
+    final maxRadius = math.min(rect.width, rect.height) / 2;
+    final currentRadius = (shape.type == ShapeType.roundedRectangle
+            ? shape.cornerRadius
+            : 0.0)
+        .clamp(0.0, maxRadius);
+    final handleInset = currentRadius > 0
+        ? currentRadius.clamp(8.0, maxRadius)
+        : math.min(16.0, maxRadius * 0.4);
+
+    return {
+      ResizeHandle.radiusTopLeft:
+          Offset(rect.left + handleInset, rect.top + handleInset),
+      ResizeHandle.radiusTopRight:
+          Offset(rect.right - handleInset, rect.top + handleInset),
+      ResizeHandle.radiusBottomLeft:
+          Offset(rect.left + handleInset, rect.bottom - handleInset),
+      ResizeHandle.radiusBottomRight:
+          Offset(rect.right - handleInset, rect.bottom - handleInset),
+    };
+  }
+
+  /// Hit-tests whether a given canvas point touches a shape's resize, rotation, or radius handle.
   static ResizeHandle hitTestHandle(Offset pos, VectorShape shape) {
     final rect = shape.rect;
-    const double hitSize = 28.0; // Touch and mouse friendly handle size
+    const double hitSize = 26.0;
 
     // Fast handle rejection using cached bounding box
     final bounds = shape.getBoundingBox();
-    if (!bounds.inflate(hitSize + 12.0).contains(pos)) {
+    if (!bounds.inflate(40.0).contains(pos)) {
       return ResizeHandle.none;
     }
 
@@ -132,88 +162,127 @@ class CanvasHitTester {
       return ResizeHandle.none;
     }
 
-    // Rotation Handle (located 24px above top center or slightly outside any of the 4 corners like Figma)
-    if (Rect.fromCenter(
-      center: Offset(rect.topCenter.dx, rect.topCenter.dy - 24),
-      width: hitSize + 4,
-      height: hitSize + 4,
-    ).contains(testPos)) {
+    // 1. Top Rotation Handle (located 20px above top center)
+    final rotCenter = Offset(rect.topCenter.dx, rect.topCenter.dy - 20);
+    if ((testPos - rotCenter).distance <= 14.0) {
       return ResizeHandle.rotation;
     }
 
-    // Outer corner rotation zones (Figma rotates when cursor is slightly outside corner handles)
-    for (final c in [
-      rect.topLeft,
-      rect.topRight,
-      rect.bottomLeft,
-      rect.bottomRight,
-    ]) {
-      final dist = (testPos - c).distance;
-      if (dist > hitSize / 2 && dist <= hitSize / 2 + 14) {
-        return ResizeHandle.rotation;
+    // 2. Corner Radius Handles (inside rectangles)
+    final radiusHandles = getRadiusHandlePositions(shape);
+    for (final entry in radiusHandles.entries) {
+      if ((testPos - entry.value).distance <= 13.0) {
+        return entry.key;
       }
     }
 
-    // Corner Handles
+    // 3. Corner Resize Handles (highest priority corner hits)
+    const double cornerHitSize = 24.0;
     if (Rect.fromCenter(
       center: rect.topLeft,
-      width: hitSize,
-      height: hitSize,
+      width: cornerHitSize,
+      height: cornerHitSize,
     ).contains(testPos)) {
       return ResizeHandle.topLeft;
     }
     if (Rect.fromCenter(
       center: rect.topRight,
-      width: hitSize,
-      height: hitSize,
+      width: cornerHitSize,
+      height: cornerHitSize,
     ).contains(testPos)) {
       return ResizeHandle.topRight;
     }
     if (Rect.fromCenter(
       center: rect.bottomLeft,
-      width: hitSize,
-      height: hitSize,
+      width: cornerHitSize,
+      height: cornerHitSize,
     ).contains(testPos)) {
       return ResizeHandle.bottomLeft;
     }
     if (Rect.fromCenter(
       center: rect.bottomRight,
-      width: hitSize,
-      height: hitSize,
+      width: cornerHitSize,
+      height: cornerHitSize,
     ).contains(testPos)) {
       return ResizeHandle.bottomRight;
     }
 
-    // Edge Midpoint Handles
+    // 4. Edge Midpoint Resize Handles
+    const double edgeHitSize = 22.0;
     if (Rect.fromCenter(
       center: rect.topCenter,
-      width: hitSize,
-      height: hitSize,
+      width: edgeHitSize,
+      height: edgeHitSize,
     ).contains(testPos)) {
       return ResizeHandle.topCenter;
     }
     if (Rect.fromCenter(
       center: rect.bottomCenter,
-      width: hitSize,
-      height: hitSize,
+      width: edgeHitSize,
+      height: edgeHitSize,
     ).contains(testPos)) {
       return ResizeHandle.bottomCenter;
     }
     if (Rect.fromCenter(
       center: rect.centerLeft,
-      width: hitSize,
-      height: hitSize,
+      width: edgeHitSize,
+      height: edgeHitSize,
     ).contains(testPos)) {
       return ResizeHandle.centerLeft;
     }
     if (Rect.fromCenter(
       center: rect.centerRight,
-      width: hitSize,
-      height: hitSize,
+      width: edgeHitSize,
+      height: edgeHitSize,
     ).contains(testPos)) {
       return ResizeHandle.centerRight;
     }
 
+    // 5. Outer corner rotation zones (Figma rotates when cursor is slightly outside corner handles)
+    if (!rect.deflate(2.0).contains(testPos)) {
+      for (final c in [
+        rect.topLeft,
+        rect.topRight,
+        rect.bottomLeft,
+        rect.bottomRight,
+      ]) {
+        final dist = (testPos - c).distance;
+        if (dist > 12.0 && dist <= 28.0) {
+          return ResizeHandle.rotation;
+        }
+      }
+    }
+
+    return ResizeHandle.none;
+  }
+
+  /// Hit-tests handles on a multi-selection union bounding box.
+  static ResizeHandle hitTestRectHandles(Offset pos, Rect rect) {
+    const double hitSize = 22.0;
+    if (Rect.fromCenter(center: rect.topLeft, width: hitSize, height: hitSize).contains(pos)) {
+      return ResizeHandle.topLeft;
+    }
+    if (Rect.fromCenter(center: rect.topRight, width: hitSize, height: hitSize).contains(pos)) {
+      return ResizeHandle.topRight;
+    }
+    if (Rect.fromCenter(center: rect.bottomLeft, width: hitSize, height: hitSize).contains(pos)) {
+      return ResizeHandle.bottomLeft;
+    }
+    if (Rect.fromCenter(center: rect.bottomRight, width: hitSize, height: hitSize).contains(pos)) {
+      return ResizeHandle.bottomRight;
+    }
+    if (Rect.fromCenter(center: rect.topCenter, width: hitSize, height: hitSize).contains(pos)) {
+      return ResizeHandle.topCenter;
+    }
+    if (Rect.fromCenter(center: rect.bottomCenter, width: hitSize, height: hitSize).contains(pos)) {
+      return ResizeHandle.bottomCenter;
+    }
+    if (Rect.fromCenter(center: rect.centerLeft, width: hitSize, height: hitSize).contains(pos)) {
+      return ResizeHandle.centerLeft;
+    }
+    if (Rect.fromCenter(center: rect.centerRight, width: hitSize, height: hitSize).contains(pos)) {
+      return ResizeHandle.centerRight;
+    }
     return ResizeHandle.none;
   }
 }

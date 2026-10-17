@@ -3212,7 +3212,7 @@ class _NumberInputFieldState extends State<_NumberInputField> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
@@ -3230,9 +3230,10 @@ class _NumberInputFieldState extends State<_NumberInputField> {
             style: theme.textTheme.labelSmall?.copyWith(
               color: colorScheme.primary,
               fontWeight: FontWeight.bold,
+              fontSize: 11,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
           Expanded(
             child: Focus(
               onKeyEvent: (node, event) {
