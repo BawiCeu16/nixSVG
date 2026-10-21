@@ -222,6 +222,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                   ?.copyWith(fontWeight: FontWeight.bold, letterSpacing: 0.3),
             ),
             const SizedBox(width: 20),
+            const Spacer(),
           ] else ...[
             Text(
               'Settings',
@@ -231,12 +232,10 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
             const SizedBox(width: 8),
           ],
 
-          const Spacer(),
-
           // Search Field using Flutter native SearchBar
           Flexible(
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: isCompact ? 160 : 420),
+              constraints: BoxConstraints(maxWidth: isCompact ? 180 : 420),
               child: SizedBox(
                 height: 38,
                 child: SearchBar(
@@ -287,16 +286,47 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                       ),
                     ),
                   ),
-                  padding: const WidgetStatePropertyAll(
-                    EdgeInsets.symmetric(horizontal: 12),
+                  padding: WidgetStatePropertyAll(
+                    EdgeInsets.symmetric(horizontal: isCompact ? 8 : 12),
                   ),
                 ),
               ),
             ),
           ),
 
-          const Spacer(),
           SizedBox(width: isCompact ? 6 : 16),
+
+          // Reset Defaults Button
+          if (!isCompact)
+            M3EButton.icon(
+              onPressed: () => _confirmResetDefaults(context, notifier),
+              style: M3EButtonStyle.text,
+              size: M3EButtonSize.sm,
+              icon: Icon(
+                RemixIcons.restart_line,
+                size: 15,
+                color: colorScheme.error,
+              ),
+              label: Text(
+                'Reset Defaults',
+                style: TextStyle(
+                  color: colorScheme.error,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12.5,
+                ),
+              ),
+            )
+          else
+            IconButton(
+              tooltip: 'Reset Defaults',
+              icon: Icon(
+                RemixIcons.restart_line,
+                size: 16,
+                color: colorScheme.error,
+              ),
+              onPressed: () => _confirmResetDefaults(context, notifier),
+            ),
+          SizedBox(width: isCompact ? 4 : 8),
 
           // Done Button
           M3EButton(
@@ -395,20 +425,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                 );
               }).toList(),
             ),
-          ),
-          const SizedBox(height: 8),
-          Consumer(
-            builder: (context, ref, _) {
-              final notifier = ref.read(appSettingsProvider.notifier);
-              return TextButton.icon(
-                onPressed: () => _confirmResetDefaults(context, notifier),
-                icon: const Icon(RemixIcons.restart_line, size: 15),
-                label: const Text(
-                  'Reset Defaults',
-                  style: TextStyle(fontSize: 12),
-                ),
-              );
-            },
           ),
         ],
       ),
@@ -1275,6 +1291,21 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               trailing: const SizedBox.shrink(),
             ),
           ],
+        ),
+
+        const SizedBox(height: 8),
+        Consumer(
+          builder: (context, ref, _) {
+            final notifier = ref.read(appSettingsProvider.notifier);
+            return TextButton.icon(
+              onPressed: () => _confirmResetDefaults(context, notifier),
+              icon: const Icon(RemixIcons.restart_line, size: 15),
+              label: const Text(
+                'Reset Defaults',
+                style: TextStyle(fontSize: 12),
+              ),
+            );
+          },
         ),
       ],
     );

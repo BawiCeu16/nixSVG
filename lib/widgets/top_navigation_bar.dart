@@ -468,9 +468,9 @@ class TopNavigationBar extends ConsumerWidget {
                       const SizedBox(width: 8),
 
                       // Import Image Button
-                      M3PhysicsPressable(
-                        tooltip: 'Import bitmap image or SVG',
-                        onTap: onImportImage,
+                      Tooltip(
+                        message: 'Import bitmap image or SVG',
+                        waitDuration: const Duration(milliseconds: 500),
                         child: M3EButton.icon(
                           onPressed: onImportImage,
                           style: M3EButtonStyle.tonal,
@@ -492,9 +492,9 @@ class TopNavigationBar extends ConsumerWidget {
                       const SizedBox(width: 8),
 
                       // --- Primary Action: Export SVG ---
-                      M3PhysicsPressable(
-                        tooltip: 'Export project to SVG',
-                        onTap: onExportSvg,
+                      Tooltip(
+                        message: 'Export project to SVG',
+                        waitDuration: const Duration(milliseconds: 500),
                         child: M3EButton.icon(
                           onPressed: onExportSvg,
                           style: M3EButtonStyle.filled,

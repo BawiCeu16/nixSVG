@@ -202,7 +202,7 @@ class PropertiesSidebar extends StatelessWidget {
                               color: colorScheme.surfaceContainerHigh,
                               hoverColor: colorScheme.surfaceContainerHighest,
                               pressedRadius: 8.0,
-                              pressedScale: 0.96,
+                              pressedScale: 1.0,
                             ),
                             children: [
                               Tooltip(
@@ -258,7 +258,7 @@ class PropertiesSidebar extends StatelessWidget {
                               color: colorScheme.surfaceContainerHigh,
                               hoverColor: colorScheme.surfaceContainerHighest,
                               pressedRadius: 8.0,
-                              pressedScale: 0.96,
+                              pressedScale: 1.0,
                             ),
                             children: [
                               Tooltip(
@@ -2367,7 +2367,7 @@ class PropertiesSidebar extends StatelessWidget {
                   color: colorScheme.surfaceContainerHigh,
                   hoverColor: colorScheme.surfaceContainerHighest,
                   pressedRadius: 8.0,
-                  pressedScale: 0.97,
+                  pressedScale: 1.0,
                 ),
                 children: [
                   Center(

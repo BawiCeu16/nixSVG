@@ -202,11 +202,11 @@ class LayersSidebar extends StatelessWidget {
                             outerRadius: 10.0,
                             innerRadius: 6.0,
                             pressedRadius: 8.0,
-                            pressedScale: 0.98,
+                            pressedScale: 1.0,
                             hoveredRadius: 10.0,
                             dragRadius: 12.0,
                             dragElevation: 4.0,
-                            dragScale: 1.01,
+                            dragScale: 1.0,
                             gap: 2.0,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10.0,

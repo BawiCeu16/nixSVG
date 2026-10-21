@@ -3,7 +3,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:m3e_buttons/m3e_buttons.dart';
 import 'package:m3e_floating_toolbar/m3e_floating_toolbar.dart';
 import 'package:nixsvg/models/vector_shape.dart';
-import 'package:nixsvg/theme/physics/m3e_physics_spring.dart';
 import 'package:remixicon/remixicon.dart';
 
 class FloatingToolBar extends StatelessWidget {
@@ -132,9 +131,9 @@ class FloatingToolBar extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: M3PhysicsPressable(
-        tooltip: tooltip,
-        onTap: () => onModeChanged(mode),
+      child: Tooltip(
+        message: tooltip,
+        waitDuration: const Duration(milliseconds: 500),
         child: M3EButton(
           onPressed: () => onModeChanged(mode),
           style: isActive ? M3EButtonStyle.filled : M3EButtonStyle.text,
