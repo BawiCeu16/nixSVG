@@ -41,6 +41,9 @@ Future<void> main() async {
 
 /// The root application widget subscribing dynamically to Riverpod [themeProvider].
 class NixSvgApp extends StatelessWidget {
+  static final GlobalKey rootRepaintBoundaryKey = GlobalKey(
+    debugLabel: 'RootRepaintBoundaryKey',
+  );
   final Widget? home;
   final bool? startInWorkspace;
 
@@ -104,10 +107,13 @@ class _NixSvgAppView extends ConsumerWidget {
             brightness: brightness,
             seedColor: seedColor,
           ),
-          child: ResponsiveScaler.scale(
-            context: context,
-            child: child!,
-            useMaxAccessibility: true,
+          child: RepaintBoundary(
+            key: NixSvgApp.rootRepaintBoundaryKey,
+            child: ResponsiveScaler.scale(
+              context: context,
+              child: child!,
+              useMaxAccessibility: true,
+            ),
           ),
         );
       },

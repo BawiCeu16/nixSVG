@@ -131,11 +131,12 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
         ? box.globalToLocal(pointerSignal.position)
         : pointerSignal.localPosition;
 
-    final isCtrlPressed =
+    final isZoomModifier =
         HardwareKeyboard.instance.isControlPressed ||
-        HardwareKeyboard.instance.isMetaPressed;
+        HardwareKeyboard.instance.isMetaPressed ||
+        HardwareKeyboard.instance.isAltPressed;
 
-    if (isCtrlPressed) {
+    if (isZoomModifier) {
       final double dy = pointerSignal.scrollDelta.dy;
       if (dy == 0.0 || !dy.isFinite) return;
 
@@ -151,6 +152,13 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
             zoomFactor,
           );
       widget.onMatrixChanged();
+
+      final newCanvasPos = CanvasTransformHelper.screenToCanvas(
+        widget.transformationController.value,
+        viewportPos,
+      );
+      _updateHoverCursor(newCanvasPos);
+      widget.onPointerHover?.call(newCanvasPos);
     } else {
       final isShiftPressed = HardwareKeyboard.instance.isShiftPressed;
       Offset delta = -pointerSignal.scrollDelta;
@@ -381,6 +389,12 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
                 viewportPos,
                 deltaFactor,
               );
+              final newCanvasPos = CanvasTransformHelper.screenToCanvas(
+                currentMatrix,
+                viewportPos,
+              );
+              _updateHoverCursor(newCanvasPos);
+              widget.onPointerHover?.call(newCanvasPos);
             }
           }
 

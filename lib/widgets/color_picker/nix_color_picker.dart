@@ -1,10 +1,13 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:m3e_buttons/m3e_buttons.dart';
+import 'package:morph_expressive/morph_expressive.dart';
 import 'package:remixicon/remixicon.dart';
 
 import 'package:nixsvg/models/vector_shape.dart';
+
 import 'nix_color_models.dart';
 import 'nix_color_spectrum_painter.dart';
 import 'nix_eyedropper_overlay.dart';
@@ -28,6 +31,10 @@ class NixColorPicker extends StatefulWidget {
   final bool showActions;
   final double width;
 
+  final ValueChanged<Offset>? onDragDelta;
+  final VoidCallback? onDragStart;
+  final VoidCallback? onDragEnd;
+
   const NixColorPicker({
     super.key,
     required this.initialColor,
@@ -39,6 +46,9 @@ class NixColorPicker extends StatefulWidget {
     this.onModeChanged,
     this.onColorFinalized,
     this.onClose,
+    this.onDragDelta,
+    this.onDragStart,
+    this.onDragEnd,
     this.title = 'Color & Gradient',
     this.showHeader = true,
     this.showActions = true,
@@ -47,6 +57,18 @@ class NixColorPicker extends StatefulWidget {
 
   @override
   State<NixColorPicker> createState() => _NixColorPickerState();
+}
+
+class _GradientStopModel {
+  final int id;
+  double offset;
+  Color color;
+
+  _GradientStopModel({
+    required this.id,
+    required this.offset,
+    required this.color,
+  });
 }
 
 class _NixColorPickerState extends State<NixColorPicker> {
@@ -60,9 +82,14 @@ class _NixColorPickerState extends State<NixColorPicker> {
 
   // Gradient state
   late ShapeGradient _gradient;
-  int _selectedStopIndex = 0;
+  final GlobalKey _gradientTrackKey = GlobalKey();
+  int _nextStopId = 0;
+  List<_GradientStopModel> _editorStops = [];
+  int _selectedStopId = 0;
 
+  bool _isDraggingHeader = false;
   bool _isCopied = false;
+  bool _isHidingForEyedropper = false;
 
   // Custom user swatches (saved via Pick & Drop or + button)
   final List<Color> _userSwatches = [
@@ -90,14 +117,16 @@ class _NixColorPickerState extends State<NixColorPicker> {
   @override
   void initState() {
     super.initState();
-    _mode = widget.initialMode ??
+    _mode =
+        widget.initialMode ??
         (widget.initialGradient != null
             ? (widget.initialGradient!.type == PaintFillType.radialGradient
-                ? ColorPickerMode.radialGradient
-                : ColorPickerMode.linearGradient)
+                  ? ColorPickerMode.radialGradient
+                  : ColorPickerMode.linearGradient)
             : ColorPickerMode.solid);
 
-    _gradient = widget.initialGradient ??
+    _gradient =
+        widget.initialGradient ??
         ShapeGradient(
           type: _mode == ColorPickerMode.radialGradient
               ? PaintFillType.radialGradient
@@ -109,7 +138,22 @@ class _NixColorPickerState extends State<NixColorPicker> {
           angle: 90.0,
         );
 
-    _initFromColor(widget.initialColor);
+    _editorStops = _gradient.stops.map((s) {
+      return _GradientStopModel(
+        id: _nextStopId++,
+        offset: s.offset.clamp(0.0, 1.0),
+        color: s.color,
+      );
+    }).toList();
+    if (_editorStops.isNotEmpty) {
+      _selectedStopId = _editorStops.first.id;
+    }
+
+    if (_mode != ColorPickerMode.solid && _editorStops.isNotEmpty) {
+      _initFromColor(_editorStops.first.color);
+    } else {
+      _initFromColor(widget.initialColor);
+    }
   }
 
   @override
@@ -122,6 +166,16 @@ class _NixColorPickerState extends State<NixColorPicker> {
     if (widget.initialGradient != null &&
         widget.initialGradient != oldWidget.initialGradient) {
       _gradient = widget.initialGradient!;
+      _editorStops = _gradient.stops.map((s) {
+        return _GradientStopModel(
+          id: _nextStopId++,
+          offset: s.offset.clamp(0.0, 1.0),
+          color: s.color,
+        );
+      }).toList();
+      if (_editorStops.isNotEmpty) {
+        _selectedStopId = _editorStops.first.id;
+      }
     }
   }
 
@@ -155,24 +209,37 @@ class _NixColorPickerState extends State<NixColorPicker> {
     double? saturation,
     double? value,
     double? alpha,
+    Color? exactColor,
     bool updateControllers = true,
   }) {
     setState(() {
-      if (hue != null) _hue = hue % 360;
-      if (saturation != null) _saturation = saturation.clamp(0.0, 1.0);
-      if (value != null) _value = value.clamp(0.0, 1.0);
-      if (alpha != null) _alpha = alpha.clamp(0.0, 1.0);
+      if (exactColor != null) {
+        _currentColor = exactColor;
+        final hsv = HSVColor.fromColor(exactColor);
+        _hue = hsv.hue;
+        _saturation = hsv.saturation;
+        _value = hsv.value;
+        _alpha = hsv.alpha;
+      } else {
+        if (hue != null) _hue = hue % 360;
+        if (saturation != null) _saturation = saturation.clamp(0.0, 1.0);
+        if (value != null) _value = value.clamp(0.0, 1.0);
+        if (alpha != null) _alpha = alpha.clamp(0.0, 1.0);
 
-      _currentColor = HSVColor.fromAHSV(_alpha, _hue, _saturation, _value).toColor();
+        _currentColor = HSVColor.fromAHSV(
+          _alpha,
+          _hue,
+          _saturation,
+          _value,
+        ).toColor();
+      }
 
       // If in gradient mode, update currently selected stop's color
       if (_mode != ColorPickerMode.solid) {
-        final stops = List<GradientColorStop>.from(_gradient.stops);
-        if (_selectedStopIndex < stops.length) {
-          stops[_selectedStopIndex] =
-              stops[_selectedStopIndex].copyWith(color: _currentColor);
-          _gradient = _gradient.copyWith(stops: stops);
-          widget.onGradientChanged?.call(_gradient);
+        final idx = _editorStops.indexWhere((s) => s.id == _selectedStopId);
+        if (idx != -1) {
+          _editorStops[idx].color = _currentColor;
+          _syncGradientFromStops();
         }
       }
 
@@ -181,13 +248,17 @@ class _NixColorPickerState extends State<NixColorPicker> {
       }
     });
 
-    widget.onColorChanged(_currentColor);
+    if (_mode == ColorPickerMode.solid) {
+      widget.onColorChanged(_currentColor);
+    }
   }
 
   void _syncTextControllers() {
     if (!_hexFocus.hasFocus) {
-      _hexController.text =
-          NixColorUtils.toHex(_currentColor, includeAlpha: false).replaceAll('#', '');
+      _hexController.text = NixColorUtils.toHex(
+        _currentColor,
+        includeAlpha: false,
+      ).replaceAll('#', '');
     }
 
     switch (_currentFormat) {
@@ -279,18 +350,32 @@ class _NixColorPickerState extends State<NixColorPicker> {
   // --------------------------------------------------------------------------
 
   Future<void> _activateEyedropper() async {
+    setState(() => _isHidingForEyedropper = true);
+    if (!mounted) return;
+
     final sampled = await NixEyedropper.pickColor(
       context: context,
       initialColor: _currentColor,
     );
-    if (sampled != null && mounted) {
-      final hsv = HSVColor.fromColor(sampled);
-      _updateActiveColor(
-        hue: hsv.hue,
-        saturation: hsv.saturation,
-        value: hsv.value,
-        alpha: hsv.alpha,
-      );
+
+    if (mounted) {
+      setState(() => _isHidingForEyedropper = false);
+      if (sampled != null) {
+        _initFromColor(sampled);
+        _updateActiveColor(
+          exactColor: sampled,
+          updateControllers: true,
+        );
+        widget.onColorFinalized?.call(sampled);
+
+        // Add to recent swatches like Figma
+        if (!_userSwatches.contains(sampled)) {
+          _userSwatches.insert(0, sampled);
+          if (_userSwatches.length > 14) {
+            _userSwatches.removeLast();
+          }
+        }
+      }
     }
   }
 
@@ -337,68 +422,90 @@ class _NixColorPickerState extends State<NixColorPicker> {
   // Gradient Stop Operations
   // --------------------------------------------------------------------------
 
-  void _addGradientStop(double offset) {
-    if (_gradient.stops.length >= 8) return;
-    final clamped = offset.clamp(0.0, 1.0);
-    final stops = List<GradientColorStop>.from(_gradient.stops);
-    final newColor = NixColorUtils.lerpGradientStops(stops, clamped);
-
-    stops.add(GradientColorStop(offset: clamped, color: newColor));
-    stops.sort((a, b) => a.offset.compareTo(b.offset));
-    final newIdx = stops.indexWhere((s) => (s.offset - clamped).abs() < 0.001);
-
-    setState(() {
-      _selectedStopIndex = newIdx != -1 ? newIdx : stops.length - 1;
-      _gradient = _gradient.copyWith(stops: stops);
-    });
-
-    _initFromColor(newColor);
+  void _syncGradientFromStops() {
+    final sorted = List<_GradientStopModel>.from(_editorStops)
+      ..sort((a, b) => a.offset.compareTo(b.offset));
+    final expectedType = _mode == ColorPickerMode.radialGradient
+        ? PaintFillType.radialGradient
+        : PaintFillType.linearGradient;
+    _gradient = _gradient.copyWith(
+      type: expectedType,
+      stops: sorted
+          .map((s) => GradientColorStop(offset: s.offset, color: s.color))
+          .toList(),
+    );
     widget.onGradientChanged?.call(_gradient);
   }
 
-  void _updateStopOffset(int index, double newOffset) {
-    final stops = List<GradientColorStop>.from(_gradient.stops);
-    final clamped = newOffset.clamp(0.0, 1.0);
-    stops[index] = stops[index].copyWith(offset: clamped);
-    stops.sort((a, b) => a.offset.compareTo(b.offset));
+  void _selectStop(int id) {
+    final idx = _editorStops.indexWhere((s) => s.id == id);
+    if (idx == -1) return;
+    setState(() {
+      _selectedStopId = id;
+    });
+    _initFromColor(_editorStops[idx].color);
+  }
 
-    final newIdx = stops.indexOf(
-      stops.firstWhere(
-        (s) => (s.offset - clamped).abs() < 0.001,
-        orElse: () => stops[0],
-      ),
+  void _addGradientStop(double offset) {
+    if (_editorStops.length >= 10) return;
+    final clamped = offset.clamp(0.0, 1.0);
+    final sorted = List<_GradientStopModel>.from(_editorStops)
+      ..sort((a, b) => a.offset.compareTo(b.offset));
+    final currentStops = sorted
+        .map((s) => GradientColorStop(offset: s.offset, color: s.color))
+        .toList();
+    final newColor = NixColorUtils.lerpGradientStops(currentStops, clamped);
+
+    final newStop = _GradientStopModel(
+      id: _nextStopId++,
+      offset: clamped,
+      color: newColor,
     );
 
     setState(() {
-      _selectedStopIndex = newIdx >= 0 ? newIdx : index;
-      _gradient = _gradient.copyWith(stops: stops);
+      _editorStops.add(newStop);
+      _selectedStopId = newStop.id;
+      _syncGradientFromStops();
     });
 
-    widget.onGradientChanged?.call(_gradient);
+    _initFromColor(newColor);
+  }
+
+  void _updateStopOffsetById(int id, double newOffset) {
+    final idx = _editorStops.indexWhere((s) => s.id == id);
+    if (idx == -1) return;
+    final clamped = newOffset.clamp(0.0, 1.0);
+
+    setState(() {
+      _editorStops[idx].offset = clamped;
+      _syncGradientFromStops();
+    });
   }
 
   void _deleteSelectedStop() {
-    if (_gradient.stops.length <= 2) return;
-    final stops = List<GradientColorStop>.from(_gradient.stops);
-    stops.removeAt(_selectedStopIndex);
+    if (_editorStops.length <= 2) return;
+    final idx = _editorStops.indexWhere((s) => s.id == _selectedStopId);
+    if (idx == -1) return;
+
     setState(() {
-      _selectedStopIndex = _selectedStopIndex.clamp(0, stops.length - 1);
-      _gradient = _gradient.copyWith(stops: stops);
+      _editorStops.removeAt(idx);
+      _selectedStopId = _editorStops.isNotEmpty ? _editorStops.first.id : 0;
+      _syncGradientFromStops();
     });
-    _initFromColor(_gradient.stops[_selectedStopIndex].color);
-    widget.onGradientChanged?.call(_gradient);
+    final selected = _editorStops.firstWhere(
+      (s) => s.id == _selectedStopId,
+      orElse: () => _editorStops.first,
+    );
+    _initFromColor(selected.color);
   }
 
   void _reverseGradientStops() {
-    final stops = _gradient.stops.map((s) {
-      return s.copyWith(offset: 1.0 - s.offset);
-    }).toList()
-      ..sort((a, b) => a.offset.compareTo(b.offset));
-
     setState(() {
-      _gradient = _gradient.copyWith(stops: stops);
+      for (final s in _editorStops) {
+        s.offset = (1.0 - s.offset).clamp(0.0, 1.0);
+      }
+      _syncGradientFromStops();
     });
-    widget.onGradientChanged?.call(_gradient);
   }
 
   // --------------------------------------------------------------------------
@@ -410,74 +517,83 @@ class _NixColorPickerState extends State<NixColorPicker> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Container(
-      width: widget.width,
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.28),
-            blurRadius: 28,
-            spreadRadius: 2,
-            offset: const Offset(0, 10),
-          ),
-        ],
-        border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.35),
-          width: 0.8,
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: SingleChildScrollView(
-          physics: const ClampingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 1. Header Toolbar
-              if (widget.showHeader) _buildHeader(context, colorScheme),
-              const SizedBox(height: 10),
-
-              // 2. Mode Selector: Solid | Linear | Radial
-              if (widget.enableGradient) ...[
-                _buildModeSelector(colorScheme),
-                const SizedBox(height: 10),
-              ],
-
-              // 3. Gradient Stop Track (Visible when in Gradient Mode)
-              if (_mode != ColorPickerMode.solid) ...[
-                _buildGradientEditor(context, colorScheme),
-                const SizedBox(height: 10),
-              ],
-
-              // 4. Before / After Preview Pill with Drag-and-Drop & Contrast Check
-              _buildColorPreviewRow(context, colorScheme),
-              const SizedBox(height: 10),
-
-              // 5. 2D Saturation-Value Canvas Area
-              _buildSaturationValueCanvas(colorScheme),
-              const SizedBox(height: 10),
-
-              // 6. Hue Rainbow Slider & Alpha Slider
-              _buildSliders(colorScheme),
-              const SizedBox(height: 10),
-
-              // 7. Format Switcher & Direct Numeric Inputs
-              _buildFormatInputs(context, colorScheme),
-              const SizedBox(height: 10),
-
-              // 8. Pick & Drop Palette Swatches + Quick Actions
-              _buildSwatchesSection(context, colorScheme),
-
-              // 9. Bottom Actions
-              if (widget.showActions) ...[
-                const SizedBox(height: 12),
-                _buildBottomActions(colorScheme),
-              ],
+    return AnimatedOpacity(
+      duration: _isHidingForEyedropper
+          ? Duration.zero
+          : const Duration(milliseconds: 120),
+      opacity: _isHidingForEyedropper ? 0.0 : 1.0,
+      child: IgnorePointer(
+        ignoring: _isHidingForEyedropper,
+        child: Container(
+          width: widget.width,
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.28),
+                blurRadius: 28,
+                spreadRadius: 2,
+                offset: const Offset(0, 10),
+              ),
             ],
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+              width: 0.8,
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // 1. Header Toolbar
+                  if (widget.showHeader) _buildHeader(context, colorScheme),
+                  const SizedBox(height: 10),
+
+                  // 2. Mode Selector: Solid | Linear | Radial
+                  if (widget.enableGradient) ...[
+                    _buildModeSelector(colorScheme),
+                    const SizedBox(height: 10),
+                  ],
+
+                  // 3. Gradient Stop Track (Visible when in Gradient Mode)
+                  if (_mode != ColorPickerMode.solid) ...[
+                    _buildGradientEditor(context, colorScheme),
+                    const SizedBox(height: 10),
+                  ],
+
+                  // 4. Before / After Preview Pill with Drag-and-Drop & Contrast Check
+                  _buildColorPreviewRow(context, colorScheme),
+                  const SizedBox(height: 10),
+
+                  // 5. 2D Saturation-Value Canvas Area
+                  _buildSaturationValueCanvas(colorScheme),
+                  const SizedBox(height: 10),
+
+                  // 6. Hue Rainbow Slider & Alpha Slider
+                  _buildSliders(colorScheme),
+                  const SizedBox(height: 10),
+
+                  // 7. Format Switcher & Direct Numeric Inputs
+                  _buildFormatInputs(context, colorScheme),
+                  const SizedBox(height: 10),
+
+                  // 8. Pick & Drop Palette Swatches + Quick Actions
+                  _buildSwatchesSection(context, colorScheme),
+
+                  // 9. Bottom Actions
+                  if (widget.showActions) ...[
+                    const SizedBox(height: 12),
+                    _buildBottomActions(colorScheme),
+                  ],
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -487,25 +603,80 @@ class _NixColorPickerState extends State<NixColorPicker> {
   Widget _buildHeader(BuildContext context, ColorScheme colorScheme) {
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: colorScheme.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(RemixIcons.palette_line, size: 15, color: colorScheme.primary),
-        ),
-        const SizedBox(width: 8),
+        // Draggable Title Area
         Expanded(
-          child: Text(
-            widget.title,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.2,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onPanStart: (details) {
+              setState(() => _isDraggingHeader = true);
+              widget.onDragStart?.call();
+            },
+            onPanUpdate: (details) {
+              widget.onDragDelta?.call(details.delta);
+            },
+            onPanEnd: (details) {
+              setState(() => _isDraggingHeader = false);
+              widget.onDragEnd?.call();
+            },
+            onPanCancel: () {
+              setState(() => _isDraggingHeader = false);
+              widget.onDragEnd?.call();
+            },
+            child: MouseRegion(
+              cursor: widget.onDragDelta != null
+                  ? (_isDraggingHeader
+                      ? SystemMouseCursors.grabbing
+                      : SystemMouseCursors.grab)
+                  : MouseCursor.defer,
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      RemixIcons.palette_line,
+                      size: 15,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            widget.title,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ),
+                        if (widget.onDragDelta != null) ...[
+                          const SizedBox(width: 6),
+                          Icon(
+                            RemixIcons.drag_move_fill,
+                            size: 13,
+                            color: colorScheme.onSurfaceVariant.withValues(
+                              alpha: 0.45,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
+        const SizedBox(width: 4),
 
         // Eyedropper tool button
         _buildHeaderToolButton(
@@ -566,6 +737,7 @@ class _NixColorPickerState extends State<NixColorPicker> {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(6),
+        splashFactory: NoSplash.splashFactory,
         child: Container(
           padding: const EdgeInsets.all(5),
           decoration: BoxDecoration(
@@ -579,71 +751,55 @@ class _NixColorPickerState extends State<NixColorPicker> {
   }
 
   Widget _buildModeSelector(ColorScheme colorScheme) {
-    return Container(
-      padding: const EdgeInsets.all(2.5),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: ColorPickerMode.values.map((mode) {
-          final isSelected = _mode == mode;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _mode = mode;
-                  if (mode == ColorPickerMode.linearGradient) {
-                    _gradient = _gradient.copyWith(type: PaintFillType.linearGradient);
-                  } else if (mode == ColorPickerMode.radialGradient) {
-                    _gradient = _gradient.copyWith(type: PaintFillType.radialGradient);
-                  }
-                });
-                widget.onModeChanged?.call(mode);
-                if (mode != ColorPickerMode.solid) {
-                  widget.onGradientChanged?.call(_gradient);
-                } else {
-                  widget.onColorChanged(_currentColor);
-                }
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 140),
-                padding: const EdgeInsets.symmetric(vertical: 5),
-                decoration: BoxDecoration(
-                  color: isSelected ? colorScheme.surface : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.12),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Center(
-                  child: Text(
-                    mode.label,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected ? colorScheme.onSurface : colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
+    return MorphSegmentedToggle<ColorPickerMode>(
+      height: 32,
+      padding: 3,
+      selected: _mode,
+
+      onChanged: (mode) {
+        setState(() {
+          _mode = mode;
+          if (mode == ColorPickerMode.linearGradient) {
+            _gradient = _gradient.copyWith(type: PaintFillType.linearGradient);
+          } else if (mode == ColorPickerMode.radialGradient) {
+            _gradient = _gradient.copyWith(type: PaintFillType.radialGradient);
+          }
+          if (mode != ColorPickerMode.solid && _editorStops.isNotEmpty) {
+            final selected = _editorStops.firstWhere(
+              (s) => s.id == _selectedStopId,
+              orElse: () => _editorStops.first,
+            );
+            _initFromColor(selected.color);
+          }
+        });
+        widget.onModeChanged?.call(mode);
+        if (mode != ColorPickerMode.solid) {
+          widget.onGradientChanged?.call(_gradient);
+        } else {
+          widget.onColorChanged(_currentColor);
+        }
+      },
+      options: const [
+        MorphSegmentedToggleOption(
+          value: ColorPickerMode.solid,
+          label: 'Solid',
+        ),
+        MorphSegmentedToggleOption(
+          value: ColorPickerMode.linearGradient,
+          label: 'Linear',
+        ),
+        MorphSegmentedToggleOption(
+          value: ColorPickerMode.radialGradient,
+          label: 'Radial',
+        ),
+      ],
     );
   }
 
   Widget _buildGradientEditor(BuildContext context, ColorScheme colorScheme) {
-    final stops = _gradient.stops;
-    if (_selectedStopIndex >= stops.length) {
-      _selectedStopIndex = stops.length - 1;
+    if (_editorStops.isEmpty) return const SizedBox.shrink();
+    if (!_editorStops.any((s) => s.id == _selectedStopId)) {
+      _selectedStopId = _editorStops.first.id;
     }
 
     return Container(
@@ -659,78 +815,127 @@ class _NixColorPickerState extends State<NixColorPicker> {
           LayoutBuilder(
             builder: (context, constraints) {
               final trackWidth = constraints.maxWidth;
-              const handleSize = 18.0;
+              const double thumbRadius = 9.0;
+              const double handleSize = thumbRadius * 2; // 18.0
+              const double horizontalPadding = 12.0;
+              final double usableWidth = math.max(
+                1.0,
+                trackWidth - (horizontalPadding * 2),
+              );
+
+              final sortedForBar = List<_GradientStopModel>.from(_editorStops)
+                ..sort((a, b) => a.offset.compareTo(b.offset));
 
               return SizedBox(
-                height: 30,
+                key: _gradientTrackKey,
+                height: 38,
                 width: trackWidth,
                 child: Stack(
                   clipBehavior: Clip.none,
                   alignment: Alignment.centerLeft,
                   children: [
                     // Clickable gradient bar
-                    GestureDetector(
-                      onTapUp: (details) {
-                        final offset = (details.localPosition.dx / trackWidth).clamp(0.0, 1.0);
-                        _addGradientStop(offset);
-                      },
-                      child: Container(
-                        height: 12,
-                        width: trackWidth,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: colorScheme.outlineVariant.withValues(alpha: 0.6),
-                            width: 0.8,
-                          ),
-                          gradient: LinearGradient(
-                            colors: stops.map((s) => s.color).toList(),
-                            stops: stops.map((s) => s.offset).toList(),
+                    Positioned(
+                      left: horizontalPadding,
+                      right: horizontalPadding,
+                      top: 12,
+                      bottom: 12,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTapUp: (details) {
+                          final tapDx = details.localPosition.dx;
+                          // If tapped close to existing pin, select it instead of adding
+                          for (final s in _editorStops) {
+                            final stopPx = s.offset * usableWidth;
+                            if ((tapDx - stopPx).abs() <= 14.0) {
+                              _selectStop(s.id);
+                              return;
+                            }
+                          }
+                          final offset = (tapDx / usableWidth).clamp(0.0, 1.0);
+                          _addGradientStop(offset);
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(7),
+                            border: Border.all(
+                              color: colorScheme.outlineVariant.withValues(
+                                alpha: 0.6,
+                              ),
+                              width: 0.8,
+                            ),
+                            gradient: LinearGradient(
+                              colors: sortedForBar.map((s) => s.color).toList(),
+                              stops: sortedForBar.map((s) => s.offset).toList(),
+                            ),
                           ),
                         ),
                       ),
                     ),
 
-                    // Draggable Stop Pins
-                    ...stops.asMap().entries.map((entry) {
-                      final idx = entry.key;
-                      final stop = entry.value;
-                      final isSelected = idx == _selectedStopIndex;
-                      final thumbCenter = stop.offset * trackWidth;
-                      final left = (thumbCenter - (handleSize / 2)).clamp(
-                        0.0,
-                        trackWidth - handleSize,
-                      );
+                    // Draggable Stop Pins with generous hit target
+                    ..._editorStops.map((stop) {
+                      final isSelected = stop.id == _selectedStopId;
+                      final thumbCenterX =
+                          horizontalPadding + (stop.offset * usableWidth);
+                      const double pinHitWidth = 26.0;
+                      final left = thumbCenterX - (pinHitWidth / 2);
 
                       return Positioned(
+                        key: ValueKey(stop.id),
                         left: left,
-                        top: 6,
+                        top: 0,
+                        bottom: 0,
                         child: GestureDetector(
-                          onTap: () {
-                            setState(() => _selectedStopIndex = idx);
-                            _initFromColor(stop.color);
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => _selectStop(stop.id),
+                          onPanStart: (details) {
+                            _selectStop(stop.id);
                           },
                           onPanUpdate: (details) {
-                            final deltaOffset = details.delta.dx / trackWidth;
-                            _updateStopOffset(idx, stop.offset + deltaOffset);
+                            final RenderBox? box =
+                                _gradientTrackKey.currentContext
+                                        ?.findRenderObject()
+                                    as RenderBox?;
+                            if (box == null) return;
+                            final localPos = box.globalToLocal(
+                              details.globalPosition,
+                            );
+                            final newOffset =
+                                ((localPos.dx - horizontalPadding) /
+                                        usableWidth)
+                                    .clamp(0.0, 1.0);
+                            _updateStopOffsetById(stop.id, newOffset);
                           },
-                          child: Container(
-                            width: handleSize,
-                            height: handleSize,
-                            decoration: BoxDecoration(
-                              color: stop.color,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isSelected ? colorScheme.primary : Colors.white,
-                                width: isSelected ? 2.5 : 1.8,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.35),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 1.5),
+                          child: Center(
+                            child: MouseRegion(
+                              cursor: SystemMouseCursors.grab,
+                              child: Container(
+                                width: handleSize,
+                                height: handleSize,
+                                decoration: BoxDecoration(
+                                  color: stop.color,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? colorScheme.primary
+                                        : Colors.white,
+                                    width: isSelected ? 3.0 : 2.0,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: isSelected
+                                          ? colorScheme.primary.withValues(
+                                              alpha: 0.5,
+                                            )
+                                          : Colors.black.withValues(alpha: 0.35),
+                                      blurRadius: isSelected ? 6 : 4,
+                                      spreadRadius: isSelected ? 1 : 0,
+                                      offset: const Offset(0, 1.5),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
                         ),
@@ -756,7 +961,7 @@ class _NixColorPickerState extends State<NixColorPicker> {
               const SizedBox(width: 6),
 
               // Delete stop (if > 2)
-              if (stops.length > 2) ...[
+              if (_editorStops.length > 2) ...[
                 _buildGradientActionChip(
                   icon: RemixIcons.delete_bin_line,
                   label: 'Delete Stop',
@@ -770,12 +975,36 @@ class _NixColorPickerState extends State<NixColorPicker> {
 
               // Angle (Linear only)
               if (_mode == ColorPickerMode.linearGradient) ...[
-                Text(
-                  '${_gradient.angle.round()}°',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: colorScheme.onSurfaceVariant,
+                Tooltip(
+                  message: 'Click to cycle preset angles',
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(4),
+                    onTap: () {
+                      final current = _gradient.angle.round();
+                      final angles = [0, 45, 90, 135, 180, 225, 270, 315];
+                      final next = angles.firstWhere(
+                        (a) => a > current,
+                        orElse: () => 0,
+                      );
+                      setState(() {
+                        _gradient = _gradient.copyWith(angle: next.toDouble());
+                      });
+                      widget.onGradientChanged?.call(_gradient);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 3,
+                        vertical: 1,
+                      ),
+                      child: Text(
+                        '${_gradient.angle.round()}°',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -785,14 +1014,20 @@ class _NixColorPickerState extends State<NixColorPicker> {
                   child: SliderTheme(
                     data: SliderThemeData(
                       trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 8),
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 5,
+                      ),
+                      overlayShape: const RoundSliderOverlayShape(
+                        overlayRadius: 8,
+                      ),
                       activeTrackColor: colorScheme.primary,
-                      inactiveTrackColor: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                      inactiveTrackColor: colorScheme.outlineVariant.withValues(
+                        alpha: 0.3,
+                      ),
                       thumbColor: colorScheme.primary,
                     ),
                     child: Slider(
-                      value: _gradient.angle % 360,
+                      value: _gradient.angle.clamp(0.0, 360.0),
                       min: 0,
                       max: 360,
                       onChanged: (val) {
@@ -822,10 +1057,20 @@ class _NixColorPickerState extends State<NixColorPicker> {
                   onTap: () {
                     setState(() {
                       _gradient = preset.copyWith(type: _gradient.type);
-                      _selectedStopIndex = 0;
+                      _editorStops = preset.stops.map((s) {
+                        return _GradientStopModel(
+                          id: _nextStopId++,
+                          offset: s.offset.clamp(0.0, 1.0),
+                          color: s.color,
+                        );
+                      }).toList();
+                      _selectedStopId =
+                          _editorStops.isNotEmpty ? _editorStops.first.id : 0;
+                      _syncGradientFromStops();
                     });
-                    _initFromColor(_gradient.stops[0].color);
-                    widget.onGradientChanged?.call(_gradient);
+                    if (_editorStops.isNotEmpty) {
+                      _initFromColor(_editorStops.first.color);
+                    }
                   },
                   child: Container(
                     width: 38,
@@ -833,7 +1078,9 @@ class _NixColorPickerState extends State<NixColorPicker> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+                        color: colorScheme.outlineVariant.withValues(
+                          alpha: 0.4,
+                        ),
                         width: 0.8,
                       ),
                       gradient: LinearGradient(
@@ -877,7 +1124,10 @@ class _NixColorPickerState extends State<NixColorPicker> {
             const SizedBox(width: 4),
             Text(
               label,
-              style: TextStyle(fontSize: 10, color: colorScheme.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: 10,
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -886,8 +1136,14 @@ class _NixColorPickerState extends State<NixColorPicker> {
   }
 
   Widget _buildColorPreviewRow(BuildContext context, ColorScheme colorScheme) {
-    final whiteContrast = NixColorUtils.contrastRatio(_currentColor, Colors.white);
-    final blackContrast = NixColorUtils.contrastRatio(_currentColor, Colors.black);
+    final whiteContrast = NixColorUtils.contrastRatio(
+      _currentColor,
+      Colors.white,
+    );
+    final blackContrast = NixColorUtils.contrastRatio(
+      _currentColor,
+      Colors.black,
+    );
     final bestContrast = math.max(whiteContrast, blackContrast);
     final rating = NixColorUtils.wcagRating(bestContrast);
 
@@ -944,7 +1200,10 @@ class _NixColorPickerState extends State<NixColorPicker> {
                               decoration: BoxDecoration(
                                 color: _currentColor,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2.5),
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 2.5,
+                                ),
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.black.withValues(alpha: 0.35),
@@ -962,8 +1221,12 @@ class _NixColorPickerState extends State<NixColorPicker> {
                                   : null,
                               gradient: _mode != ColorPickerMode.solid
                                   ? LinearGradient(
-                                      colors: _gradient.stops.map((s) => s.color).toList(),
-                                      stops: _gradient.stops.map((s) => s.offset).toList(),
+                                      colors: _gradient.stops
+                                          .map((s) => s.color)
+                                          .toList(),
+                                      stops: _gradient.stops
+                                          .map((s) => s.offset)
+                                          .toList(),
                                     )
                                   : null,
                             ),
@@ -986,7 +1249,9 @@ class _NixColorPickerState extends State<NixColorPicker> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                color: colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.5,
+                ),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
                   color: colorScheme.outlineVariant.withValues(alpha: 0.25),
@@ -1024,9 +1289,13 @@ class _NixColorPickerState extends State<NixColorPicker> {
                     ),
                   ),
                   Icon(
-                    _isCopied ? RemixIcons.check_line : RemixIcons.file_copy_line,
+                    _isCopied
+                        ? RemixIcons.check_line
+                        : RemixIcons.file_copy_line,
                     size: 14,
-                    color: _isCopied ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                    color: _isCopied
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -1092,11 +1361,15 @@ class _NixColorPickerState extends State<NixColorPicker> {
             return GestureDetector(
               onPanDown: (details) {
                 FocusManager.instance.primaryFocus?.unfocus();
-                final h = (details.localPosition.dx / trackWidth).clamp(0.0, 1.0) * 360.0;
+                final h =
+                    (details.localPosition.dx / trackWidth).clamp(0.0, 1.0) *
+                    360.0;
                 _updateActiveColor(hue: h);
               },
               onPanUpdate: (details) {
-                final h = (details.localPosition.dx / trackWidth).clamp(0.0, 1.0) * 360.0;
+                final h =
+                    (details.localPosition.dx / trackWidth).clamp(0.0, 1.0) *
+                    360.0;
                 _updateActiveColor(hue: h);
               },
               child: Container(
@@ -1127,11 +1400,17 @@ class _NixColorPickerState extends State<NixColorPicker> {
             return GestureDetector(
               onPanDown: (details) {
                 FocusManager.instance.primaryFocus?.unfocus();
-                final a = (details.localPosition.dx / trackWidth).clamp(0.0, 1.0);
+                final a = (details.localPosition.dx / trackWidth).clamp(
+                  0.0,
+                  1.0,
+                );
                 _updateActiveColor(alpha: a);
               },
               onPanUpdate: (details) {
-                final a = (details.localPosition.dx / trackWidth).clamp(0.0, 1.0);
+                final a = (details.localPosition.dx / trackWidth).clamp(
+                  0.0,
+                  1.0,
+                );
                 _updateActiveColor(alpha: a);
               },
               child: Container(
@@ -1146,7 +1425,10 @@ class _NixColorPickerState extends State<NixColorPicker> {
                 ),
                 child: CustomPaint(
                   size: Size(trackWidth, trackHeight),
-                  painter: NixAlphaTrackPainter(baseColor: _currentColor, alpha: _alpha),
+                  painter: NixAlphaTrackPainter(
+                    baseColor: _currentColor,
+                    alpha: _alpha,
+                  ),
                 ),
               ),
             );
@@ -1180,7 +1462,9 @@ class _NixColorPickerState extends State<NixColorPicker> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     decoration: BoxDecoration(
-                      color: isSelected ? colorScheme.surface : Colors.transparent,
+                      color: isSelected
+                          ? colorScheme.surface
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Center(
@@ -1188,8 +1472,12 @@ class _NixColorPickerState extends State<NixColorPicker> {
                         fmt.label,
                         style: TextStyle(
                           fontSize: 10,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: isSelected
+                              ? colorScheme.primary
+                              : colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -1226,7 +1514,9 @@ class _NixColorPickerState extends State<NixColorPicker> {
                     onChanged: (_) {
                       final val = int.tryParse(_c4Controller.text);
                       if (val != null) {
-                        _updateActiveColor(alpha: (val / 100.0).clamp(0.0, 1.0));
+                        _updateActiveColor(
+                          alpha: (val / 100.0).clamp(0.0, 1.0),
+                        );
                       }
                     },
                   ),
@@ -1336,7 +1626,10 @@ class _NixColorPickerState extends State<NixColorPicker> {
                   decoration: const InputDecoration(
                     border: InputBorder.none,
                     isDense: true,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 5, vertical: 7),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 7,
+                    ),
                   ),
                   onChanged: onChanged,
                 ),
@@ -1399,15 +1692,23 @@ class _NixColorPickerState extends State<NixColorPicker> {
           spacing: 6,
           runSpacing: 6,
           children: [
-            ..._userSwatches.map((color) => _buildSwatchItem(color, colorScheme, isCustom: true)),
-            ...NixColorUtils.curatedPresets.take(14).map((color) => _buildSwatchItem(color, colorScheme)),
+            ..._userSwatches.map(
+              (color) => _buildSwatchItem(color, colorScheme, isCustom: true),
+            ),
+            ...NixColorUtils.curatedPresets
+                .take(14)
+                .map((color) => _buildSwatchItem(color, colorScheme)),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildSwatchItem(Color color, ColorScheme colorScheme, {bool isCustom = false}) {
+  Widget _buildSwatchItem(
+    Color color,
+    ColorScheme colorScheme, {
+    bool isCustom = false,
+  }) {
     final isSelected = _currentColor.toARGB32() == color.toARGB32();
 
     return DragTarget<Color>(
@@ -1468,10 +1769,10 @@ class _NixColorPickerState extends State<NixColorPicker> {
                   color: isHovered
                       ? colorScheme.primary
                       : (isSelected
-                          ? colorScheme.primary
-                          : (color == Colors.white
-                              ? colorScheme.outlineVariant
-                              : Colors.transparent)),
+                            ? colorScheme.primary
+                            : (color == Colors.white
+                                  ? colorScheme.outlineVariant
+                                  : Colors.transparent)),
                   width: isHovered ? 2.5 : (isSelected ? 2.2 : 1.0),
                 ),
                 boxShadow: isSelected

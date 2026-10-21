@@ -9,7 +9,7 @@ export 'color_picker/color_picker_experiment_widget.dart';
 export 'color_picker/nix_eyedropper_overlay.dart';
 
 /// Backward-compatible dialog wrapper for [NixColorPicker] with Material 3 Expressive polish.
-class ColorPickerDialog extends StatelessWidget {
+class ColorPickerDialog extends StatefulWidget {
   final Color initialColor;
   final ValueChanged<Color> onColorSelected;
   final String title;
@@ -22,18 +22,33 @@ class ColorPickerDialog extends StatelessWidget {
   });
 
   @override
+  State<ColorPickerDialog> createState() => _ColorPickerDialogState();
+}
+
+class _ColorPickerDialogState extends State<ColorPickerDialog> {
+  Offset _dragOffset = Offset.zero;
+
+  @override
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Center(
-        child: NixColorPicker(
-          initialColor: initialColor,
-          title: title,
-          onColorChanged: onColorSelected,
-          onColorFinalized: onColorSelected,
-          onClose: () => Navigator.of(context).pop(),
+        child: Transform.translate(
+          offset: _dragOffset,
+          child: NixColorPicker(
+            initialColor: widget.initialColor,
+            title: widget.title,
+            onDragDelta: (delta) {
+              setState(() {
+                _dragOffset += delta;
+              });
+            },
+            onColorChanged: widget.onColorSelected,
+            onColorFinalized: widget.onColorSelected,
+            onClose: () => Navigator.of(context).pop(),
+          ),
         ),
       ),
     );

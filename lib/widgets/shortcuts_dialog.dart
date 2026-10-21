@@ -59,6 +59,11 @@ class ShortcutsDialog extends StatelessWidget {
                   _buildShortcutRow(context, 'C / P', 'Draw Curve / Path Tool'),
                   _buildShortcutRow(context, 'S', 'Draw Star Tool'),
                   _buildShortcutRow(context, 'T', 'Draw Text Tool'),
+                  _buildShortcutRow(
+                    context,
+                    'I',
+                    'Pick Color from Screen (Eyedropper)',
+                  ),
                 ],
               ),
               _buildShortcutCard(

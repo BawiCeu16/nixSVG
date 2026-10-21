@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nixsvg/models/vector_shape.dart';
 import 'package:nixsvg/widgets/color_picker_dialog.dart';
@@ -177,6 +178,163 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('LIVE EMBEDDED WIDGET'), findsOneWidget);
+    });
+
+    testWidgets('Header drag callback triggers delta updates', (tester) async {
+      Offset totalDelta = Offset.zero;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: NixColorPicker(
+                initialColor: const Color(0xFF6366F1),
+                onColorChanged: (_) {},
+                onDragDelta: (delta) => totalDelta += delta,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Find header title and drag it
+      final headerFinder = find.text('Color & Gradient');
+      expect(headerFinder, findsOneWidget);
+
+      await tester.drag(headerFinder, const Offset(50, 30));
+      await tester.pumpAndSettle();
+
+      expect(totalDelta.dx, greaterThan(0));
+      expect(totalDelta.dy, greaterThan(0));
+    });
+
+    testWidgets('Gradient Slider interacts smoothly with stops and reverse', (tester) async {
+      ShapeGradient? currentGradient;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: NixColorPicker(
+                initialColor: const Color(0xFF6366F1),
+                initialMode: ColorPickerMode.linearGradient,
+                onColorChanged: (_) {},
+                onGradientChanged: (g) => currentGradient = g,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Reverse'), findsOneWidget);
+
+      // Tap Reverse to verify gradient reverses
+      await tester.tap(find.text('Reverse'));
+      await tester.pumpAndSettle();
+
+      expect(currentGradient, isNotNull);
+      expect(currentGradient!.stops.length, equals(2));
+    });
+
+    testWidgets('Changing stop color in gradient mode only invokes onGradientChanged and NOT onColorChanged', (tester) async {
+      int colorChangedCalls = 0;
+      ShapeGradient? lastGradient;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: NixColorPicker(
+                initialColor: const Color(0xFF6366F1),
+                initialMode: ColorPickerMode.linearGradient,
+                onColorChanged: (_) => colorChangedCalls++,
+                onGradientChanged: (g) => lastGradient = g,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Invert color or trigger color change on selected stop
+      final invertButton = find.byTooltip('Invert Color');
+      expect(invertButton, findsOneWidget);
+
+      await tester.tap(invertButton);
+      await tester.pumpAndSettle();
+
+      // onColorChanged must NOT be called in gradient mode
+      expect(colorChangedCalls, equals(0));
+      // onGradientChanged MUST be called with updated stop color
+      expect(lastGradient, isNotNull);
+      expect(lastGradient!.type, equals(PaintFillType.linearGradient));
+    });
+
+    testWidgets('Eyedropper launches overlay, shows Figma loupe, and applies sampled color on tap', (tester) async {
+      Color? pickedColor;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: NixColorPicker(
+                initialColor: const Color(0xFF6366F1),
+                initialMode: ColorPickerMode.solid,
+                onColorChanged: (c) => pickedColor = c,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final eyedropperButton = find.byTooltip('Pick Color (Eyedropper)');
+      expect(eyedropperButton, findsOneWidget);
+
+      await tester.tap(eyedropperButton);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // Eyedropper overlay instructions pill should now be visible on screen
+      expect(find.textContaining('Click to sample screen color'), findsOneWidget);
+
+      // Tap on the screen to sample a color
+      await tester.tapAt(const Offset(50, 50));
+      await tester.pumpAndSettle();
+
+      // Overlay should be removed and sampled color applied
+      expect(find.textContaining('Click to sample screen color'), findsNothing);
+      expect(pickedColor, isNotNull);
+    });
+
+    testWidgets('Eyedropper can be cancelled with Escape key without applying', (tester) async {
+      Color? pickedColor;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: NixColorPicker(
+                initialColor: const Color(0xFF6366F1),
+                initialMode: ColorPickerMode.solid,
+                onColorChanged: (c) => pickedColor = c,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final eyedropperButton = find.byTooltip('Pick Color (Eyedropper)');
+      await tester.tap(eyedropperButton);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(find.textContaining('Click to sample screen color'), findsOneWidget);
+
+      // Press Escape to cancel
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Click to sample screen color'), findsNothing);
+      expect(pickedColor, isNull);
     });
   });
 }

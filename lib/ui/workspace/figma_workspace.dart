@@ -117,6 +117,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   bool _isMouseOverCanvas = false;
   Offset? _lastPanPosition;
   Offset? _lastMouseCanvasPosition;
+  Offset? _lastGlobalMousePosition;
   final GlobalKey _canvasKey = GlobalKey();
   final FocusNode _workspaceFocusNode = FocusNode(debugLabel: 'WorkspaceFocus');
 
@@ -352,6 +353,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           LogicalKeyboardKey.space,
         );
 
+    _lastGlobalMousePosition = event.position;
     if (isPan) {
       _isPanningWithMouse = true;
       _lastPanPosition = event.position;
@@ -561,6 +563,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   }
 
   void _onPointerMove(PointerMoveEvent event) {
+    _lastGlobalMousePosition = event.position;
     if (_isPanningWithMouse && _lastPanPosition != null) {
       final delta = event.position - _lastPanPosition!;
       _lastPanPosition = event.position;
@@ -1151,10 +1154,67 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     return Offset(centerX, centerY);
   }
 
+  Offset _getCurrentZoomFocalCanvasPoint() {
+    final canvasBox =
+        _canvasKey.currentContext?.findRenderObject() as RenderBox?;
+    if (canvasBox != null && canvasBox.hasSize && _lastGlobalMousePosition != null) {
+      final localPos = canvasBox.globalToLocal(_lastGlobalMousePosition!);
+      final size = canvasBox.size;
+      // If cursor is within the canvas viewport bounds
+      if (localPos.dx >= 0 &&
+          localPos.dx <= size.width &&
+          localPos.dy >= 0 &&
+          localPos.dy <= size.height) {
+        return CanvasTransformHelper.screenToCanvas(
+          _transformationController.value,
+          localPos,
+        );
+      }
+    }
+
+    // If cursor was recorded over the canvas viewport
+    if (_isMouseOverCanvas && _lastMouseCanvasPosition != null) {
+      return _lastMouseCanvasPosition!;
+    }
+
+    // If shapes are selected and cursor is outside canvas, zoom focused on selection center
+    if (selectedShapeIds.isNotEmpty) {
+      final selected = shapes
+          .where((s) => selectedShapeIds.contains(s.id))
+          .toList();
+      if (selected.isNotEmpty) {
+        Rect bounds = selected.first.rect;
+        for (final s in selected.skip(1)) {
+          bounds = bounds.expandToInclude(s.rect);
+        }
+        return bounds.center;
+      }
+    }
+
+    // Fallback: zoom into last known canvas position or center of the viewport
+    return _lastMouseCanvasPosition ?? _getViewportCanvasCenter();
+  }
+
+  void _updateMouseCanvasPositionFromGlobal() {
+    final canvasBox =
+        _canvasKey.currentContext?.findRenderObject() as RenderBox?;
+    if (canvasBox != null && canvasBox.hasSize && _lastGlobalMousePosition != null) {
+      final localPos = canvasBox.globalToLocal(_lastGlobalMousePosition!);
+      final size = canvasBox.size;
+      if (localPos.dx >= 0 &&
+          localPos.dx <= size.width &&
+          localPos.dy >= 0 &&
+          localPos.dy <= size.height) {
+        _lastMouseCanvasPosition = CanvasTransformHelper.screenToCanvas(
+          _transformationController.value,
+          localPos,
+        );
+      }
+    }
+  }
+
   void _zoomIn() {
-    final focalPoint = (_isMouseOverCanvas && _lastMouseCanvasPosition != null)
-        ? _lastMouseCanvasPosition!
-        : _getViewportCanvasCenter();
+    final focalPoint = _getCurrentZoomFocalCanvasPoint();
     setState(() {
       _transformationController.value = CanvasTransformHelper.zoomAtCanvasPoint(
         _transformationController.value,
@@ -1162,12 +1222,11 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         1.2,
       );
     });
+    _updateMouseCanvasPositionFromGlobal();
   }
 
   void _zoomOut() {
-    final focalPoint = (_isMouseOverCanvas && _lastMouseCanvasPosition != null)
-        ? _lastMouseCanvasPosition!
-        : _getViewportCanvasCenter();
+    final focalPoint = _getCurrentZoomFocalCanvasPoint();
     setState(() {
       _transformationController.value = CanvasTransformHelper.zoomAtCanvasPoint(
         _transformationController.value,
@@ -1175,6 +1234,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         1.0 / 1.2,
       );
     });
+    _updateMouseCanvasPositionFromGlobal();
   }
 
   void _zoomToFit() {
@@ -1224,9 +1284,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     );
     if (currentScale <= 0) return;
     final factor = targetScale / currentScale;
-    final focalPoint = (_isMouseOverCanvas && _lastMouseCanvasPosition != null)
-        ? _lastMouseCanvasPosition!
-        : _getViewportCanvasCenter();
+    final focalPoint = _getCurrentZoomFocalCanvasPoint();
     setState(() {
       _transformationController.value = CanvasTransformHelper.zoomAtCanvasPoint(
         _transformationController.value,
@@ -1234,6 +1292,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         factor,
       );
     });
+    _updateMouseCanvasPositionFromGlobal();
   }
 
   void _togglePanMode() {
@@ -1338,11 +1397,71 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     showDialog(context: context, builder: (context) => const ShortcutsDialog());
   }
 
+  Color _sampleShapeColorAtScreenPoint(Offset screenPos) {
+    try {
+      final canvasBox =
+          _canvasKey.currentContext?.findRenderObject() as RenderBox?;
+      final viewportPos = canvasBox != null
+          ? canvasBox.globalToLocal(screenPos)
+          : screenPos;
+      final canvasPos = CanvasTransformHelper.screenToCanvas(
+        _transformationController.value,
+        viewportPos,
+      );
+
+      for (int i = shapes.length - 1; i >= 0; i--) {
+        final shape = shapes[i];
+        if (shape.isVisible && CanvasHitTester.hitTestShape(canvasPos, shape)) {
+          if (shape.fillType != PaintFillType.solid &&
+              shape.fillGradient != null &&
+              shape.fillGradient!.stops.isNotEmpty) {
+            return shape.fillGradient!.stops.first.color;
+          }
+          return shape.fillColor;
+        }
+      }
+      return canvasBackgroundColor ?? Colors.white;
+    } catch (_) {
+      return canvasBackgroundColor ?? Colors.white;
+    }
+  }
+
+  Future<void> _pickColorFromScreen() async {
+    Color? initialColor;
+    if (selectedShapeIds.isNotEmpty) {
+      final selected = shapes.cast<VectorShape?>().firstWhere(
+        (s) => selectedShapeIds.contains(s?.id),
+        orElse: () => null,
+      );
+      initialColor = selected?.fillColor;
+    }
+
+    final sampled = await NixEyedropper.pickColor(
+      context: context,
+      initialColor: initialColor ?? Colors.black,
+      onSamplePixel: _sampleShapeColorAtScreenPoint,
+    );
+
+    if (sampled != null && mounted) {
+      if (selectedShapeIds.isNotEmpty) {
+        setState(() {
+          shapes = List.of(shapes);
+          for (final id in selectedShapeIds) {
+            final s = shapes.firstWhere((shape) => shape.id == id);
+            s.fillColor = sampled;
+            s.fillType = PaintFillType.solid;
+            s.invalidateCache();
+          }
+        });
+        _saveHistorySnapshot();
+      }
+    }
+  }
+
   void _openColorPicker(bool isFill, [Rect? anchorRect]) {
     FocusManager.instance.primaryFocus?.unfocus();
     if (selectedShapeIds.isEmpty) return;
     final target = shapes.firstWhere((s) => s.id == selectedShapeIds.first);
-    final initialGrad = isFill ? target.fillGradient : target.strokeGradient;
     final initialMode = isFill
         ? (target.fillType == PaintFillType.linearGradient
             ? ColorPickerMode.linearGradient
@@ -1354,6 +1473,21 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
             : (target.strokeType == PaintFillType.radialGradient
                 ? ColorPickerMode.radialGradient
                 : ColorPickerMode.solid));
+    final initialGrad = (isFill ? target.fillGradient : target.strokeGradient) ??
+        (initialMode != ColorPickerMode.solid
+            ? ShapeGradient(
+                type: initialMode == ColorPickerMode.radialGradient
+                    ? PaintFillType.radialGradient
+                    : PaintFillType.linearGradient,
+                stops: [
+                  GradientColorStop(
+                    offset: 0.0,
+                    color: isFill ? target.fillColor : target.strokeColor,
+                  ),
+                  const GradientColorStop(offset: 1.0, color: Color(0xFF38BDF8)),
+                ],
+              )
+            : null);
 
     showNixColorPicker(
       context: context,
@@ -1375,9 +1509,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
               s.strokeColor = color;
               s.strokeType = PaintFillType.solid;
             }
+            s.invalidateCache();
           }
         });
-        _saveHistorySnapshot();
       },
       onGradientChanged: (grad) {
         setState(() {
@@ -1391,9 +1525,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
               s.strokeGradient = grad;
               s.strokeType = grad.type;
             }
+            s.invalidateCache();
           }
         });
-        _saveHistorySnapshot();
       },
       onModeChanged: (mode) {
         setState(() {
@@ -1407,14 +1541,34 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                     : PaintFillType.solid);
             if (isFill) {
               s.fillType = pft;
+              if (s.fillGradient == null && pft != PaintFillType.solid) {
+                s.fillGradient = ShapeGradient(
+                  type: pft,
+                  stops: [
+                    GradientColorStop(offset: 0.0, color: s.fillColor),
+                    const GradientColorStop(offset: 1.0, color: Color(0xFF38BDF8)),
+                  ],
+                );
+              }
             } else {
               s.strokeType = pft;
+              if (s.strokeGradient == null && pft != PaintFillType.solid) {
+                s.strokeGradient = ShapeGradient(
+                  type: pft,
+                  stops: [
+                    GradientColorStop(offset: 0.0, color: s.strokeColor),
+                    const GradientColorStop(offset: 1.0, color: Color(0xFF38BDF8)),
+                  ],
+                );
+              }
             }
+            s.invalidateCache();
           }
         });
-        _saveHistorySnapshot();
       },
-    );
+    ).then((_) {
+      _saveHistorySnapshot();
+    });
   }
 
   void _onPropertiesShapeChanged(VectorShape updated) {
@@ -1605,6 +1759,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           _zoomToSelection();
           return KeyEventResult.handled;
         } else if (event.logicalKey == LogicalKeyboardKey.equal ||
+            event.logicalKey == LogicalKeyboardKey.add ||
             event.logicalKey == LogicalKeyboardKey.numpadAdd) {
           _zoomIn();
           return KeyEventResult.handled;
@@ -1723,6 +1878,18 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         } else if (event.logicalKey == LogicalKeyboardKey.keyT) {
           setState(() => currentMode = EditorMode.drawText);
           return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.keyI) {
+          _pickColorFromScreen();
+          return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.equal ||
+            event.logicalKey == LogicalKeyboardKey.add ||
+            event.logicalKey == LogicalKeyboardKey.numpadAdd) {
+          _zoomIn();
+          return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.minus ||
+            event.logicalKey == LogicalKeyboardKey.numpadSubtract) {
+          _zoomOut();
+          return KeyEventResult.handled;
         }
       }
     }
@@ -1745,7 +1912,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       focusNode: _workspaceFocusNode,
       autofocus: true,
       onKeyEvent: _handleKeyEvent,
-      child: Scaffold(
+      child: MouseRegion(
+        onHover: (event) => _lastGlobalMousePosition = event.position,
+        child: Scaffold(
         backgroundColor: colorScheme.surfaceContainerLowest,
         body: Column(
           children: [
@@ -2224,7 +2393,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   ShapeType? _getShapeTypeFromMode(EditorMode mode) {

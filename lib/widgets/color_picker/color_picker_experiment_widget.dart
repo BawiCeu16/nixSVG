@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:m3e_buttons/m3e_buttons.dart';
-import 'package:m3e_segmented_list/m3e_segmented_list.dart';
 import 'package:remixicon/remixicon.dart';
 
 import 'package:nixsvg/models/vector_shape.dart';
+
 import 'nix_color_models.dart';
 import 'nix_color_picker.dart';
 import 'nix_color_picker_presenter.dart';
@@ -32,7 +32,8 @@ class _ColorPickerExperimentWidgetState
     angle: 90.0,
   );
 
-  int _presentationMode = 0; // 0: Adaptive Popover, 1: Centered Dialog, 2: Embedded Inline
+  int _presentationMode =
+      0; // 0: Adaptive Popover, 1: Centered Dialog, 2: Embedded Inline
   final GlobalKey _triggerButtonKey = GlobalKey();
 
   @override
@@ -75,7 +76,11 @@ class _ColorPickerExperimentWidgetState
                       color: _pickedColor.withValues(alpha: 0.18),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(RemixIcons.flask_line, color: _pickedColor, size: 20),
+                    child: Icon(
+                      RemixIcons.flask_line,
+                      color: _pickedColor,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -117,51 +122,43 @@ class _ColorPickerExperimentWidgetState
                 ),
               ),
               const SizedBox(height: 8),
-              M3ESegmentedRow(
-                equalWidth: true,
-                onTap: (idx) => setState(() => _presentationMode = idx),
-                decoration: M3ESegmentedListDecoration(
-                  outerRadius: 10.0,
-                  innerRadius: 6.0,
-                  gap: 2.0,
-                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                  color: colorScheme.surfaceContainerHighest,
-                  hoverColor: colorScheme.primary.withValues(alpha: 0.12),
-                  pressedRadius: 8.0,
-                  pressedScale: 0.98,
-                ),
-                children: [
-                  Center(
-                    child: Text(
-                      'Adaptive Popover',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: _presentationMode == 0 ? FontWeight.bold : FontWeight.normal,
-                        color: _presentationMode == 0 ? colorScheme.primary : colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+              SegmentedButton<int>(
+                segments: const [
+                  ButtonSegment<int>(
+                    value: 0,
+                    icon: Icon(RemixIcons.window_line, size: 14),
+                    label: Text('Adaptive Popover'),
                   ),
-                  Center(
-                    child: Text(
-                      'Modal Dialog',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: _presentationMode == 1 ? FontWeight.bold : FontWeight.normal,
-                        color: _presentationMode == 1 ? colorScheme.primary : colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+                  ButtonSegment<int>(
+                    value: 1,
+                    icon: Icon(RemixIcons.chat_1_line, size: 14),
+                    label: Text('Modal Dialog'),
                   ),
-                  Center(
-                    child: Text(
-                      'Embedded Inline',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: _presentationMode == 2 ? FontWeight.bold : FontWeight.normal,
-                        color: _presentationMode == 2 ? colorScheme.primary : colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+                  ButtonSegment<int>(
+                    value: 2,
+                    icon: Icon(RemixIcons.layout_bottom_line, size: 14),
+                    label: Text('Embedded Inline'),
                   ),
                 ],
+                selected: {_presentationMode},
+                onSelectionChanged: (newSelection) {
+                  setState(() => _presentationMode = newSelection.first);
+                },
+                showSelectedIcon: false,
+                style: SegmentedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  textStyle: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
 
@@ -176,11 +173,17 @@ class _ColorPickerExperimentWidgetState
                         height: 96,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: _activeMode == ColorPickerMode.solid ? _pickedColor : null,
+                          color: _activeMode == ColorPickerMode.solid
+                              ? _pickedColor
+                              : null,
                           gradient: _activeMode != ColorPickerMode.solid
                               ? LinearGradient(
-                                  colors: _pickedGradient.stops.map((s) => s.color).toList(),
-                                  stops: _pickedGradient.stops.map((s) => s.offset).toList(),
+                                  colors: _pickedGradient.stops
+                                      .map((s) => s.color)
+                                      .toList(),
+                                  stops: _pickedGradient.stops
+                                      .map((s) => s.offset)
+                                      .toList(),
                                 )
                               : null,
                           borderRadius: BorderRadius.circular(16),
@@ -195,7 +198,10 @@ class _ColorPickerExperimentWidgetState
                         child: Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.black.withValues(alpha: 0.4),
                                 borderRadius: BorderRadius.circular(8),
@@ -237,10 +243,14 @@ class _ColorPickerExperimentWidgetState
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                          color: colorScheme.surfaceContainerHighest.withValues(
+                            alpha: 0.5,
+                          ),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                            color: colorScheme.outlineVariant.withValues(
+                              alpha: 0.3,
+                            ),
                           ),
                         ),
                         child: Row(
@@ -288,7 +298,8 @@ class _ColorPickerExperimentWidgetState
                               theme,
                               colorScheme,
                               title: 'HSL',
-                              code: 'hsl(${hsla.h}°, ${hsla.sPct}%, ${hsla.lPct}%)',
+                              code:
+                                  'hsl(${hsla.h}°, ${hsla.sPct}%, ${hsla.lPct}%)',
                               sub: 'Alpha: ${hsla.aPct}%',
                             ),
                           ),
@@ -298,7 +309,8 @@ class _ColorPickerExperimentWidgetState
                               theme,
                               colorScheme,
                               title: 'HSV',
-                              code: 'hsv(${hsva.h}°, ${hsva.sPct}%, ${hsva.vPct}%)',
+                              code:
+                                  'hsv(${hsva.h}°, ${hsva.sPct}%, ${hsva.vPct}%)',
                               sub: 'Alpha: ${hsva.aPct}%',
                             ),
                           ),
@@ -326,9 +338,12 @@ class _ColorPickerExperimentWidgetState
                             showHeader: false,
                             showActions: false,
                             width: double.infinity,
-                            onColorChanged: (c) => setState(() => _pickedColor = c),
-                            onGradientChanged: (g) => setState(() => _pickedGradient = g),
-                            onModeChanged: (m) => setState(() => _activeMode = m),
+                            onColorChanged: (c) =>
+                                setState(() => _pickedColor = c),
+                            onGradientChanged: (g) =>
+                                setState(() => _pickedGradient = g),
+                            onModeChanged: (m) =>
+                                setState(() => _activeMode = m),
                           ),
                         ),
                       ],
@@ -344,7 +359,8 @@ class _ColorPickerExperimentWidgetState
   }
 
   void _launchColorPicker() {
-    final RenderBox? box = _triggerButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    final RenderBox? box =
+        _triggerButtonKey.currentContext?.findRenderObject() as RenderBox?;
     final Rect? anchor = box != null && box.hasSize
         ? (box.localToGlobal(Offset.zero) & box.size)
         : null;
