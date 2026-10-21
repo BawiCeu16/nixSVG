@@ -145,6 +145,21 @@ class ShortcutsDialog extends StatelessWidget {
                   ),
                 ],
               ),
+              _buildShortcutCard(
+                context,
+                children: [
+                  _buildShortcutRow(
+                    context,
+                    'Ctrl + , / ⌘ + ,',
+                    'Open Settings & Preferences',
+                  ),
+                  _buildShortcutRow(
+                    context,
+                    'Ctrl + E',
+                    'Export SVG Artwork',
+                  ),
+                ],
+              ),
             ],
           ),
         ),

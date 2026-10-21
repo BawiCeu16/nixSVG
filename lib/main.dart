@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart' as mui;
+import 'package:nixsvg/providers/app_settings_provider.dart';
 import 'package:nixsvg/providers/preferences_provider.dart';
 import 'package:nixsvg/providers/project_provider.dart';
 import 'package:nixsvg/providers/theme_provider.dart';
@@ -80,6 +81,7 @@ class _NixSvgAppView extends ConsumerWidget {
 
     // Watch dynamic reactive theme state managed by Riverpod & SharedPreferences
     final themeState = ref.watch(themeProvider);
+    final appSettings = ref.watch(appSettingsProvider);
     final seedColor = themeState.seedColor;
 
     return MaterialApp(
@@ -99,9 +101,11 @@ class _NixSvgAppView extends ConsumerWidget {
       darkTheme: AppTheme.buildTheme(
         brightness: Brightness.dark,
         seedColor: seedColor,
+        oledDark: appSettings.oledDark,
       ),
       builder: (context, child) {
         final brightness = Theme.of(context).brightness;
+        final uiScale = appSettings.uiScale;
         return mui.Theme(
           data: NixSvgMuiTheme.createTheme(
             brightness: brightness,
@@ -109,10 +113,15 @@ class _NixSvgAppView extends ConsumerWidget {
           ),
           child: RepaintBoundary(
             key: NixSvgApp.rootRepaintBoundaryKey,
-            child: ResponsiveScaler.scale(
-              context: context,
-              child: child!,
-              useMaxAccessibility: true,
+            child: MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: TextScaler.linear(uiScale),
+              ),
+              child: ResponsiveScaler.scale(
+                context: context,
+                child: child!,
+                useMaxAccessibility: true,
+              ),
             ),
           ),
         );

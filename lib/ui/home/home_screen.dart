@@ -10,6 +10,7 @@ import 'package:nixsvg/providers/project_provider.dart';
 import 'package:nixsvg/providers/theme_provider.dart';
 import 'package:nixsvg/ui/home/widgets/mini_project_preview.dart';
 import 'package:nixsvg/ui/workspace/figma_workspace.dart';
+import 'package:nixsvg/widgets/settings_dialog.dart';
 import 'package:remixicon/remixicon.dart';
 
 /// Mac-style startup Home Screen for nixSVG.
@@ -114,6 +115,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           return KeyEventResult.handled;
         } else if (event.logicalKey == LogicalKeyboardKey.keyO) {
           _handleOpenFile();
+          return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.comma) {
+          showAppSettingsDialog(context);
           return KeyEventResult.handled;
         }
       }
@@ -312,63 +316,65 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const Spacer(),
 
           // Search Box (Desktop / Tablet)
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 320),
-            child: Container(
-              height: 36,
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.5,
-                ),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                ),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Row(
-                children: [
-                  Icon(
-                    RemixIcons.search_line,
-                    size: 15,
-                    color: colorScheme.onSurfaceVariant,
+          Flexible(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 260),
+              child: Container(
+                height: 36,
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurface,
-                        fontSize: 13,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Search recent projects...',
-                        hintStyle: textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant.withValues(
-                            alpha: 0.7,
-                          ),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Row(
+                  children: [
+                    Icon(
+                      RemixIcons.search_line,
+                      size: 15,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurface,
                           fontSize: 13,
                         ),
-                        isDense: true,
-                        border: InputBorder.none,
+                        decoration: InputDecoration(
+                          hintText: 'Search projects...',
+                          hintStyle: textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant.withValues(
+                              alpha: 0.7,
+                            ),
+                            fontSize: 13,
+                          ),
+                          isDense: true,
+                          border: InputBorder.none,
+                        ),
                       ),
                     ),
-                  ),
-                  if (_searchController.text.isNotEmpty)
-                    GestureDetector(
-                      onTap: () => _searchController.clear(),
-                      child: Icon(
-                        RemixIcons.close_circle_line,
-                        size: 14,
-                        color: colorScheme.onSurfaceVariant,
+                    if (_searchController.text.isNotEmpty)
+                      GestureDetector(
+                        onTap: () => _searchController.clear(),
+                        child: Icon(
+                          RemixIcons.close_circle_line,
+                          size: 14,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
 
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
 
           // Theme Color Picker Menu
           PopupMenuButton<Color>(
@@ -434,6 +440,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               color: colorScheme.onSurfaceVariant,
             ),
             onPressed: () => ref.read(themeProvider.notifier).toggleThemeMode(),
+          ),
+
+          // Settings & Preferences
+          IconButton(
+            tooltip: 'Settings & Preferences (Ctrl+,)',
+            icon: Icon(
+              RemixIcons.settings_3_line,
+              size: 18,
+              color: colorScheme.onSurfaceVariant,
+            ),
+            onPressed: () => showAppSettingsDialog(context),
           ),
 
           const SizedBox(width: 8),

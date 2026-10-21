@@ -7,6 +7,7 @@ import 'package:nixsvg/controllers/theme_controller.dart';
 import 'package:nixsvg/providers/theme_provider.dart';
 import 'package:nixsvg/theme/components/responsive_layout_tokens.dart';
 import 'package:nixsvg/widgets/color_picker_dialog.dart';
+import 'package:nixsvg/widgets/settings_dialog.dart';
 import 'package:remixicon/remixicon.dart';
 
 /// Redesigned macOS Unified Toolbar aesthetic for nixSVG.
@@ -25,6 +26,7 @@ class TopNavigationBar extends ConsumerWidget {
   final VoidCallback onImportImage;
   final VoidCallback onClearCanvas;
   final VoidCallback onShowShortcuts;
+  final VoidCallback? onOpenSettings;
   final double zoomScale;
   final VoidCallback onZoomIn;
   final VoidCallback onZoomOut;
@@ -51,6 +53,7 @@ class TopNavigationBar extends ConsumerWidget {
     required this.onImportImage,
     required this.onClearCanvas,
     required this.onShowShortcuts,
+    this.onOpenSettings,
     required this.zoomScale,
     required this.onZoomIn,
     required this.onZoomOut,
@@ -466,7 +469,8 @@ class TopNavigationBar extends ConsumerWidget {
                                   onTap: () {
                                     showDialog(
                                       context: context,
-                                      builder: (ctx) => const ColorPickerExperimentWidget(),
+                                      builder: (ctx) =>
+                                          const ColorPickerExperimentWidget(),
                                     );
                                   },
                                 ),
@@ -479,6 +483,23 @@ class TopNavigationBar extends ConsumerWidget {
                                   tooltip: 'Keyboard Shortcuts (?)',
                                   enabled: true,
                                   onTap: onShowShortcuts,
+                                ),
+
+                                _buildInnerDivider(colorScheme),
+
+                                // Settings & Preferences
+                                _MacIconButton(
+                                  icon: RemixIcons.settings_3_line,
+                                  tooltip:
+                                      'Settings & Preferences (⌘, / Ctrl+,)',
+                                  enabled: true,
+                                  onTap: () {
+                                    if (onOpenSettings != null) {
+                                      onOpenSettings!();
+                                    } else {
+                                      showAppSettingsDialog(context);
+                                    }
+                                  },
                                 ),
                               ],
                             ),

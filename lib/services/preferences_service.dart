@@ -299,6 +299,356 @@ class PreferencesService {
     }
   }
 
+  static const String _keyGridStyle = 'nixsvg_grid_style';
+  static const String _keyDefaultCanvasBg = 'nixsvg_default_canvas_bg';
+  static const String _keySmartGuides = 'nixsvg_smart_guides';
+  static const String _keyInvertZoom = 'nixsvg_invert_zoom';
+  static const String _keyDefaultStrokeWidth = 'nixsvg_default_stroke_width';
+  static const String _keyDefaultCornerRadius = 'nixsvg_default_corner_radius';
+  static const String _keyAutoSwitchToSelect = 'nixsvg_auto_switch_to_select';
+  static const String _keySvgPrettyPrint = 'nixsvg_svg_pretty_print';
+  static const String _keySvgIncludeXml = 'nixsvg_svg_include_xml';
+  static const String _keyExportScale = 'nixsvg_export_scale';
+  static const String _keyToolbarPosition = 'nixsvg_toolbar_position';
+  static const String _keyOledDark = 'nixsvg_oled_dark';
+  static const String _keyUiScale = 'nixsvg_ui_scale';
+
+  // --- Grid Style (dots, lines, crosses) ---
+  String getGridStyle() {
+    if (_prefs != null) {
+      return _prefs.getString(_keyGridStyle) ?? 'dots';
+    }
+    return (_inMemory[_keyGridStyle] as String?) ?? 'dots';
+  }
+
+  Future<void> setGridStyle(String style) async {
+    if (_prefs != null) {
+      await _prefs.setString(_keyGridStyle, style);
+    } else {
+      _inMemory[_keyGridStyle] = style;
+    }
+  }
+
+  // --- Default Canvas Background Color ---
+  Color? getDefaultCanvasBgColor() {
+    final val = _prefs != null
+        ? _prefs.getInt(_keyDefaultCanvasBg)
+        : _inMemory[_keyDefaultCanvasBg] as int?;
+    return val != null ? Color(val) : null;
+  }
+
+  Future<void> setDefaultCanvasBgColor(Color? color) async {
+    if (color == null) {
+      if (_prefs != null) {
+        await _prefs.remove(_keyDefaultCanvasBg);
+      } else {
+        _inMemory.remove(_keyDefaultCanvasBg);
+      }
+    } else {
+      final val = color.toARGB32();
+      if (_prefs != null) {
+        await _prefs.setInt(_keyDefaultCanvasBg, val);
+      } else {
+        _inMemory[_keyDefaultCanvasBg] = val;
+      }
+    }
+  }
+
+  // --- Smart Alignment Guides ---
+  bool getSmartGuides() {
+    if (_prefs != null) {
+      return _prefs.getBool(_keySmartGuides) ?? true;
+    }
+    return (_inMemory[_keySmartGuides] as bool?) ?? true;
+  }
+
+  Future<void> setSmartGuides(bool value) async {
+    if (_prefs != null) {
+      await _prefs.setBool(_keySmartGuides, value);
+    } else {
+      _inMemory[_keySmartGuides] = value;
+    }
+  }
+
+  // --- Invert Wheel Zoom ---
+  bool getInvertZoom() {
+    if (_prefs != null) {
+      return _prefs.getBool(_keyInvertZoom) ?? false;
+    }
+    return (_inMemory[_keyInvertZoom] as bool?) ?? false;
+  }
+
+  Future<void> setInvertZoom(bool value) async {
+    if (_prefs != null) {
+      await _prefs.setBool(_keyInvertZoom, value);
+    } else {
+      _inMemory[_keyInvertZoom] = value;
+    }
+  }
+
+  // --- Default Stroke Width ---
+  double getDefaultStrokeWidth() {
+    if (_prefs != null) {
+      return _prefs.getDouble(_keyDefaultStrokeWidth) ?? 2.0;
+    }
+    return (_inMemory[_keyDefaultStrokeWidth] as double?) ?? 2.0;
+  }
+
+  Future<void> setDefaultStrokeWidth(double width) async {
+    if (_prefs != null) {
+      await _prefs.setDouble(_keyDefaultStrokeWidth, width);
+    } else {
+      _inMemory[_keyDefaultStrokeWidth] = width;
+    }
+  }
+
+  // --- Default Corner Radius ---
+  double getDefaultCornerRadius() {
+    if (_prefs != null) {
+      return _prefs.getDouble(_keyDefaultCornerRadius) ?? 8.0;
+    }
+    return (_inMemory[_keyDefaultCornerRadius] as double?) ?? 8.0;
+  }
+
+  Future<void> setDefaultCornerRadius(double radius) async {
+    if (_prefs != null) {
+      await _prefs.setDouble(_keyDefaultCornerRadius, radius);
+    } else {
+      _inMemory[_keyDefaultCornerRadius] = radius;
+    }
+  }
+
+  // --- Auto Switch to Select after drawing ---
+  bool getAutoSwitchToSelect() {
+    if (_prefs != null) {
+      return _prefs.getBool(_keyAutoSwitchToSelect) ?? false;
+    }
+    return (_inMemory[_keyAutoSwitchToSelect] as bool?) ?? false;
+  }
+
+  Future<void> setAutoSwitchToSelect(bool value) async {
+    if (_prefs != null) {
+      await _prefs.setBool(_keyAutoSwitchToSelect, value);
+    } else {
+      _inMemory[_keyAutoSwitchToSelect] = value;
+    }
+  }
+
+  // --- SVG Pretty Print ---
+  bool getSvgPrettyPrint() {
+    if (_prefs != null) {
+      return _prefs.getBool(_keySvgPrettyPrint) ?? true;
+    }
+    return (_inMemory[_keySvgPrettyPrint] as bool?) ?? true;
+  }
+
+  Future<void> setSvgPrettyPrint(bool value) async {
+    if (_prefs != null) {
+      await _prefs.setBool(_keySvgPrettyPrint, value);
+    } else {
+      _inMemory[_keySvgPrettyPrint] = value;
+    }
+  }
+
+  // --- SVG Include XML Prolog ---
+  bool getSvgIncludeXml() {
+    if (_prefs != null) {
+      return _prefs.getBool(_keySvgIncludeXml) ?? true;
+    }
+    return (_inMemory[_keySvgIncludeXml] as bool?) ?? true;
+  }
+
+  Future<void> setSvgIncludeXml(bool value) async {
+    if (_prefs != null) {
+      await _prefs.setBool(_keySvgIncludeXml, value);
+    } else {
+      _inMemory[_keySvgIncludeXml] = value;
+    }
+  }
+
+  // --- Export Scale ---
+  double getExportScale() {
+    if (_prefs != null) {
+      return _prefs.getDouble(_keyExportScale) ?? 2.0;
+    }
+    return (_inMemory[_keyExportScale] as double?) ?? 2.0;
+  }
+
+  Future<void> setExportScale(double scale) async {
+    if (_prefs != null) {
+      await _prefs.setDouble(_keyExportScale, scale);
+    } else {
+      _inMemory[_keyExportScale] = scale;
+    }
+  }
+
+  // --- Floating Toolbar Position (bottom, top, floating) ---
+  String getToolbarPosition() {
+    if (_prefs != null) {
+      return _prefs.getString(_keyToolbarPosition) ?? 'bottom';
+    }
+    return (_inMemory[_keyToolbarPosition] as String?) ?? 'bottom';
+  }
+
+  Future<void> setToolbarPosition(String pos) async {
+    if (_prefs != null) {
+      await _prefs.setString(_keyToolbarPosition, pos);
+    } else {
+      _inMemory[_keyToolbarPosition] = pos;
+    }
+  }
+
+  // --- OLED Dark Mode ---
+  bool getOledDark() {
+    if (_prefs != null) {
+      return _prefs.getBool(_keyOledDark) ?? false;
+    }
+    return (_inMemory[_keyOledDark] as bool?) ?? false;
+  }
+
+  Future<void> setOledDark(bool value) async {
+    if (_prefs != null) {
+      await _prefs.setBool(_keyOledDark, value);
+    } else {
+      _inMemory[_keyOledDark] = value;
+    }
+  }
+
+  // --- UI Scale ---
+  double getUiScale() {
+    if (_prefs != null) {
+      return _prefs.getDouble(_keyUiScale) ?? 1.0;
+    }
+    return (_inMemory[_keyUiScale] as double?) ?? 1.0;
+  }
+
+  Future<void> setUiScale(double scale) async {
+    if (_prefs != null) {
+      await _prefs.setDouble(_keyUiScale, scale);
+    } else {
+      _inMemory[_keyUiScale] = scale;
+    }
+  }
+
+  // --- Reset All Preferences to Defaults ---
+  Future<void> resetAllToDefaults() async {
+    await setThemeMode(ThemeMode.dark);
+    await setSeedColor(const Color(0xFF6366F1));
+    await setSnapToGrid(true);
+    await setGridSpacing(40.0);
+    await setGridStyle('dots');
+    await setDefaultCanvasBgColor(null);
+    await setSmartGuides(true);
+    await setInvertZoom(false);
+    await setLayersSidebarWidth(270.0);
+    await setPropertiesSidebarWidth(280.0);
+    await setShowLayers(null);
+    await setShowProperties(null);
+    await setDefaultStrokeWidth(2.0);
+    await setDefaultCornerRadius(8.0);
+    await setAutoSwitchToSelect(false);
+    await setSvgPrettyPrint(true);
+    await setSvgIncludeXml(true);
+    await setExportScale(2.0);
+    await setToolbarPosition('bottom');
+    await setOledDark(false);
+    await setUiScale(1.0);
+  }
+
+  // --- Export / Import Settings ---
+  Map<String, dynamic> exportSettingsMap() {
+    return {
+      'themeMode': getThemeMode().name,
+      'seedColor': getSeedColor().toARGB32(),
+      'snapToGrid': getSnapToGrid(),
+      'gridSpacing': getGridSpacing(),
+      'gridStyle': getGridStyle(),
+      'smartGuides': getSmartGuides(),
+      'invertZoom': getInvertZoom(),
+      'layersSidebarWidth': getLayersSidebarWidth(),
+      'propertiesSidebarWidth': getPropertiesSidebarWidth(),
+      'defaultStrokeWidth': getDefaultStrokeWidth(),
+      'defaultCornerRadius': getDefaultCornerRadius(),
+      'autoSwitchToSelect': getAutoSwitchToSelect(),
+      'svgPrettyPrint': getSvgPrettyPrint(),
+      'svgIncludeXml': getSvgIncludeXml(),
+      'exportScale': getExportScale(),
+      'toolbarPosition': getToolbarPosition(),
+      'oledDark': getOledDark(),
+      'uiScale': getUiScale(),
+    };
+  }
+
+  Future<void> importSettingsMap(Map<String, dynamic> map) async {
+    if (map['themeMode'] is String) {
+      final modeStr = map['themeMode'] as String;
+      final mode = ThemeMode.values.firstWhere(
+        (m) => m.name == modeStr,
+        orElse: () => ThemeMode.dark,
+      );
+      await setThemeMode(mode);
+    }
+    if (map['seedColor'] is int) {
+      await setSeedColor(Color(map['seedColor'] as int));
+    }
+    if (map['snapToGrid'] is bool) {
+      await setSnapToGrid(map['snapToGrid'] as bool);
+    }
+    if (map['gridSpacing'] is num) {
+      await setGridSpacing((map['gridSpacing'] as num).toDouble());
+    }
+    if (map['gridStyle'] is String) {
+      await setGridStyle(map['gridStyle'] as String);
+    }
+    if (map['smartGuides'] is bool) {
+      await setSmartGuides(map['smartGuides'] as bool);
+    }
+    if (map['invertZoom'] is bool) {
+      await setInvertZoom(map['invertZoom'] as bool);
+    }
+    if (map['layersSidebarWidth'] is num) {
+      await setLayersSidebarWidth(
+        (map['layersSidebarWidth'] as num).toDouble(),
+      );
+    }
+    if (map['propertiesSidebarWidth'] is num) {
+      await setPropertiesSidebarWidth(
+        (map['propertiesSidebarWidth'] as num).toDouble(),
+      );
+    }
+    if (map['defaultStrokeWidth'] is num) {
+      await setDefaultStrokeWidth(
+        (map['defaultStrokeWidth'] as num).toDouble(),
+      );
+    }
+    if (map['defaultCornerRadius'] is num) {
+      await setDefaultCornerRadius(
+        (map['defaultCornerRadius'] as num).toDouble(),
+      );
+    }
+    if (map['autoSwitchToSelect'] is bool) {
+      await setAutoSwitchToSelect(map['autoSwitchToSelect'] as bool);
+    }
+    if (map['svgPrettyPrint'] is bool) {
+      await setSvgPrettyPrint(map['svgPrettyPrint'] as bool);
+    }
+    if (map['svgIncludeXml'] is bool) {
+      await setSvgIncludeXml(map['svgIncludeXml'] as bool);
+    }
+    if (map['exportScale'] is num) {
+      await setExportScale((map['exportScale'] as num).toDouble());
+    }
+    if (map['toolbarPosition'] is String) {
+      await setToolbarPosition(map['toolbarPosition'] as String);
+    }
+    if (map['oledDark'] is bool) {
+      await setOledDark(map['oledDark'] as bool);
+    }
+    if (map['uiScale'] is num) {
+      await setUiScale((map['uiScale'] as num).toDouble());
+    }
+  }
+
   Future<void> clearRecentProjects() async {
     if (_prefs != null) {
       await _prefs.remove(_keyRecentProjects);

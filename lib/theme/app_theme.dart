@@ -14,11 +14,24 @@ class AppTheme {
   static ThemeData buildTheme({
     required Brightness brightness,
     required Color seedColor,
+    bool oledDark = false,
   }) {
     final isDark = brightness == Brightness.dark;
-    final colorScheme = isDark
+    var colorScheme = isDark
         ? AppColorSchemes.dark(seedColor)
         : AppColorSchemes.light(seedColor);
+
+    if (isDark && oledDark) {
+      colorScheme = colorScheme.copyWith(
+        surface: Colors.black,
+        surfaceContainerLowest: Colors.black,
+        surfaceContainerLow: const Color(0xFF070707),
+        surfaceContainer: const Color(0xFF101010),
+        surfaceContainerHigh: const Color(0xFF171717),
+        surfaceContainerHighest: const Color(0xFF202020),
+      );
+    }
+
     final textTheme = isDark
         ? AppTypography.dark(colorScheme)
         : AppTypography.light(colorScheme);

@@ -45,6 +45,8 @@ class InteractiveCanvas extends StatefulWidget {
   final PointerUpEventListener onPointerUp;
   final PointerCancelEventListener onPointerCancel;
   final Color? canvasBackgroundColor;
+  final String gridStyle;
+  final bool invertZoom;
   final VoidCallback onMatrixChanged;
   final ValueChanged<bool>? onCanvasHoverChanged;
   final ValueChanged<Offset>? onPointerHover;
@@ -64,6 +66,8 @@ class InteractiveCanvas extends StatefulWidget {
     required this.snapGuidelineX,
     required this.snapGuidelineY,
     required this.gridSpacing,
+    this.gridStyle = 'dots',
+    this.invertZoom = false,
     required this.isPanningWithMouse,
     required this.isSpacePressed,
     this.isResizing = false,
@@ -142,7 +146,8 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
 
       // Smooth exponential zoom scaling:
       // Handles both continuous trackpad micro-increments (Linux/Web pinch) and mouse wheel ticks
-      final double rawFactor = math.exp(-dy * 0.006);
+      final double direction = widget.invertZoom ? 1.0 : -1.0;
+      final double rawFactor = math.exp(direction * dy * 0.006);
       final double zoomFactor = rawFactor.clamp(0.5, 2.0);
 
       widget.transformationController.value =
@@ -499,7 +504,7 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
                       gridColor: colorScheme.onSurface.withValues(
                         alpha: isDark ? 0.08 : 0.06,
                       ),
-                      isDotGrid: true,
+                      gridStyle: widget.gridStyle,
                     ),
                   ),
                 ),

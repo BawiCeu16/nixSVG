@@ -13,6 +13,7 @@ import 'package:nixsvg/calculations/canvas_transform.dart';
 import 'package:nixsvg/models/project_model.dart';
 import 'package:nixsvg/models/undo_redo_manager.dart';
 import 'package:nixsvg/models/vector_shape.dart';
+import 'package:nixsvg/providers/app_settings_provider.dart';
 import 'package:nixsvg/providers/project_provider.dart';
 import 'package:nixsvg/providers/workspace_settings_provider.dart';
 import 'package:nixsvg/services/svg_export_service.dart';
@@ -24,6 +25,7 @@ import 'package:nixsvg/widgets/export_dialog.dart';
 import 'package:nixsvg/widgets/floating_tool_bar.dart';
 import 'package:nixsvg/widgets/layers_sidebar.dart';
 import 'package:nixsvg/widgets/properties_sidebar.dart';
+import 'package:nixsvg/widgets/settings_dialog.dart';
 import 'package:nixsvg/widgets/shortcuts_dialog.dart';
 import 'package:nixsvg/widgets/top_navigation_bar.dart';
 
@@ -79,8 +81,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   // History & File
   final UndoRedoManager _undoRedoManager = UndoRedoManager();
   String fileName = 'nix_vector_design';
-  bool snapToGrid = true;
-  double gridSpacing = 40.0;
+  bool get snapToGrid => ref.read(appSettingsProvider).snapToGrid;
+  double get gridSpacing => ref.read(appSettingsProvider).gridSpacing;
   Color? canvasBackgroundColor;
 
   void _selectAll() {
@@ -153,13 +155,12 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     // Initialize persisted workspace settings from Riverpod
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final wsSettings = ref.read(workspaceSettingsProvider);
+      final appSettings = ref.read(appSettingsProvider);
       setState(() {
-        snapToGrid = wsSettings.snapToGrid;
-        gridSpacing = wsSettings.gridSpacing;
-        layersSidebarWidth = wsSettings.layersSidebarWidth;
-        propertiesSidebarWidth = wsSettings.propertiesSidebarWidth;
-        isLayersPanelOpen = wsSettings.isLayersPanelOpen;
-        isPropertiesPanelOpen = wsSettings.isPropertiesPanelOpen;
+        layersSidebarWidth = appSettings.layersSidebarWidth;
+        propertiesSidebarWidth = appSettings.propertiesSidebarWidth;
+        isLayersPanelOpen = appSettings.showLayers;
+        isPropertiesPanelOpen = appSettings.showProperties;
         if (widget.initialProject == null) {
           fileName = wsSettings.fileName;
         }
@@ -757,28 +758,36 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           }
         } else if (isMovingShapes && initialShapeRects != null) {
           var delta = localPos - panStartOffset!;
-          if (snapToGrid) {
-            final snapStep = (gridSpacing > 0) ? gridSpacing / 4 : 10.0;
+          final appSettings = ref.read(appSettingsProvider);
+          if (appSettings.snapToGrid) {
+            final snapStep = (appSettings.gridSpacing > 0)
+                ? appSettings.gridSpacing / 4
+                : 10.0;
             delta = Offset(
               (delta.dx / snapStep).round() * snapStep,
               (delta.dy / snapStep).round() * snapStep,
             );
           }
-          final zoomScale = CanvasTransformHelper.getScale(
-            _transformationController.value,
-          );
-          final snapRes = CanvasGeometry.calculateSnapGuidelines(
-            shapes: shapes,
-            selectedShapeIds: selectedShapeIds,
-            initialShapeRects: initialShapeRects,
-            proposedDelta: delta,
-            snapThreshold: 6.0 / (zoomScale > 0 ? zoomScale : 1.0),
-          );
-          if (snapRes.snapDelta != Offset.zero) {
-            delta += snapRes.snapDelta;
+          if (appSettings.smartGuides) {
+            final zoomScale = CanvasTransformHelper.getScale(
+              _transformationController.value,
+            );
+            final snapRes = CanvasGeometry.calculateSnapGuidelines(
+              shapes: shapes,
+              selectedShapeIds: selectedShapeIds,
+              initialShapeRects: initialShapeRects,
+              proposedDelta: delta,
+              snapThreshold: 6.0 / (zoomScale > 0 ? zoomScale : 1.0),
+            );
+            if (snapRes.snapDelta != Offset.zero) {
+              delta += snapRes.snapDelta;
+            }
+            snapGuidelineX = snapRes.guidelineX;
+            snapGuidelineY = snapRes.guidelineY;
+          } else {
+            snapGuidelineX = null;
+            snapGuidelineY = null;
           }
-          snapGuidelineX = snapRes.guidelineX;
-          snapGuidelineY = snapRes.guidelineY;
           for (final id in selectedShapeIds) {
             final s = shapes.firstWhere((s) => s.id == id);
             final initR = initialShapeRects![id]!;
@@ -848,8 +857,11 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       }
 
       if (isValidShape) {
+        final appSettings = ref.read(appSettingsProvider);
         final isCurveMode = currentMode == EditorMode.drawCurve;
         final isText = draftShapeType == ShapeType.text;
+        final isRect = draftShapeType == ShapeType.roundedRectangle ||
+            draftShapeType == ShapeType.rectangle;
         final newShape = VectorShape(
           id: 'shape-${DateTime.now().millisecondsSinceEpoch}',
           name: '${_getModeName(currentMode)} $_shapeCounter',
@@ -858,6 +870,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           textContent: isText ? '' : 'Text Element',
           isStroked: draftShapeType == ShapeType.line ? true : false,
           isFilled: draftShapeType == ShapeType.line ? false : true,
+          strokeWidth: appSettings.defaultStrokeWidth,
+          cornerRadius: isRect ? appSettings.defaultCornerRadius : 0.0,
           isCurved: isCurveMode,
           curvature: isCurveMode ? 35.0 : 0.0,
         );
@@ -866,7 +880,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           shapes.add(newShape);
           selectedShapeIds.clear();
           selectedShapeIds.add(newShape.id);
-          currentMode = EditorMode.select;
+          if (appSettings.autoSwitchToSelect) {
+            currentMode = EditorMode.select;
+          }
           if (isText) {
             _startTextEditing(newShape, isNew: true, selectAll: true);
           }
@@ -936,7 +952,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
   void _deleteSelected() {
     if (selectedShapeIds.isEmpty) return;
-    if (_editingTextShapeId != null && selectedShapeIds.contains(_editingTextShapeId)) {
+    if (_editingTextShapeId != null &&
+        selectedShapeIds.contains(_editingTextShapeId)) {
       _stopTextEditing(commit: false);
     }
     setState(() {
@@ -1059,7 +1076,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
       final text = clipboardData?.text;
       if (text != null && text.trim().isNotEmpty) {
-        final focalPoint = (_isMouseOverCanvas && _lastMouseCanvasPosition != null)
+        final focalPoint =
+            (_isMouseOverCanvas && _lastMouseCanvasPosition != null)
             ? _lastMouseCanvasPosition!
             : _getViewportCanvasCenter();
 
@@ -1157,7 +1175,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   Offset _getCurrentZoomFocalCanvasPoint() {
     final canvasBox =
         _canvasKey.currentContext?.findRenderObject() as RenderBox?;
-    if (canvasBox != null && canvasBox.hasSize && _lastGlobalMousePosition != null) {
+    if (canvasBox != null &&
+        canvasBox.hasSize &&
+        _lastGlobalMousePosition != null) {
       final localPos = canvasBox.globalToLocal(_lastGlobalMousePosition!);
       final size = canvasBox.size;
       // If cursor is within the canvas viewport bounds
@@ -1198,7 +1218,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   void _updateMouseCanvasPositionFromGlobal() {
     final canvasBox =
         _canvasKey.currentContext?.findRenderObject() as RenderBox?;
-    if (canvasBox != null && canvasBox.hasSize && _lastGlobalMousePosition != null) {
+    if (canvasBox != null &&
+        canvasBox.hasSize &&
+        _lastGlobalMousePosition != null) {
       final localPos = canvasBox.globalToLocal(_lastGlobalMousePosition!);
       final size = canvasBox.size;
       if (localPos.dx >= 0 &&
@@ -1385,7 +1407,13 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   }
 
   void _openExportDialog() {
-    final svgCode = SvgExportService.generateSvg(shapes);
+    final settings = ref.read(appSettingsProvider);
+    final svgCode = SvgExportService.generateSvg(
+      shapes,
+      includeXmlHeader: settings.svgIncludeXml,
+      prettyPrint: settings.svgPrettyPrint,
+      exportScale: settings.exportScale,
+    );
     showDialog(
       context: context,
       builder: (context) =>
@@ -1395,6 +1423,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
   void _openShortcutsDialog() {
     showDialog(context: context, builder: (context) => const ShortcutsDialog());
+  }
+
+  void _openSettingsDialog() {
+    showAppSettingsDialog(context);
   }
 
   Color _sampleShapeColorAtScreenPoint(Offset screenPos) {
@@ -1464,16 +1496,17 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     final target = shapes.firstWhere((s) => s.id == selectedShapeIds.first);
     final initialMode = isFill
         ? (target.fillType == PaintFillType.linearGradient
-            ? ColorPickerMode.linearGradient
-            : (target.fillType == PaintFillType.radialGradient
-                ? ColorPickerMode.radialGradient
-                : ColorPickerMode.solid))
+              ? ColorPickerMode.linearGradient
+              : (target.fillType == PaintFillType.radialGradient
+                    ? ColorPickerMode.radialGradient
+                    : ColorPickerMode.solid))
         : (target.strokeType == PaintFillType.linearGradient
-            ? ColorPickerMode.linearGradient
-            : (target.strokeType == PaintFillType.radialGradient
-                ? ColorPickerMode.radialGradient
-                : ColorPickerMode.solid));
-    final initialGrad = (isFill ? target.fillGradient : target.strokeGradient) ??
+              ? ColorPickerMode.linearGradient
+              : (target.strokeType == PaintFillType.radialGradient
+                    ? ColorPickerMode.radialGradient
+                    : ColorPickerMode.solid));
+    final initialGrad =
+        (isFill ? target.fillGradient : target.strokeGradient) ??
         (initialMode != ColorPickerMode.solid
             ? ShapeGradient(
                 type: initialMode == ColorPickerMode.radialGradient
@@ -1484,7 +1517,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                     offset: 0.0,
                     color: isFill ? target.fillColor : target.strokeColor,
                   ),
-                  const GradientColorStop(offset: 1.0, color: Color(0xFF38BDF8)),
+                  const GradientColorStop(
+                    offset: 1.0,
+                    color: Color(0xFF38BDF8),
+                  ),
                 ],
               )
             : null);
@@ -1537,8 +1573,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
             final pft = mode == ColorPickerMode.linearGradient
                 ? PaintFillType.linearGradient
                 : (mode == ColorPickerMode.radialGradient
-                    ? PaintFillType.radialGradient
-                    : PaintFillType.solid);
+                      ? PaintFillType.radialGradient
+                      : PaintFillType.solid);
             if (isFill) {
               s.fillType = pft;
               if (s.fillGradient == null && pft != PaintFillType.solid) {
@@ -1546,7 +1582,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                   type: pft,
                   stops: [
                     GradientColorStop(offset: 0.0, color: s.fillColor),
-                    const GradientColorStop(offset: 1.0, color: Color(0xFF38BDF8)),
+                    const GradientColorStop(
+                      offset: 1.0,
+                      color: Color(0xFF38BDF8),
+                    ),
                   ],
                 );
               }
@@ -1557,7 +1596,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                   type: pft,
                   stops: [
                     GradientColorStop(offset: 0.0, color: s.strokeColor),
-                    const GradientColorStop(offset: 1.0, color: Color(0xFF38BDF8)),
+                    const GradientColorStop(
+                      offset: 1.0,
+                      color: Color(0xFF38BDF8),
+                    ),
                   ],
                 );
               }
@@ -1773,6 +1815,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         } else if (event.logicalKey == LogicalKeyboardKey.bracketLeft) {
           _sendBackward();
           return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.comma) {
+          _openSettingsDialog();
+          return KeyEventResult.handled;
         }
       } else {
         if (event.logicalKey == LogicalKeyboardKey.escape) {
@@ -1898,6 +1943,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
   @override
   Widget build(BuildContext context) {
+    final appSettings = ref.watch(appSettingsProvider);
     final colorScheme = Theme.of(context).colorScheme;
     final double zoomScale = CanvasTransformHelper.getScale(
       _transformationController.value,
@@ -1915,486 +1961,510 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       child: MouseRegion(
         onHover: (event) => _lastGlobalMousePosition = event.position,
         child: Scaffold(
-        backgroundColor: colorScheme.surfaceContainerLowest,
-        body: Column(
-          children: [
-            // Dynamic Top Navigation Bar adhering to cross-platform tokens
-            RepaintBoundary(
-              child: TopNavigationBar(
-                fileName: fileName,
-                onFileNameChanged: (val) {
-                  setState(() => fileName = val);
-                  ref.read(workspaceSettingsProvider.notifier).setFileName(val);
-                  _persistCurrentProject();
-                },
-                onGoToHome: _handleGoToHome,
-                onUndo: _undo,
-                onRedo: _redo,
-                canUndo: _undoRedoManager.canUndo,
-                canRedo: _undoRedoManager.canRedo,
-                snapToGrid: snapToGrid,
-                onSnapToGridChanged: (val) {
-                  setState(() => snapToGrid = val);
-                  ref
-                      .read(workspaceSettingsProvider.notifier)
-                      .setSnapToGrid(val);
-                },
-                onExportSvg: _openExportDialog,
-                onImportImage: _importImageFromDevice,
-                onClearCanvas: _clearCanvas,
-                onShowShortcuts: _openShortcutsDialog,
-                zoomScale: zoomScale,
-                onZoomIn: _zoomIn,
-                onZoomOut: _zoomOut,
-                onResetZoom: () {
-                  setState(() {
-                    _transformationController.value = Matrix4.identity();
-                  });
-                },
-                onZoomToFit: _zoomToFit,
-                onZoomToSelection: _zoomToSelection,
-                showLayers: isLayersPanelOpen ?? (!isCompact),
-                onToggleLayers: (val) {
-                  setState(() => isLayersPanelOpen = val);
-                  ref
-                      .read(workspaceSettingsProvider.notifier)
-                      .toggleLayersPanel(val);
-                },
-                showProperties: isPropertiesPanelOpen ?? (!isCompact),
-                onToggleProperties: (val) {
-                  setState(() => isPropertiesPanelOpen = val);
-                  ref
-                      .read(workspaceSettingsProvider.notifier)
-                      .togglePropertiesPanel(val);
-                },
+          backgroundColor: colorScheme.surfaceContainerLowest,
+          body: Column(
+            children: [
+              // Dynamic Top Navigation Bar adhering to cross-platform tokens
+              RepaintBoundary(
+                child: TopNavigationBar(
+                  fileName: fileName,
+                  onFileNameChanged: (val) {
+                    setState(() => fileName = val);
+                    ref
+                        .read(workspaceSettingsProvider.notifier)
+                        .setFileName(val);
+                    _persistCurrentProject();
+                  },
+                  onGoToHome: _handleGoToHome,
+                  onUndo: _undo,
+                  onRedo: _redo,
+                  canUndo: _undoRedoManager.canUndo,
+                  canRedo: _undoRedoManager.canRedo,
+                  snapToGrid: appSettings.snapToGrid,
+                  onSnapToGridChanged: (val) {
+                    ref.read(appSettingsProvider.notifier).setSnapToGrid(val);
+                  },
+                  onExportSvg: _openExportDialog,
+                  onImportImage: _importImageFromDevice,
+                  onClearCanvas: _clearCanvas,
+                  onShowShortcuts: _openShortcutsDialog,
+                  onOpenSettings: _openSettingsDialog,
+                  zoomScale: zoomScale,
+                  onZoomIn: _zoomIn,
+                  onZoomOut: _zoomOut,
+                  onResetZoom: () {
+                    setState(() {
+                      _transformationController.value = Matrix4.identity();
+                    });
+                  },
+                  onZoomToFit: _zoomToFit,
+                  onZoomToSelection: _zoomToSelection,
+                  showLayers: isLayersPanelOpen ?? appSettings.showLayers ?? (!isCompact),
+                  onToggleLayers: (val) {
+                    setState(() => isLayersPanelOpen = val);
+                    ref.read(appSettingsProvider.notifier).setShowLayers(val);
+                  },
+                  showProperties: isPropertiesPanelOpen ?? appSettings.showProperties ?? (!isCompact),
+                  onToggleProperties: (val) {
+                    setState(() => isPropertiesPanelOpen = val);
+                    ref.read(appSettingsProvider.notifier).setShowProperties(val);
+                  },
+                ),
               ),
-            ),
 
-            // Main Editor Workbench Area
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final showLayers = isLayersPanelOpen ?? (!isCompact);
-                  final showProperties = isPropertiesPanelOpen ?? (!isCompact);
+              // Main Editor Workbench Area
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final showLayers =
+                        isLayersPanelOpen ?? appSettings.showLayers ?? (!isCompact);
+                    final showProperties =
+                        isPropertiesPanelOpen ?? appSettings.showProperties ?? (!isCompact);
 
-                  final effectiveLayersWidth =
-                      ResponsiveLayoutTokens.getEffectiveLayersWidth(
-                        desiredWidth: layersSidebarWidth,
-                        screenWidth: constraints.maxWidth,
-                      );
-                  final effectivePropertiesWidth =
-                      ResponsiveLayoutTokens.getEffectivePropertiesWidth(
-                        desiredWidth: propertiesSidebarWidth,
-                        screenWidth: constraints.maxWidth,
-                      );
+                    final effectiveLayersWidth =
+                        ResponsiveLayoutTokens.getEffectiveLayersWidth(
+                          desiredWidth: layersSidebarWidth,
+                          screenWidth: constraints.maxWidth,
+                        );
+                    final effectivePropertiesWidth =
+                        ResponsiveLayoutTokens.getEffectivePropertiesWidth(
+                          desiredWidth: propertiesSidebarWidth,
+                          screenWidth: constraints.maxWidth,
+                        );
 
-                  return Row(
-                    children: [
-                      // Left Layers Sidebar (Docked when wide & enabled)
-                      if (!isCompact && showLayers) ...[
-                        RepaintBoundary(
-                          child: LayersSidebar(
-                            width: effectiveLayersWidth,
-                            shapes: shapes,
-                            selectedShapeIds: selectedShapeIds,
-                            onSelectShape: (id) {
-                              setState(() {
-                                selectedShapeIds.clear();
-                                selectedShapeIds.add(id);
-                              });
-                            },
-                            onToggleVisibility: (id) {
-                              setState(() {
-                                final s = shapes.firstWhere((s) => s.id == id);
-                                s.isVisible = !s.isVisible;
-                              });
-                              _saveHistorySnapshot();
-                            },
-                            onToggleLock: (id) {
-                              setState(() {
-                                final s = shapes.firstWhere((s) => s.id == id);
-                                s.isLocked = !s.isLocked;
-                              });
-                              _saveHistorySnapshot();
-                            },
-                            onDeleteShape: _deleteShapeById,
-                            onBringForward: _bringForward,
-                            onSendBackward: _sendBackward,
-                            onRenameShape: (id, newName) {
-                              setState(() {
-                                shapes.firstWhere((s) => s.id == id).name =
-                                    newName;
-                              });
-                              _saveHistorySnapshot();
-                            },
-                            onReorder: (oldIndex, newIndex) {
-                              setState(() {
-                                if (newIndex > oldIndex) newIndex--;
-                                final displayList = shapes.reversed.toList();
-                                final shape = displayList.removeAt(oldIndex);
-                                displayList.insert(newIndex, shape);
-                                shapes = displayList.reversed.toList();
-                              });
-                              _saveHistorySnapshot();
-                            },
-                          ),
-                        ),
-                        SidebarResizeHandle(
-                          onDragUpdate: (deltaDx) {
-                            final maxWidth =
-                                ResponsiveLayoutTokens.getMaxSidebarWidth(
-                                  constraints.maxWidth,
-                                );
-                            final next = (layersSidebarWidth + deltaDx).clamp(
-                              160.0,
-                              maxWidth,
-                            );
-                            setState(() => layersSidebarWidth = next);
-                            ref
-                                .read(workspaceSettingsProvider.notifier)
-                                .setLayersSidebarWidth(next);
-                          },
-                          onDoubleTapReset: () {
-                            setState(() => layersSidebarWidth = 270.0);
-                            ref
-                                .read(workspaceSettingsProvider.notifier)
-                                .setLayersSidebarWidth(270.0);
-                          },
-                        ),
-                      ],
-
-                      // Center Workspace Interactive Canvas
-                      Expanded(
-                        child: Stack(
-                          children: [
-                            InteractiveCanvas(
-                              key: _canvasKey,
-                              transformationController:
-                                  _transformationController,
+                    return Row(
+                      children: [
+                        // Left Layers Sidebar (Docked when wide & enabled)
+                        if (!isCompact && showLayers) ...[
+                          RepaintBoundary(
+                            child: LayersSidebar(
+                              width: effectiveLayersWidth,
                               shapes: shapes,
                               selectedShapeIds: selectedShapeIds,
-                              currentMode: currentMode,
-                              draftShapeType: draftShapeType,
-                              draftIsShiftPressed:
-                                  HardwareKeyboard.instance.logicalKeysPressed
-                                      .contains(LogicalKeyboardKey.shiftLeft) ||
-                                  HardwareKeyboard.instance.logicalKeysPressed
-                                      .contains(LogicalKeyboardKey.shiftRight),
-                              draftIsAltPressed:
-                                  HardwareKeyboard.instance.isAltPressed,
-                              panStartOffset: panStartOffset,
-                              panCurrentOffset: panCurrentOffset,
-                              marqueeRect: marqueeRect,
-                              snapGuidelineX: snapGuidelineX,
-                              snapGuidelineY: snapGuidelineY,
-                              gridSpacing: gridSpacing,
-                              isPanningWithMouse: _isPanningWithMouse,
-                              isSpacePressed: _isSpacePressed,
-                              isResizing:
-                                  activeResizeHandle != ResizeHandle.none,
-                              activeResizeHandle: activeResizeHandle,
-                              isRotatingShape: isRotatingShape,
-                              isMovingShapes: isMovingShapes,
-                              editingTextShapeId: _editingTextShapeId,
-                              isEditingNewText: _isEditingNewText,
-                              selectAllText: _selectAllText,
-                              canvasBackgroundColor: canvasBackgroundColor,
-                              onInlineTextChanged: (text) {
-                                final editingId = _editingTextShapeId;
-                                if (editingId == null) return;
-                                final index = shapes.indexWhere(
-                                  (s) => s.id == editingId,
-                                );
-                                if (index != -1) {
-                                  shapes[index].textContent = text;
-                                  shapes[index].invalidateCache();
-                                  setState(() {});
-                                }
+                              onSelectShape: (id) {
+                                setState(() {
+                                  selectedShapeIds.clear();
+                                  selectedShapeIds.add(id);
+                                });
                               },
-                              onInlineTextCommit: () =>
-                                  _stopTextEditing(commit: true),
-                              onInlineTextCancel: () =>
-                                  _stopTextEditing(commit: false),
-                              onInlineTextRectChanged: (newRect) {
-                                final editingId = _editingTextShapeId;
-                                if (editingId == null) return;
-                                final index = shapes.indexWhere(
-                                  (s) => s.id == editingId,
-                                );
-                                if (index != -1) {
-                                  shapes[index].rect = newRect;
-                                  shapes[index].invalidateCache();
-                                  setState(() {});
-                                }
+                              onToggleVisibility: (id) {
+                                setState(() {
+                                  final s = shapes.firstWhere(
+                                    (s) => s.id == id,
+                                  );
+                                  s.isVisible = !s.isVisible;
+                                });
+                                _saveHistorySnapshot();
                               },
-                              onPointerDown: _onPointerDown,
-                              onPointerMove: _onPointerMove,
-                              onPointerUp: _onPointerUp,
-                              onPointerCancel: _onPointerCancel,
-                              onMatrixChanged: () => setState(() {}),
-                              onCanvasHoverChanged: (hovered) =>
-                                  _isMouseOverCanvas = hovered,
-                              onPointerHover: (pos) =>
-                                  _lastMouseCanvasPosition = pos,
+                              onToggleLock: (id) {
+                                setState(() {
+                                  final s = shapes.firstWhere(
+                                    (s) => s.id == id,
+                                  );
+                                  s.isLocked = !s.isLocked;
+                                });
+                                _saveHistorySnapshot();
+                              },
+                              onDeleteShape: _deleteShapeById,
+                              onBringForward: _bringForward,
+                              onSendBackward: _sendBackward,
+                              onRenameShape: (id, newName) {
+                                setState(() {
+                                  shapes.firstWhere((s) => s.id == id).name =
+                                      newName;
+                                });
+                                _saveHistorySnapshot();
+                              },
+                              onReorder: (oldIndex, newIndex) {
+                                setState(() {
+                                  if (newIndex > oldIndex) newIndex--;
+                                  final displayList = shapes.reversed.toList();
+                                  final shape = displayList.removeAt(oldIndex);
+                                  displayList.insert(newIndex, shape);
+                                  shapes = displayList.reversed.toList();
+                                });
+                                _saveHistorySnapshot();
+                              },
                             ),
+                          ),
+                          SidebarResizeHandle(
+                            onDragUpdate: (deltaDx) {
+                              final maxWidth =
+                                  ResponsiveLayoutTokens.getMaxSidebarWidth(
+                                    constraints.maxWidth,
+                                  );
+                              final next = (layersSidebarWidth + deltaDx).clamp(
+                                160.0,
+                                maxWidth,
+                              );
+                              setState(() => layersSidebarWidth = next);
+                              ref
+                                  .read(workspaceSettingsProvider.notifier)
+                                  .setLayersSidebarWidth(next);
+                            },
+                            onDoubleTapReset: () {
+                              setState(() => layersSidebarWidth = 270.0);
+                              ref
+                                  .read(workspaceSettingsProvider.notifier)
+                                  .setLayersSidebarWidth(270.0);
+                            },
+                          ),
+                        ],
 
-                            // Overlay Drawer for Compact Mobile Screens
-                            if (isCompact && showLayers)
-                              Positioned(
-                                top: 0,
-                                bottom: 0,
-                                left: 0,
-                                width:
-                                    ResponsiveLayoutTokens.getCompactDrawerWidth(
-                                      constraints.maxWidth,
-                                    ),
-                                child: Material(
-                                  elevation: 8,
-                                  color: colorScheme.surfaceContainer,
-                                  child: RepaintBoundary(
-                                    child: LayersSidebar(
-                                      width:
-                                          ResponsiveLayoutTokens.getCompactDrawerWidth(
-                                            constraints.maxWidth,
-                                          ),
-                                      shapes: shapes,
-                                      selectedShapeIds: selectedShapeIds,
-                                      onSelectShape: (id) {
-                                        setState(() {
-                                          selectedShapeIds.clear();
-                                          selectedShapeIds.add(id);
-                                        });
-                                      },
-                                      onToggleVisibility: (id) {
-                                        setState(() {
-                                          final s = shapes.firstWhere(
-                                            (s) => s.id == id,
-                                          );
-                                          s.isVisible = !s.isVisible;
-                                        });
-                                        _saveHistorySnapshot();
-                                      },
-                                      onToggleLock: (id) {
-                                        setState(() {
-                                          final s = shapes.firstWhere(
-                                            (s) => s.id == id,
-                                          );
-                                          s.isLocked = !s.isLocked;
-                                        });
-                                        _saveHistorySnapshot();
-                                      },
-                                      onDeleteShape: _deleteShapeById,
-                                      onBringForward: _bringForward,
-                                      onSendBackward: _sendBackward,
-                                      onRenameShape: (id, newName) {
-                                        setState(() {
-                                          shapes
-                                                  .firstWhere((s) => s.id == id)
-                                                  .name =
-                                              newName;
-                                        });
-                                        _saveHistorySnapshot();
-                                      },
-                                      onReorder: (oldIndex, newIndex) {
-                                        setState(() {
-                                          if (newIndex > oldIndex) newIndex--;
-                                          final displayList = shapes.reversed
-                                              .toList();
-                                          final shape = displayList.removeAt(
-                                            oldIndex,
-                                          );
-                                          displayList.insert(newIndex, shape);
-                                          shapes = displayList.reversed
-                                              .toList();
-                                        });
-                                        _saveHistorySnapshot();
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                            // Overlay Properties for Compact Mobile Screens
-                            if (isCompact &&
-                                showProperties &&
-                                selectedShape != null)
-                              Positioned(
-                                top: 0,
-                                bottom: 0,
-                                right: 0,
-                                width:
-                                    ResponsiveLayoutTokens.getCompactDrawerWidth(
-                                      constraints.maxWidth,
-                                    ),
-                                child: Material(
-                                  elevation: 8,
-                                  color: colorScheme.surfaceContainer,
-                                  child: RepaintBoundary(
-                                    child: PropertiesSidebar(
-                                      width:
-                                          ResponsiveLayoutTokens.getCompactDrawerWidth(
-                                            constraints.maxWidth,
-                                          ),
-                                      selectedShape: selectedShape,
-                                      onShapeChanged: _onPropertiesShapeChanged,
-                                      onShapeChangeEnd:
-                                          _onPropertiesShapeChangeEnd,
-                                      onOpenColorPickerFill: ([anchorRect]) =>
-                                          _openColorPicker(true, anchorRect),
-                                      onOpenColorPickerStroke: ([anchorRect]) =>
-                                          _openColorPicker(false, anchorRect),
-                                      onDuplicateShape: _duplicateSelected,
-                                      onDeleteSelected: _deleteSelected,
-                                      onAlignShape: _alignShapes,
-                                      canvasBackgroundColor: canvasBackgroundColor,
-                                      onCanvasBackgroundColorChanged: (col) {
-                                        setState(() => canvasBackgroundColor = col);
-                                        _saveHistorySnapshot();
-                                      },
-                                      snapToGrid: snapToGrid,
-                                      onToggleSnapToGrid: (val) {
-                                        setState(() => snapToGrid = val);
-                                        ref
-                                            .read(workspaceSettingsProvider.notifier)
-                                            .setSnapToGrid(val);
-                                      },
-                                      gridSpacing: gridSpacing,
-                                      onGridSpacingChanged: (val) {
-                                        setState(() => gridSpacing = val);
-                                        ref
-                                            .read(workspaceSettingsProvider.notifier)
-                                            .setGridSpacing(val);
-                                      },
-                                      totalShapesCount: shapes.length,
-                                      zoomScale: zoomScale,
-                                      onZoomIn: _zoomIn,
-                                      onZoomOut: _zoomOut,
-                                      onSetZoomScale: _setZoomScale,
-                                      isPanMode: currentMode == EditorMode.pan,
-                                      onTogglePanMode: _togglePanMode,
-                                      onCenterCanvas: _centerCanvas,
-                                      onResetZoom: _resetZoom,
-                                      onZoomToFit: _zoomToFit,
-                                      onZoomToSelection: _zoomToSelection,
-                                      onSelectAll: _selectAll,
-                                      onExportSvg: _openExportDialog,
-                                      onClearCanvas: _clearCanvas,
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                            // Center Bottom Dynamic Floating Tool Bar
-                            Positioned(
-                              bottom:
-                                  ResponsiveLayoutTokens.getFloatingToolbarBottomMargin(
-                                    context,
-                                  ),
-                              left: 0,
-                              right: 0,
-                              child: Center(
-                                child: RepaintBoundary(
-                                  child: Transform.scale(
-                                    scale:
-                                        ResponsiveLayoutTokens.getFloatingToolbarScale(
-                                          context,
+                        // Center Workspace Interactive Canvas
+                        Expanded(
+                          child: Stack(
+                            children: [
+                              InteractiveCanvas(
+                                key: _canvasKey,
+                                transformationController:
+                                    _transformationController,
+                                shapes: shapes,
+                                selectedShapeIds: selectedShapeIds,
+                                currentMode: currentMode,
+                                draftShapeType: draftShapeType,
+                                draftIsShiftPressed:
+                                    HardwareKeyboard.instance.logicalKeysPressed
+                                        .contains(
+                                          LogicalKeyboardKey.shiftLeft,
+                                        ) ||
+                                    HardwareKeyboard.instance.logicalKeysPressed
+                                        .contains(
+                                          LogicalKeyboardKey.shiftRight,
                                         ),
-                                    child: FloatingToolBar(
-                                      currentMode: currentMode,
-                                      onModeChanged: (mode) {
-                                        setState(() => currentMode = mode);
-                                      },
-                                      onExportSvg: _openExportDialog,
+                                draftIsAltPressed:
+                                    HardwareKeyboard.instance.isAltPressed,
+                                panStartOffset: panStartOffset,
+                                panCurrentOffset: panCurrentOffset,
+                                marqueeRect: marqueeRect,
+                                snapGuidelineX: snapGuidelineX,
+                                snapGuidelineY: snapGuidelineY,
+                                gridSpacing: appSettings.gridSpacing,
+                                gridStyle: appSettings.gridStyle,
+                                invertZoom: appSettings.invertZoom,
+                                isPanningWithMouse: _isPanningWithMouse,
+                                isSpacePressed: _isSpacePressed,
+                                isResizing:
+                                    activeResizeHandle != ResizeHandle.none,
+                                activeResizeHandle: activeResizeHandle,
+                                isRotatingShape: isRotatingShape,
+                                isMovingShapes: isMovingShapes,
+                                editingTextShapeId: _editingTextShapeId,
+                                isEditingNewText: _isEditingNewText,
+                                selectAllText: _selectAllText,
+                                canvasBackgroundColor:
+                                    canvasBackgroundColor ??
+                                    appSettings.defaultCanvasBgColor,
+                                onInlineTextChanged: (text) {
+                                  final editingId = _editingTextShapeId;
+                                  if (editingId == null) return;
+                                  final index = shapes.indexWhere(
+                                    (s) => s.id == editingId,
+                                  );
+                                  if (index != -1) {
+                                    shapes[index].textContent = text;
+                                    shapes[index].invalidateCache();
+                                    setState(() {});
+                                  }
+                                },
+                                onInlineTextCommit: () =>
+                                    _stopTextEditing(commit: true),
+                                onInlineTextCancel: () =>
+                                    _stopTextEditing(commit: false),
+                                onInlineTextRectChanged: (newRect) {
+                                  final editingId = _editingTextShapeId;
+                                  if (editingId == null) return;
+                                  final index = shapes.indexWhere(
+                                    (s) => s.id == editingId,
+                                  );
+                                  if (index != -1) {
+                                    shapes[index].rect = newRect;
+                                    shapes[index].invalidateCache();
+                                    setState(() {});
+                                  }
+                                },
+                                onPointerDown: _onPointerDown,
+                                onPointerMove: _onPointerMove,
+                                onPointerUp: _onPointerUp,
+                                onPointerCancel: _onPointerCancel,
+                                onMatrixChanged: () => setState(() {}),
+                                onCanvasHoverChanged: (hovered) =>
+                                    _isMouseOverCanvas = hovered,
+                                onPointerHover: (pos) =>
+                                    _lastMouseCanvasPosition = pos,
+                              ),
+
+                              // Overlay Drawer for Compact Mobile Screens
+                              if (isCompact && showLayers)
+                                Positioned(
+                                  top: 0,
+                                  bottom: 0,
+                                  left: 0,
+                                  width:
+                                      ResponsiveLayoutTokens.getCompactDrawerWidth(
+                                        constraints.maxWidth,
+                                      ),
+                                  child: Material(
+                                    elevation: 8,
+                                    color: colorScheme.surfaceContainer,
+                                    child: RepaintBoundary(
+                                      child: LayersSidebar(
+                                        width:
+                                            ResponsiveLayoutTokens.getCompactDrawerWidth(
+                                              constraints.maxWidth,
+                                            ),
+                                        shapes: shapes,
+                                        selectedShapeIds: selectedShapeIds,
+                                        onSelectShape: (id) {
+                                          setState(() {
+                                            selectedShapeIds.clear();
+                                            selectedShapeIds.add(id);
+                                          });
+                                        },
+                                        onToggleVisibility: (id) {
+                                          setState(() {
+                                            final s = shapes.firstWhere(
+                                              (s) => s.id == id,
+                                            );
+                                            s.isVisible = !s.isVisible;
+                                          });
+                                          _saveHistorySnapshot();
+                                        },
+                                        onToggleLock: (id) {
+                                          setState(() {
+                                            final s = shapes.firstWhere(
+                                              (s) => s.id == id,
+                                            );
+                                            s.isLocked = !s.isLocked;
+                                          });
+                                          _saveHistorySnapshot();
+                                        },
+                                        onDeleteShape: _deleteShapeById,
+                                        onBringForward: _bringForward,
+                                        onSendBackward: _sendBackward,
+                                        onRenameShape: (id, newName) {
+                                          setState(() {
+                                            shapes
+                                                    .firstWhere(
+                                                      (s) => s.id == id,
+                                                    )
+                                                    .name =
+                                                newName;
+                                          });
+                                          _saveHistorySnapshot();
+                                        },
+                                        onReorder: (oldIndex, newIndex) {
+                                          setState(() {
+                                            if (newIndex > oldIndex) newIndex--;
+                                            final displayList = shapes.reversed
+                                                .toList();
+                                            final shape = displayList.removeAt(
+                                              oldIndex,
+                                            );
+                                            displayList.insert(newIndex, shape);
+                                            shapes = displayList.reversed
+                                                .toList();
+                                          });
+                                          _saveHistorySnapshot();
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                              // Overlay Properties for Compact Mobile Screens
+                              if (isCompact &&
+                                  showProperties &&
+                                  selectedShape != null)
+                                Positioned(
+                                  top: 0,
+                                  bottom: 0,
+                                  right: 0,
+                                  width:
+                                      ResponsiveLayoutTokens.getCompactDrawerWidth(
+                                        constraints.maxWidth,
+                                      ),
+                                  child: Material(
+                                    elevation: 8,
+                                    color: colorScheme.surfaceContainer,
+                                    child: RepaintBoundary(
+                                      child: PropertiesSidebar(
+                                        width:
+                                            ResponsiveLayoutTokens.getCompactDrawerWidth(
+                                              constraints.maxWidth,
+                                            ),
+                                        selectedShape: selectedShape,
+                                        onShapeChanged:
+                                            _onPropertiesShapeChanged,
+                                        onShapeChangeEnd:
+                                            _onPropertiesShapeChangeEnd,
+                                        onOpenColorPickerFill: ([anchorRect]) =>
+                                            _openColorPicker(true, anchorRect),
+                                        onOpenColorPickerStroke:
+                                            ([anchorRect]) => _openColorPicker(
+                                              false,
+                                              anchorRect,
+                                            ),
+                                        onDuplicateShape: _duplicateSelected,
+                                        onDeleteSelected: _deleteSelected,
+                                        onAlignShape: _alignShapes,
+                                        canvasBackgroundColor:
+                                            canvasBackgroundColor,
+                                        onCanvasBackgroundColorChanged: (col) {
+                                          setState(
+                                            () => canvasBackgroundColor = col,
+                                          );
+                                          _saveHistorySnapshot();
+                                        },
+                                        snapToGrid: appSettings.snapToGrid,
+                                        onToggleSnapToGrid: (val) {
+                                          ref
+                                              .read(
+                                                appSettingsProvider.notifier,
+                                              )
+                                              .setSnapToGrid(val);
+                                        },
+                                        gridSpacing: appSettings.gridSpacing,
+                                        onGridSpacingChanged: (val) {
+                                          ref
+                                              .read(
+                                                appSettingsProvider.notifier,
+                                              )
+                                              .setGridSpacing(val);
+                                        },
+                                        totalShapesCount: shapes.length,
+                                        zoomScale: zoomScale,
+                                        onZoomIn: _zoomIn,
+                                        onZoomOut: _zoomOut,
+                                        onSetZoomScale: _setZoomScale,
+                                        isPanMode:
+                                            currentMode == EditorMode.pan,
+                                        onTogglePanMode: _togglePanMode,
+                                        onCenterCanvas: _centerCanvas,
+                                        onResetZoom: _resetZoom,
+                                        onZoomToFit: _zoomToFit,
+                                        onZoomToSelection: _zoomToSelection,
+                                        onSelectAll: _selectAll,
+                                        onExportSvg: _openExportDialog,
+                                        onClearCanvas: _clearCanvas,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                              // Center Dynamic Floating Tool Bar (Top or Bottom based on App Settings)
+                              Positioned(
+                                top: appSettings.toolbarPosition == 'top'
+                                    ? 16.0
+                                    : null,
+                                bottom: appSettings.toolbarPosition == 'top'
+                                    ? null
+                                    : ResponsiveLayoutTokens.getFloatingToolbarBottomMargin(
+                                        context,
+                                      ),
+                                left: 0,
+                                right: 0,
+                                child: Center(
+                                  child: RepaintBoundary(
+                                    child: Transform.scale(
+                                      scale:
+                                          ResponsiveLayoutTokens.getFloatingToolbarScale(
+                                            context,
+                                          ),
+                                      child: FloatingToolBar(
+                                        currentMode: currentMode,
+                                        onModeChanged: (mode) {
+                                          setState(() => currentMode = mode);
+                                        },
+                                        onExportSvg: _openExportDialog,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Right Properties Inspector Sidebar (Docked when wide & enabled)
-                      if (!isCompact && showProperties) ...[
-                        SidebarResizeHandle(
-                          onDragUpdate: (deltaDx) {
-                            final maxWidth =
-                                ResponsiveLayoutTokens.getMaxSidebarWidth(
-                                  constraints.maxWidth,
-                                );
-                            final next = (propertiesSidebarWidth - deltaDx)
-                                .clamp(180.0, maxWidth);
-                            setState(() => propertiesSidebarWidth = next);
-                            ref
-                                .read(workspaceSettingsProvider.notifier)
-                                .setPropertiesSidebarWidth(next);
-                          },
-                          onDoubleTapReset: () {
-                            setState(() => propertiesSidebarWidth = 280.0);
-                            ref
-                                .read(workspaceSettingsProvider.notifier)
-                                .setPropertiesSidebarWidth(280.0);
-                          },
-                        ),
-                        RepaintBoundary(
-                          child: PropertiesSidebar(
-                            width: effectivePropertiesWidth,
-                            selectedShape: selectedShape,
-                            onShapeChanged: _onPropertiesShapeChanged,
-                            onShapeChangeEnd: _onPropertiesShapeChangeEnd,
-                            onOpenColorPickerFill: ([anchorRect]) =>
-                                _openColorPicker(true, anchorRect),
-                            onOpenColorPickerStroke: ([anchorRect]) =>
-                                _openColorPicker(false, anchorRect),
-                            onDuplicateShape: _duplicateSelected,
-                            onDeleteSelected: _deleteSelected,
-                            onAlignShape: _alignShapes,
-                            canvasBackgroundColor: canvasBackgroundColor,
-                            onCanvasBackgroundColorChanged: (col) {
-                              setState(() => canvasBackgroundColor = col);
-                              _saveHistorySnapshot();
-                            },
-                            snapToGrid: snapToGrid,
-                            onToggleSnapToGrid: (val) {
-                              setState(() => snapToGrid = val);
-                              ref
-                                  .read(workspaceSettingsProvider.notifier)
-                                  .setSnapToGrid(val);
-                            },
-                            gridSpacing: gridSpacing,
-                            onGridSpacingChanged: (val) {
-                              setState(() => gridSpacing = val);
-                              ref
-                                  .read(workspaceSettingsProvider.notifier)
-                                  .setGridSpacing(val);
-                            },
-                            totalShapesCount: shapes.length,
-                            zoomScale: zoomScale,
-                            onZoomIn: _zoomIn,
-                            onZoomOut: _zoomOut,
-                            onSetZoomScale: _setZoomScale,
-                            isPanMode: currentMode == EditorMode.pan,
-                            onTogglePanMode: _togglePanMode,
-                            onCenterCanvas: _centerCanvas,
-                            onResetZoom: _resetZoom,
-                            onZoomToFit: _zoomToFit,
-                            onZoomToSelection: _zoomToSelection,
-                            onSelectAll: _selectAll,
-                            onExportSvg: _openExportDialog,
-                            onClearCanvas: _clearCanvas,
+                            ],
                           ),
                         ),
+
+                        // Right Properties Inspector Sidebar (Docked when wide & enabled)
+                        if (!isCompact && showProperties) ...[
+                          SidebarResizeHandle(
+                            onDragUpdate: (deltaDx) {
+                              final maxWidth =
+                                  ResponsiveLayoutTokens.getMaxSidebarWidth(
+                                    constraints.maxWidth,
+                                  );
+                              final next = (propertiesSidebarWidth - deltaDx)
+                                  .clamp(180.0, maxWidth);
+                              setState(() => propertiesSidebarWidth = next);
+                              ref
+                                  .read(workspaceSettingsProvider.notifier)
+                                  .setPropertiesSidebarWidth(next);
+                            },
+                            onDoubleTapReset: () {
+                              setState(() => propertiesSidebarWidth = 280.0);
+                              ref
+                                  .read(workspaceSettingsProvider.notifier)
+                                  .setPropertiesSidebarWidth(280.0);
+                            },
+                          ),
+                          RepaintBoundary(
+                            child: PropertiesSidebar(
+                              width: effectivePropertiesWidth,
+                              selectedShape: selectedShape,
+                              onShapeChanged: _onPropertiesShapeChanged,
+                              onShapeChangeEnd: _onPropertiesShapeChangeEnd,
+                              onOpenColorPickerFill: ([anchorRect]) =>
+                                  _openColorPicker(true, anchorRect),
+                              onOpenColorPickerStroke: ([anchorRect]) =>
+                                  _openColorPicker(false, anchorRect),
+                              onDuplicateShape: _duplicateSelected,
+                              onDeleteSelected: _deleteSelected,
+                              onAlignShape: _alignShapes,
+                              canvasBackgroundColor: canvasBackgroundColor,
+                              onCanvasBackgroundColorChanged: (col) {
+                                setState(() => canvasBackgroundColor = col);
+                                _saveHistorySnapshot();
+                              },
+                              snapToGrid: appSettings.snapToGrid,
+                              onToggleSnapToGrid: (val) {
+                                ref
+                                    .read(appSettingsProvider.notifier)
+                                    .setSnapToGrid(val);
+                              },
+                              gridSpacing: appSettings.gridSpacing,
+                              onGridSpacingChanged: (val) {
+                                ref
+                                    .read(appSettingsProvider.notifier)
+                                    .setGridSpacing(val);
+                              },
+                              totalShapesCount: shapes.length,
+                              zoomScale: zoomScale,
+                              onZoomIn: _zoomIn,
+                              onZoomOut: _zoomOut,
+                              onSetZoomScale: _setZoomScale,
+                              isPanMode: currentMode == EditorMode.pan,
+                              onTogglePanMode: _togglePanMode,
+                              onCenterCanvas: _centerCanvas,
+                              onResetZoom: _resetZoom,
+                              onZoomToFit: _zoomToFit,
+                              onZoomToSelection: _zoomToSelection,
+                              onSelectAll: _selectAll,
+                              onExportSvg: _openExportDialog,
+                              onClearCanvas: _clearCanvas,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
   }
 
   ShapeType? _getShapeTypeFromMode(EditorMode mode) {
