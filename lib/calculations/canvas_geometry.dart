@@ -461,7 +461,8 @@ class CanvasGeometry {
     required List<VectorShape> shapes,
     required Set<String> selectedIds,
     required String align,
-    Rect canvasFrame = const Rect.fromLTWH(0, 0, 1920, 1080),
+    Rect canvasFrame = const Rect.fromLTWH(0, 0, 3200, 2400),
+    bool alignToCanvas = false,
   }) {
     if (selectedIds.isEmpty) return;
     final selectedShapes = shapes
@@ -469,38 +470,30 @@ class CanvasGeometry {
         .toList();
     if (selectedShapes.isEmpty) return;
 
-    Rect bounds;
     if (selectedShapes.length == 1) {
-      bounds = canvasFrame;
-    } else {
-      bounds = selectedShapes.first.rect;
-      for (final s in selectedShapes.skip(1)) {
-        bounds = bounds.expandToInclude(s.rect);
-      }
-    }
-
-    for (final shape in selectedShapes) {
+      // Single shape aligns relative to the Canvas / Artboard Frame like Figma
+      final shape = selectedShapes.first;
       double left = shape.rect.left;
       double top = shape.rect.top;
 
       switch (align) {
         case 'left':
-          left = bounds.left;
+          left = canvasFrame.left;
           break;
         case 'center':
-          left = bounds.center.dx - shape.rect.width / 2;
+          left = canvasFrame.center.dx - shape.rect.width / 2;
           break;
         case 'right':
-          left = bounds.right - shape.rect.width;
+          left = canvasFrame.right - shape.rect.width;
           break;
         case 'top':
-          top = bounds.top;
+          top = canvasFrame.top;
           break;
         case 'middle':
-          top = bounds.center.dy - shape.rect.height / 2;
+          top = canvasFrame.center.dy - shape.rect.height / 2;
           break;
         case 'bottom':
-          top = bounds.bottom - shape.rect.height;
+          top = canvasFrame.bottom - shape.rect.height;
           break;
       }
       shape.rect = Rect.fromLTWH(
@@ -509,6 +502,77 @@ class CanvasGeometry {
         shape.rect.width,
         shape.rect.height,
       );
+      shape.invalidateCache();
+    } else if (alignToCanvas) {
+      // Multiple shapes aligned as a collective group to the canvas frame
+      Rect groupBounds = selectedShapes.first.rect;
+      for (final s in selectedShapes.skip(1)) {
+        groupBounds = groupBounds.expandToInclude(s.rect);
+      }
+      double dx = 0.0;
+      double dy = 0.0;
+      switch (align) {
+        case 'left':
+          dx = canvasFrame.left - groupBounds.left;
+          break;
+        case 'center':
+          dx = canvasFrame.center.dx - groupBounds.center.dx;
+          break;
+        case 'right':
+          dx = canvasFrame.right - groupBounds.right;
+          break;
+        case 'top':
+          dy = canvasFrame.top - groupBounds.top;
+          break;
+        case 'middle':
+          dy = canvasFrame.center.dy - groupBounds.center.dy;
+          break;
+        case 'bottom':
+          dy = canvasFrame.bottom - groupBounds.bottom;
+          break;
+      }
+      for (final shape in selectedShapes) {
+        shape.rect = shape.rect.shift(Offset(dx, dy));
+        shape.invalidateCache();
+      }
+    } else {
+      // Multiple shapes aligned relative to their collective union bounding box
+      Rect bounds = selectedShapes.first.rect;
+      for (final s in selectedShapes.skip(1)) {
+        bounds = bounds.expandToInclude(s.rect);
+      }
+      for (final shape in selectedShapes) {
+        double left = shape.rect.left;
+        double top = shape.rect.top;
+
+        switch (align) {
+          case 'left':
+            left = bounds.left;
+            break;
+          case 'center':
+            left = bounds.center.dx - shape.rect.width / 2;
+            break;
+          case 'right':
+            left = bounds.right - shape.rect.width;
+            break;
+          case 'top':
+            top = bounds.top;
+            break;
+          case 'middle':
+            top = bounds.center.dy - shape.rect.height / 2;
+            break;
+          case 'bottom':
+            top = bounds.bottom - shape.rect.height;
+            break;
+        }
+        shape.rect = Rect.fromLTWH(
+          left,
+          top,
+          shape.rect.width,
+          shape.rect.height,
+        );
+        shape.invalidateCache();
+      }
     }
   }
 

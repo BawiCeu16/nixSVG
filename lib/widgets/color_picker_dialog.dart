@@ -5,7 +5,6 @@ import 'color_picker/nix_color_picker.dart';
 export 'color_picker/nix_color_models.dart';
 export 'color_picker/nix_color_picker.dart';
 export 'color_picker/nix_color_picker_presenter.dart';
-export 'color_picker/color_picker_experiment_widget.dart';
 export 'color_picker/nix_eyedropper_overlay.dart';
 
 /// Backward-compatible dialog wrapper for [NixColorPicker] with Material 3 Expressive polish.

@@ -1,14 +1,14 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:m3e_buttons/m3e_buttons.dart';
 import 'package:m3e_segmented_list/m3e_segmented_list.dart';
 import 'package:nixsvg/models/vector_shape.dart';
+import 'package:nixsvg/theme/physics/m3e_physics_spring.dart';
+import 'package:nixsvg/widgets/settings_dialog.dart';
 import 'package:remixicon/remixicon.dart';
 
-/// Redesigned macOS-style Layers Sidebar.
-/// Features frosted glassmorphism, native macOS sidebar styling,
-/// reorderable segments, layer ordering controls, and micro-interactions.
+/// Pure Material 3 Expressive Layers Sidebar for nixSVG.
+/// Features tonal surface container styling, reorderable segments,
+/// physics-based spring interactions, and layer hierarchy management.
 class LayersSidebar extends StatelessWidget {
   final List<VectorShape> shapes;
   final Set<String> selectedShapeIds;
@@ -20,6 +20,7 @@ class LayersSidebar extends StatelessWidget {
   final VoidCallback onSendBackward;
   final Function(String id, String newName) onRenameShape;
   final void Function(int oldIndex, int newIndex)? onReorder;
+  final VoidCallback? onOpenSettings;
   final double? width;
 
   const LayersSidebar({
@@ -34,6 +35,7 @@ class LayersSidebar extends StatelessWidget {
     required this.onSendBackward,
     required this.onRenameShape,
     this.onReorder,
+    this.onOpenSettings,
     this.width,
   });
 
@@ -43,218 +45,266 @@ class LayersSidebar extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          width: width ?? 270,
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerLow.withValues(
-              alpha: isDark ? 0.75 : 0.88,
+    return Container(
+      width: width ?? 270,
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        border: Border(
+          right: BorderSide(
+            color: colorScheme.outlineVariant.withValues(
+              alpha: isDark ? 0.35 : 0.45,
             ),
-            border: Border(
-              right: BorderSide(
-                color: colorScheme.outlineVariant.withValues(
-                  alpha: isDark ? 0.25 : 0.35,
+            width: 1.0,
+          ),
+        ),
+      ),
+      child: Column(
+        children: [
+          // --- Material 3 Expressive Sidebar Header ---
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainer,
+              border: Border(
+                bottom: BorderSide(
+                  color: colorScheme.outlineVariant.withValues(
+                    alpha: isDark ? 0.25 : 0.35,
+                  ),
+                  width: 1.0,
                 ),
-                width: 0.8,
               ),
             ),
-          ),
-          child: Column(
-            children: [
-              // --- macOS Sidebar Header ---
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
+            child: Row(
+              children: [
+                Icon(
+                  RemixIcons.stack_line,
+                  size: 16,
+                  color: colorScheme.primary,
                 ),
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(
-                      color: colorScheme.outlineVariant.withValues(
-                        alpha: isDark ? 0.2 : 0.3,
-                      ),
-                      width: 0.8,
+                const SizedBox(width: 8),
+                Text(
+                  'Layers',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorScheme.secondaryContainer.withValues(
+                      alpha: 0.7,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${shapes.length}',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSecondaryContainer,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
                     ),
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      RemixIcons.stack_line,
-                      size: 16,
-                      color: colorScheme.primary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Layers',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        color: colorScheme.onSurface,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: colorScheme.secondaryContainer.withValues(
-                          alpha: 0.7,
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '${shapes.length}',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: colorScheme.onSecondaryContainer,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
+                const Spacer(),
 
-                    // Layer Ordering Quick Action Buttons (shown when selection active)
-                    if (selectedShapeIds.isNotEmpty) ...[
-                      _MacHeaderAction(
-                        icon: RemixIcons.arrow_up_s_line,
-                        tooltip: 'Bring Forward',
-                        onTap: onBringForward,
-                      ),
-                      const SizedBox(width: 2),
-                      _MacHeaderAction(
-                        icon: RemixIcons.arrow_down_s_line,
-                        tooltip: 'Send Backward',
-                        onTap: onSendBackward,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+                // Layer Ordering Quick Action Buttons (shown when selection active)
+                if (selectedShapeIds.isNotEmpty) ...[
+                  _M3EHeaderAction(
+                    icon: RemixIcons.arrow_up_s_line,
+                    tooltip: 'Bring Forward',
+                    onTap: onBringForward,
+                  ),
+                  const SizedBox(width: 4),
+                  _M3EHeaderAction(
+                    icon: RemixIcons.arrow_down_s_line,
+                    tooltip: 'Send Backward',
+                    onTap: onSendBackward,
+                  ),
+                ],
+              ],
+            ),
+          ),
 
-              // --- Layer List View with M3EReorderableSegmentedList ---
-              Expanded(
-                child: shapes.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: colorScheme.surfaceContainerHighest
-                                      .withValues(alpha: 0.4),
-                                  shape: BoxShape.circle,
-                                ),
-                                alignment: Alignment.center,
-                                child: Icon(
-                                  RemixIcons.shapes_line,
-                                  size: 22,
-                                  color: colorScheme.outline.withValues(
-                                    alpha: 0.5,
-                                  ),
-                                ),
+          // --- Layer List View with M3EReorderableSegmentedList ---
+          Expanded(
+            child: shapes.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: colorScheme.surfaceContainerHighest
+                                  .withValues(alpha: 0.4),
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(
+                              RemixIcons.shapes_line,
+                              size: 22,
+                              color: colorScheme.outline.withValues(alpha: 0.5),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'No vector layers',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant.withValues(
+                                alpha: 0.7,
                               ),
-                              const SizedBox(height: 10),
-                              Text(
-                                'No vector layers',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: colorScheme.onSurfaceVariant
-                                      .withValues(alpha: 0.7),
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Draw shapes using the dock tools.',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant.withValues(
+                                alpha: 0.5,
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Draw shapes using the dock tools.',
-                                textAlign: TextAlign.center,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant
-                                      .withValues(alpha: 0.5),
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : Builder(
+                    builder: (context) {
+                      final items = shapes.reversed.toList();
+                      return Theme(
+                        data: theme.copyWith(
+                          scrollbarTheme: ScrollbarThemeData(
+                            radius: const Radius.circular(4),
+                            thickness: const WidgetStatePropertyAll(4),
+                            thumbColor: WidgetStatePropertyAll(
+                              colorScheme.onSurface.withValues(alpha: 0.18),
+                            ),
                           ),
                         ),
-                      )
-                    : Builder(
-                        builder: (context) {
-                          final items = shapes.reversed.toList();
-                          return Theme(
-                            data: theme.copyWith(
-                              scrollbarTheme: ScrollbarThemeData(
-                                radius: const Radius.circular(4),
-                                thickness: const WidgetStatePropertyAll(4),
-                                thumbColor: WidgetStatePropertyAll(
-                                  colorScheme.onSurface.withValues(alpha: 0.18),
-                                ),
-                              ),
+                        child: M3EReorderableSegmentedList.builder(
+                          keyBuilder: (index) => ValueKey(items[index].id),
+                          itemCount: items.length,
+                          buildDefaultDragHandles: false,
+                          onTap: (index) => onSelectShape(items[index].id),
+                          decoration: M3ESegmentedListDecoration(
+                            outerRadius: 10.0,
+                            innerRadius: 6.0,
+                            pressedRadius: 8.0,
+                            pressedScale: 0.98,
+                            hoveredRadius: 10.0,
+                            dragRadius: 12.0,
+                            dragElevation: 4.0,
+                            dragScale: 1.01,
+                            gap: 2.0,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10.0,
+                              vertical: 8.0,
                             ),
-                            child: M3EReorderableSegmentedList.builder(
-                              keyBuilder: (index) => ValueKey(items[index].id),
-                              itemCount: items.length,
-                              buildDefaultDragHandles: false,
-                              onTap: (index) => onSelectShape(items[index].id),
-                              decoration: M3ESegmentedListDecoration(
-                                outerRadius: 10.0,
-                                innerRadius: 6.0,
-                                pressedRadius: 8.0,
-                                pressedScale: 0.98,
-                                hoveredRadius: 10.0,
-                                dragRadius: 12.0,
-                                dragElevation: 4.0,
-                                dragScale: 1.01,
-                                gap: 2.0,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10.0,
-                                  vertical: 8.0,
-                                ),
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 8.0,
-                                  vertical: 2.0,
-                                ),
-                                hoverColor: colorScheme.onSurfaceVariant
-                                    .withValues(alpha: 0.08),
-                                dragPlaceholderColor:
-                                    colorScheme.surfaceContainerHighest,
-                                color: isDark
-                                    ? colorScheme.surfaceContainerHigh
-                                          .withValues(alpha: 0.3)
-                                    : colorScheme.surfaceContainerHighest
-                                          .withValues(alpha: 0.25),
-                                selectedColor: colorScheme.primaryContainer
-                                    .withValues(alpha: 0.65),
-                              ),
-                              onReorder: (oldIndex, newIndex) {
-                                if (onReorder != null) {
-                                  onReorder!(oldIndex, newIndex);
-                                } else {
-                                  if (newIndex > oldIndex) newIndex--;
-                                  final item = items.removeAt(oldIndex);
-                                  items.insert(newIndex, item);
-                                  shapes.clear();
-                                  shapes.addAll(items.reversed);
-                                }
-                              },
-                              itemBuilder: (context, index) {
-                                return _buildListItem(context, items[index]);
-                              },
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 8.0,
+                              vertical: 2.0,
                             ),
-                          );
-                        },
-                      ),
-              ),
-            ],
+                            hoverColor: colorScheme.onSurfaceVariant.withValues(
+                              alpha: 0.08,
+                            ),
+                            dragPlaceholderColor:
+                                colorScheme.surfaceContainerHighest,
+                            color: isDark
+                                ? colorScheme.surfaceContainerHigh.withValues(
+                                    alpha: 0.3,
+                                  )
+                                : colorScheme.surfaceContainerHighest
+                                      .withValues(alpha: 0.25),
+                            selectedColor: colorScheme.primaryContainer
+                                .withValues(alpha: 0.65),
+                          ),
+                          onReorder: (oldIndex, newIndex) {
+                            if (onReorder != null) {
+                              onReorder!(oldIndex, newIndex);
+                            } else {
+                              if (newIndex > oldIndex) newIndex--;
+                              final item = items.removeAt(oldIndex);
+                              items.insert(newIndex, item);
+                              shapes.clear();
+                              shapes.addAll(items.reversed);
+                            }
+                          },
+                          itemBuilder: (context, index) {
+                            return _buildListItem(context, items[index]);
+                          },
+                        ),
+                      );
+                    },
+                  ),
           ),
-        ),
+          // --- Material 3 Expressive Sidebar Footer ---
+          Container(
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainer,
+              border: Border(
+                top: BorderSide(
+                  color: colorScheme.outlineVariant.withValues(
+                    alpha: isDark ? 0.25 : 0.35,
+                  ),
+                  width: 1.0,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                // Settings & Preferences
+                _M3EIconButton(
+                  icon: RemixIcons.settings_3_line,
+                  tooltip: 'Settings & Preferences (Ctrl+,)',
+                  enabled: true,
+                  onTap: () {
+                    if (onOpenSettings != null) {
+                      onOpenSettings!();
+                    } else {
+                      showAppSettingsDialog(context);
+                    }
+                  },
+                ),
+                const Spacer(),
+                if (selectedShapeIds.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primaryContainer.withValues(
+                        alpha: 0.6,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${selectedShapeIds.length} selected',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -307,7 +357,7 @@ class LayersSidebar extends StatelessWidget {
         ),
 
         // Visibility Toggle
-        _MacLayerActionBtn(
+        _M3ELayerActionBtn(
           tooltip: shape.isVisible ? 'Hide Layer' : 'Show Layer',
           icon: shape.isVisible ? RemixIcons.eye_line : RemixIcons.eye_off_line,
           iconColor: shape.isVisible
@@ -319,7 +369,7 @@ class LayersSidebar extends StatelessWidget {
         ),
 
         // Lock Toggle
-        _MacLayerActionBtn(
+        _M3ELayerActionBtn(
           tooltip: shape.isLocked ? 'Unlock Layer' : 'Lock Layer',
           icon: shape.isLocked
               ? RemixIcons.lock_line
@@ -331,10 +381,10 @@ class LayersSidebar extends StatelessWidget {
         ),
 
         // Delete Layer
-        _MacLayerActionBtn(
+        _M3ELayerActionBtn(
           tooltip: 'Delete Layer',
           icon: RemixIcons.close_line,
-          iconColor: colorScheme.error.withValues(alpha: 0.6),
+          iconColor: colorScheme.error.withValues(alpha: 0.7),
           onTap: () => onDeleteShape(shape.id),
         ),
       ],
@@ -376,7 +426,9 @@ class LayersSidebar extends StatelessWidget {
           ],
         );
       },
-    );
+    ).then((_) {
+      controller.dispose();
+    });
   }
 
   IconData _getShapeIcon(ShapeType type) {
@@ -399,12 +451,12 @@ class LayersSidebar extends StatelessWidget {
   }
 }
 
-class _MacHeaderAction extends StatelessWidget {
+class _M3EHeaderAction extends StatelessWidget {
   final IconData icon;
   final String tooltip;
   final VoidCallback onTap;
 
-  const _MacHeaderAction({
+  const _M3EHeaderAction({
     required this.icon,
     required this.tooltip,
     required this.onTap,
@@ -414,27 +466,28 @@ class _MacHeaderAction extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Icon(icon, size: 15, color: colorScheme.onSurfaceVariant),
+    return M3PhysicsPressable(
+      tooltip: tooltip,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(8),
         ),
+        child: Icon(icon, size: 15, color: colorScheme.onSurfaceVariant),
       ),
     );
   }
 }
 
-class _MacLayerActionBtn extends StatelessWidget {
+class _M3ELayerActionBtn extends StatelessWidget {
   final String tooltip;
   final IconData icon;
   final Color iconColor;
   final VoidCallback onTap;
 
-  const _MacLayerActionBtn({
+  const _M3ELayerActionBtn({
     required this.tooltip,
     required this.icon,
     required this.iconColor,
@@ -443,14 +496,52 @@ class _MacLayerActionBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(5),
-        child: Padding(
-          padding: const EdgeInsets.all(3.5),
-          child: Icon(icon, size: 14, color: iconColor),
+    return M3PhysicsPressable(
+      tooltip: tooltip,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(4.0),
+        child: Icon(icon, size: 15, color: iconColor),
+      ),
+    );
+  }
+}
+
+/// Material 3 Expressive Icon Button with spring physics.
+class _M3EIconButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _M3EIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return M3PhysicsPressable(
+      tooltip: tooltip,
+      onTap: enabled ? onTap : null,
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: const BoxDecoration(
+          color: Colors.transparent,
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: Icon(
+          icon,
+          size: 17,
+          color: enabled
+              ? colorScheme.onSurface
+              : colorScheme.onSurface.withValues(alpha: 0.35),
         ),
       ),
     );

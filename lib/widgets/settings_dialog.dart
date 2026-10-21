@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:m3e_buttons/m3e_buttons.dart';
 import 'package:nixsvg/providers/app_settings_provider.dart';
 import 'package:nixsvg/providers/project_provider.dart';
+import 'package:nixsvg/theme/physics/m3e_physics_spring.dart';
 import 'package:nixsvg/widgets/color_picker/nix_color_picker_presenter.dart';
 import 'package:remixicon/remixicon.dart';
 
@@ -188,26 +189,26 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         ),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.max,
         children: [
-          // Close button / Mac traffic light pill
-          Tooltip(
-            message: 'Close Settings (Esc)',
-            child: InkWell(
-              onTap: () => Navigator.of(context).pop(),
-              borderRadius: BorderRadius.circular(10),
-              child: Container(
-                padding: EdgeInsets.all(isCompact ? 6 : 8),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.6,
-                  ),
-                  borderRadius: BorderRadius.circular(10),
+          // Material 3 Expressive Close Button with physics spring feedback
+          M3PhysicsPressable(
+            tooltip: 'Close Settings (Esc)',
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(
+              padding: EdgeInsets.all(isCompact ? 6 : 8),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHigh,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+                  width: 1.0,
                 ),
-                child: Icon(
-                  RemixIcons.close_line,
-                  size: isCompact ? 16 : 18,
-                  color: colorScheme.onSurface,
-                ),
+              ),
+              child: Icon(
+                RemixIcons.close_line,
+                size: isCompact ? 16 : 18,
+                color: colorScheme.onSurface,
               ),
             ),
           ),
@@ -215,12 +216,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
 
           // Title with app badge
           if (!isCompact) ...[
-            Icon(
-              RemixIcons.settings_3_line,
-              size: 20,
-              color: colorScheme.primary,
-            ),
-            const SizedBox(width: 10),
             Text(
               'Settings & Preferences',
               style: Theme.of(context).textTheme.titleMedium
@@ -236,99 +231,72 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
             const SizedBox(width: 8),
           ],
 
-          // Search Field
-          Expanded(
+          const Spacer(),
+
+          // Search Field using Flutter native SearchBar
+          Flexible(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Container(
-                height: 36,
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.6,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.35),
-                  ),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Row(
-                  children: [
-                    Icon(
-                      RemixIcons.search_line,
-                      size: 15,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        style: Theme.of(context).textTheme.bodyMedium
-                            ?.copyWith(fontSize: 13),
-                        decoration: InputDecoration(
-                          hintText: isCompact
-                              ? 'Search...'
-                              : 'Search settings, canvas, shortcuts...',
-                          hintStyle: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: colorScheme.onSurfaceVariant.withValues(
-                                  alpha: 0.65,
-                                ),
-                                fontSize: 13,
-                              ),
-                          isDense: true,
-                          border: InputBorder.none,
-                        ),
+              constraints: BoxConstraints(maxWidth: isCompact ? 160 : 420),
+              child: SizedBox(
+                height: 38,
+                child: SearchBar(
+                  controller: _searchController,
+                  hintText: isCompact
+                      ? 'Search...'
+                      : 'Search settings, canvas, shortcuts...',
+                  hintStyle: WidgetStatePropertyAll(
+                    Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.7,
                       ),
+                      fontSize: 13,
                     ),
+                  ),
+                  textStyle: WidgetStatePropertyAll(
+                    Theme.of(context).textTheme.bodyMedium
+                        ?.copyWith(color: colorScheme.onSurface, fontSize: 13),
+                  ),
+                  leading: Icon(
+                    RemixIcons.search_line,
+                    size: 16,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  trailing: [
                     if (_searchQuery.isNotEmpty)
-                      GestureDetector(
-                        onTap: () => _searchController.clear(),
-                        child: Icon(
+                      IconButton(
+                        icon: Icon(
                           RemixIcons.close_circle_line,
-                          size: 14,
+                          size: 16,
                           color: colorScheme.onSurfaceVariant,
                         ),
+                        onPressed: () => _searchController.clear(),
                       ),
                   ],
+                  elevation: const WidgetStatePropertyAll(0),
+                  backgroundColor: WidgetStatePropertyAll(
+                    colorScheme.surfaceContainerHigh,
+                  ),
+                  shape: WidgetStatePropertyAll(
+                    RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(19),
+                      side: BorderSide(
+                        color: colorScheme.outlineVariant.withValues(
+                          alpha: 0.35,
+                        ),
+                        width: 1.0,
+                      ),
+                    ),
+                  ),
+                  padding: const WidgetStatePropertyAll(
+                    EdgeInsets.symmetric(horizontal: 12),
+                  ),
                 ),
               ),
             ),
           ),
 
+          const Spacer(),
           SizedBox(width: isCompact ? 6 : 16),
-
-          // Reset Defaults Button
-          if (!isCompact)
-            M3EButton.icon(
-              onPressed: () => _confirmResetDefaults(context, notifier),
-              style: M3EButtonStyle.text,
-              size: M3EButtonSize.sm,
-              icon: Icon(
-                RemixIcons.restart_line,
-                size: 15,
-                color: colorScheme.error,
-              ),
-              label: Text(
-                'Reset Defaults',
-                style: TextStyle(
-                  color: colorScheme.error,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12.5,
-                ),
-              ),
-            )
-          else
-            IconButton(
-              tooltip: 'Reset Defaults',
-              icon: Icon(
-                RemixIcons.restart_line,
-                size: 16,
-                color: colorScheme.error,
-              ),
-              onPressed: () => _confirmResetDefaults(context, notifier),
-            ),
-          SizedBox(width: isCompact ? 4 : 8),
 
           // Done Button
           M3EButton(
@@ -357,71 +325,92 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     return Container(
       color: colorScheme.surfaceContainerLowest,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-      child: ListView(
-        children: SettingsCategory.values.map((cat) {
-          final isSelected = _selectedCategory == cat && _searchQuery.isEmpty;
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: InkWell(
-              onTap: () {
-                setState(() {
-                  _selectedCategory = cat;
-                  if (_searchQuery.isNotEmpty) {
-                    _searchController.clear();
-                  }
-                });
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? colorScheme.primaryContainer.withValues(
-                          alpha: isDark ? 0.35 : 0.6,
-                        )
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isSelected
-                        ? colorScheme.primary.withValues(alpha: 0.3)
-                        : Colors.transparent,
-                    width: 0.8,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      cat.icon,
-                      size: 18,
-                      color: isSelected
-                          ? colorScheme.primary
-                          : colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        cat.label,
-                        style: TextStyle(
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              children: SettingsCategory.values.map((cat) {
+                final isSelected =
+                    _selectedCategory == cat && _searchQuery.isEmpty;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _selectedCategory = cat;
+                        if (_searchQuery.isNotEmpty) {
+                          _searchController.clear();
+                        }
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? colorScheme.primaryContainer.withValues(
+                                alpha: isDark ? 0.35 : 0.6,
+                              )
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
                           color: isSelected
-                              ? colorScheme.primary
-                              : colorScheme.onSurface,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.w500,
-                          fontSize: 13.5,
+                              ? colorScheme.primary.withValues(alpha: 0.3)
+                              : Colors.transparent,
+                          width: 0.8,
                         ),
                       ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            cat.icon,
+                            size: 18,
+                            color: isSelected
+                                ? colorScheme.primary
+                                : colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              cat.label,
+                              style: TextStyle(
+                                color: isSelected
+                                    ? colorScheme.primary
+                                    : colorScheme.onSurface,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.w500,
+                                fontSize: 13.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              }).toList(),
             ),
-          );
-        }).toList(),
+          ),
+          const SizedBox(height: 8),
+          Consumer(
+            builder: (context, ref, _) {
+              final notifier = ref.read(appSettingsProvider.notifier);
+              return TextButton.icon(
+                onPressed: () => _confirmResetDefaults(context, notifier),
+                icon: const Icon(RemixIcons.restart_line, size: 15),
+                label: const Text(
+                  'Reset Defaults',
+                  style: TextStyle(fontSize: 12),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

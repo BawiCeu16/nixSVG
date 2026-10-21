@@ -22,6 +22,8 @@ class PropertiesSidebar extends StatelessWidget {
   final Function(String align) onAlignShape;
   final double? width;
   final Color? canvasBackgroundColor;
+  final Size? canvasSize;
+  final ValueChanged<Size>? onCanvasSizeChanged;
   final ValueChanged<Color>? onCanvasBackgroundColorChanged;
   final bool? snapToGrid;
   final ValueChanged<bool>? onToggleSnapToGrid;
@@ -53,6 +55,8 @@ class PropertiesSidebar extends StatelessWidget {
     required this.onDeleteSelected,
     required this.onAlignShape,
     this.width,
+    this.canvasSize,
+    this.onCanvasSizeChanged,
     this.canvasBackgroundColor,
     this.onCanvasBackgroundColorChanged,
     this.snapToGrid,
@@ -538,6 +542,7 @@ class PropertiesSidebar extends StatelessWidget {
                               (val) {
                                 final updated = selectedShape!.copyWith(
                                   cornerRadius: val.clamp(0, 200),
+                                  clearIndependentCorners: true,
                                 );
                                 onShapeChanged(updated);
                                 onShapeChangeEnd?.call(updated);
@@ -2041,6 +2046,92 @@ class PropertiesSidebar extends StatelessWidget {
                     ],
                   ),
                 ),
+
+                // Section: Export Selection (Figma-Exact Inspector Section)
+                _buildSectionCard(
+                  context,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'EXPORT',
+                            style: _getSectionHeaderStyle(theme),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'SVG',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Icon(
+                            _getShapeIcon(selectedShape!.type),
+                            size: 14,
+                            color: colorScheme.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              selectedShape!.name,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '${selectedShape!.rect.width.round()} × ${selectedShape!.rect.height.round()} px',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontFamily: 'monospace',
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: M3EButton.icon(
+                          onPressed: onExportSvg,
+                          style: M3EButtonStyle.tonal,
+                          size: M3EButtonSize.sm,
+                          icon: Icon(
+                            RemixIcons.download_2_line,
+                            size: 14,
+                            color: colorScheme.primary,
+                          ),
+                          label: Text(
+                            'Export SVG (${selectedShape!.name})',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
         ),
@@ -2781,7 +2872,209 @@ class PropertiesSidebar extends StatelessWidget {
             ],
           ),
         ),
+
+        // Section: Artboard Dimensions (Figma Style)
+        _buildSectionCard(
+          context,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('ARTBOARD DIMENSIONS', style: _getSectionHeaderStyle(theme)),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _NumberInputField(
+                      key: ValueKey('canvas-w-${canvasSize?.width ?? 3200}'),
+                      label: 'W',
+                      value: canvasSize?.width ?? 3200,
+                      onChanged: (newW) {
+                        final curH = canvasSize?.height ?? 2400.0;
+                        onCanvasSizeChanged?.call(Size(newW.clamp(100.0, 10000.0), curH));
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _NumberInputField(
+                      key: ValueKey('canvas-h-${canvasSize?.height ?? 2400}'),
+                      label: 'H',
+                      value: canvasSize?.height ?? 2400,
+                      onChanged: (newH) {
+                        final curW = canvasSize?.width ?? 3200.0;
+                        onCanvasSizeChanged?.call(Size(curW, newH.clamp(100.0, 10000.0)));
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: [
+                  _buildArtboardPresetChip(
+                    label: '3200 × 2400',
+                    size: const Size(3200, 2400),
+                    theme: theme,
+                    colorScheme: colorScheme,
+                  ),
+                  _buildArtboardPresetChip(
+                    label: '1920 × 1080',
+                    size: const Size(1920, 1080),
+                    theme: theme,
+                    colorScheme: colorScheme,
+                  ),
+                  _buildArtboardPresetChip(
+                    label: '1440 × 900',
+                    size: const Size(1440, 900),
+                    theme: theme,
+                    colorScheme: colorScheme,
+                  ),
+                  _buildArtboardPresetChip(
+                    label: '512 × 512',
+                    size: const Size(512, 512),
+                    theme: theme,
+                    colorScheme: colorScheme,
+                  ),
+                  _buildArtboardPresetChip(
+                    label: '390 × 844',
+                    size: const Size(390, 844),
+                    theme: theme,
+                    colorScheme: colorScheme,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // Section: Export Canvas (Figma-Exact Inspector Section)
+        _buildSectionCard(
+          context,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'EXPORT CANVAS',
+                    style: _getSectionHeaderStyle(theme),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'SVG',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(
+                    RemixIcons.artboard_line,
+                    size: 14,
+                    color: colorScheme.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Entire Canvas',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${(canvasSize?.width ?? 3200).round()} × ${(canvasSize?.height ?? 2400).round()} px',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontFamily: 'monospace',
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: M3EButton.icon(
+                  onPressed: onExportSvg,
+                  style: M3EButtonStyle.tonal,
+                  size: M3EButtonSize.sm,
+                  icon: Icon(
+                    RemixIcons.download_2_line,
+                    size: 14,
+                    color: colorScheme.primary,
+                  ),
+                  label: Text(
+                    'Export Canvas SVG',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildArtboardPresetChip({
+    required String label,
+    required Size size,
+    required ThemeData theme,
+    required ColorScheme colorScheme,
+  }) {
+    final cur = canvasSize ?? const Size(3200, 2400);
+    final isSelected =
+        (cur.width - size.width).abs() < 1 &&
+        (cur.height - size.height).abs() < 1;
+    return InkWell(
+      onTap: () => onCanvasSizeChanged?.call(size),
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? colorScheme.primary.withValues(alpha: 0.15)
+              : colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isSelected
+                ? colorScheme.primary
+                : colorScheme.outlineVariant.withValues(alpha: 0.3),
+            width: isSelected ? 1.2 : 0.8,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected
+                ? colorScheme.primary
+                : colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
     );
   }
 }

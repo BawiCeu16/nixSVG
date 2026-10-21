@@ -45,6 +45,8 @@ class InteractiveCanvas extends StatefulWidget {
   final PointerUpEventListener onPointerUp;
   final PointerCancelEventListener onPointerCancel;
   final Color? canvasBackgroundColor;
+  final Size canvasSize;
+  final String? artboardTitle;
   final String gridStyle;
   final bool invertZoom;
   final VoidCallback onMatrixChanged;
@@ -68,6 +70,8 @@ class InteractiveCanvas extends StatefulWidget {
     required this.gridSpacing,
     this.gridStyle = 'dots',
     this.invertZoom = false,
+    this.canvasSize = const Size(3200, 2400),
+    this.artboardTitle,
     required this.isPanningWithMouse,
     required this.isSpacePressed,
     this.isResizing = false,
@@ -137,15 +141,14 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
 
     final isZoomModifier =
         HardwareKeyboard.instance.isControlPressed ||
-        HardwareKeyboard.instance.isMetaPressed ||
-        HardwareKeyboard.instance.isAltPressed;
+        HardwareKeyboard.instance.isMetaPressed;
 
     if (isZoomModifier) {
       final double dy = pointerSignal.scrollDelta.dy;
       if (dy == 0.0 || !dy.isFinite) return;
 
       // Smooth exponential zoom scaling:
-      // Handles both continuous trackpad micro-increments (Linux/Web pinch) and mouse wheel ticks
+      // Control + mouse wheel ticks (Figma standard)
       final double direction = widget.invertZoom ? 1.0 : -1.0;
       final double rawFactor = math.exp(direction * dy * 0.006);
       final double zoomFactor = rawFactor.clamp(0.5, 2.0);
@@ -474,47 +477,63 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
             onPointerUp: widget.onPointerUp,
             onPointerCancel: widget.onPointerCancel,
             child: Container(
-              width: 3200,
-              height: 2400,
-            decoration: BoxDecoration(
-              color: effectiveCanvasBg,
-              border: Border.all(
-                color: colorScheme.outlineVariant.withValues(
-                  alpha: isDark ? 0.35 : 0.25,
+              width: widget.canvasSize.width,
+              height: widget.canvasSize.height,
+              decoration: BoxDecoration(
+                color: effectiveCanvasBg,
+                border: Border.all(
+                  color: colorScheme.outlineVariant.withValues(
+                    alpha: isDark ? 0.35 : 0.25,
+                  ),
+                  width: 1.0,
                 ),
-                width: 1.0,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.08),
+                    blurRadius: 24,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.08),
-                  blurRadius: 24,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                // Grid Background layer with RepaintBoundary
-                RepaintBoundary(
-                  child: CustomPaint(
-                    size: const Size(3200, 2400),
-                    painter: GridPainter(
-                      gridSpacing: widget.gridSpacing,
-                      gridColor: colorScheme.onSurface.withValues(
-                        alpha: isDark ? 0.08 : 0.06,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // Figma-style Artboard Title & Dimensions Tag
+                  Positioned(
+                    top: -22,
+                    left: 2,
+                    child: Text(
+                      '${widget.artboardTitle ?? 'Canvas'} • ${widget.canvasSize.width.toInt()} × ${widget.canvasSize.height.toInt()}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
+                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.65),
                       ),
-                      gridStyle: widget.gridStyle,
                     ),
                   ),
-                ),
 
-                // Vector Canvas Painter with RepaintBoundary for high 60fps performance
-                RepaintBoundary(
-                  child: CustomPaint(
-                    size: const Size(3200, 2400),
-                    painter: VectorCanvasPainter(
-                      shapes: widget.shapes,
+                  // Grid Background layer with RepaintBoundary
+                  RepaintBoundary(
+                    child: CustomPaint(
+                      size: widget.canvasSize,
+                      painter: GridPainter(
+                        gridSpacing: widget.gridSpacing,
+                        gridColor: colorScheme.onSurface.withValues(
+                          alpha: isDark ? 0.08 : 0.06,
+                        ),
+                        gridStyle: widget.gridStyle,
+                      ),
+                    ),
+                  ),
+
+                  // Vector Canvas Painter with RepaintBoundary for high 60fps performance
+                  RepaintBoundary(
+                    child: CustomPaint(
+                      size: widget.canvasSize,
+                      painter: VectorCanvasPainter(
+                        shapes: widget.shapes,
                       selectedShapeIds: widget.selectedShapeIds,
                       draftStartPoint: widget.panStartOffset,
                       draftCurrentPoint: widget.panCurrentOffset,

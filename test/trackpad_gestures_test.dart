@@ -333,7 +333,7 @@ void main() {
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
       await tester.pump();
 
-      // Simulate trackpad pinch zoom (negative dy = zoom in)
+      // Simulate mouse wheel zoom with Ctrl key
       tester.binding.handlePointerEvent(
         const PointerScrollEvent(
           position: Offset(600, 400),
@@ -348,6 +348,20 @@ void main() {
       // Release Ctrl key
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft, platform: 'linux');
       await tester.pump();
+
+      // Verify Alt + wheel does not zoom
+      final scaleBeforeAlt = CanvasTransformHelper.getScale(controller.value);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+      tester.binding.handlePointerEvent(
+        const PointerScrollEvent(
+          position: Offset(600, 400),
+          scrollDelta: Offset(0, -10),
+        ),
+      );
+      await tester.pump();
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft, platform: 'linux');
+      final scaleAfterAlt = CanvasTransformHelper.getScale(controller.value);
+      expect(scaleAfterAlt, equals(scaleBeforeAlt));
     });
   });
 }

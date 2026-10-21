@@ -125,6 +125,11 @@ class ShortcutsDialog extends StatelessWidget {
                   _buildShortcutRow(context, 'Ctrl + / -', 'Zoom In / Out'),
                   _buildShortcutRow(
                     context,
+                    'Ctrl + Wheel',
+                    'Zoom In / Out around Cursor (Figma)',
+                  ),
+                  _buildShortcutRow(
+                    context,
                     'Arrow Keys',
                     'Nudge 1px (Hold Shift for 10px)',
                   ),
@@ -142,6 +147,16 @@ class ShortcutsDialog extends StatelessWidget {
                     context,
                     'Shift + Rotate',
                     'Snap Rotation to 15° Increments',
+                  ),
+                  _buildShortcutRow(
+                    context,
+                    'Shift + Radius Point',
+                    'Snap Radius to 10px Steps (0, 10, 20...)',
+                  ),
+                  _buildShortcutRow(
+                    context,
+                    'Alt + Radius Point',
+                    'Adjust Single Corner Radius Only (Figma)',
                   ),
                 ],
               ),

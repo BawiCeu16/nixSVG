@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nixsvg/calculations/canvas_geometry.dart';
 import 'package:nixsvg/calculations/canvas_hit_test.dart';
@@ -337,6 +338,136 @@ void main() {
         );
         expect(res3.snapDelta.dx, 0.0);
         expect(res3.guidelineX?.dx, 300.0);
+      },
+    );
+
+    testWidgets(
+      'Holding Shift while dragging corner radius snaps to increments of 10 (0, 10, 20, 30...)',
+      (tester) async {
+        tester.view.physicalSize = const Size(1400, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
+
+        await tester.pumpWidget(const NixSvgApp());
+        await tester.pumpAndSettle();
+
+        final state = tester.state<FigmaWorkspaceState>(
+          find.byType(FigmaWorkspace),
+        );
+
+        final rectShape = VectorShape(
+          id: 'shift-snap-rect',
+          name: 'Shift Snap Rect',
+          type: ShapeType.rectangle,
+          rect: const Rect.fromLTWH(400, 300, 200, 200),
+          isFilled: true,
+          fillColor: Colors.blue,
+        );
+
+        state.shapes.add(rectShape);
+        state.selectShape(rectShape.id);
+        await tester.pumpAndSettle();
+
+        final containerFinder = find.byWidgetPredicate(
+          (w) => w is Container && w.constraints?.maxWidth == 3200,
+        );
+        final RenderBox renderBox = tester.renderObject(containerFinder);
+        final radiusPos = renderBox.localToGlobal(const Offset(416, 316));
+
+        // Hold Shift key down
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pump();
+
+        final gesture = await tester.startGesture(radiusPos);
+        await tester.pump();
+
+        expect(state.activeResizeHandle, ResizeHandle.radiusTopLeft);
+
+        // Move by +24 dx, +24 dy -> dragDistance is 40. Snap to 10s should be exactly 40.0
+        await gesture.moveBy(const Offset(24, 24));
+        await tester.pump();
+
+        expect(rectShape.type, ShapeType.roundedRectangle);
+        expect(rectShape.cornerRadius % 10.0, equals(0.0));
+
+        // Move to odd distance: +33 dx, +33 dy -> dragDistance 49 -> snaps to 50.0
+        await gesture.moveBy(const Offset(9, 9));
+        await tester.pump();
+
+        expect(rectShape.cornerRadius, equals(50.0));
+
+        await gesture.up();
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pumpAndSettle();
+
+        expect(rectShape.cornerRadius, equals(50.0));
+      },
+    );
+
+    testWidgets(
+      'Holding Alt while dragging corner radius modifies only that held corner point',
+      (tester) async {
+        tester.view.physicalSize = const Size(1400, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
+
+        await tester.pumpWidget(const NixSvgApp());
+        await tester.pumpAndSettle();
+
+        final state = tester.state<FigmaWorkspaceState>(
+          find.byType(FigmaWorkspace),
+        );
+
+        final rectShape = VectorShape(
+          id: 'alt-single-corner-rect',
+          name: 'Alt Corner Rect',
+          type: ShapeType.roundedRectangle,
+          cornerRadius: 15.0,
+          rect: const Rect.fromLTWH(400, 300, 200, 200),
+          isFilled: true,
+          fillColor: Colors.teal,
+        );
+
+        state.shapes.add(rectShape);
+        state.selectShape(rectShape.id);
+        await tester.pumpAndSettle();
+
+        final containerFinder = find.byWidgetPredicate(
+          (w) => w is Container && w.constraints?.maxWidth == 3200,
+        );
+        final RenderBox renderBox = tester.renderObject(containerFinder);
+        // radiusTopLeft handle is at (400 + 15, 300 + 15) = (415, 315)
+        final radiusPos = renderBox.localToGlobal(const Offset(415, 315));
+
+        // Hold Alt key down
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+        await tester.pump();
+
+        final gesture = await tester.startGesture(radiusPos);
+        await tester.pump();
+
+        expect(state.activeResizeHandle, ResizeHandle.radiusTopLeft);
+
+        // Drag TopLeft corner inward significantly (+30, +30)
+        await gesture.moveBy(const Offset(30, 30));
+        await tester.pump();
+
+        expect(rectShape.hasIndependentCorners, isTrue);
+        expect(rectShape.topLeftRadius, greaterThan(40.0));
+        // Other corners remain unchanged at 15.0
+        expect(rectShape.topRightRadius, equals(15.0));
+        expect(rectShape.bottomLeftRadius, equals(15.0));
+        expect(rectShape.bottomRightRadius, equals(15.0));
+
+        await gesture.up();
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+        await tester.pumpAndSettle();
+
+        expect(rectShape.hasIndependentCorners, isTrue);
+        expect(rectShape.topLeftRadius, greaterThan(40.0));
+        expect(rectShape.topRightRadius, equals(15.0));
+        expect(rectShape.bottomLeftRadius, equals(15.0));
+        expect(rectShape.bottomRightRadius, equals(15.0));
       },
     );
   });

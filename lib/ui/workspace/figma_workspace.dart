@@ -16,7 +16,6 @@ import 'package:nixsvg/models/vector_shape.dart';
 import 'package:nixsvg/providers/app_settings_provider.dart';
 import 'package:nixsvg/providers/project_provider.dart';
 import 'package:nixsvg/providers/workspace_settings_provider.dart';
-import 'package:nixsvg/services/svg_export_service.dart';
 import 'package:nixsvg/theme/components/responsive_layout_tokens.dart';
 import 'package:nixsvg/ui/canvas/interactive_canvas.dart';
 import 'package:nixsvg/ui/widgets/sidebar_resize_handle.dart';
@@ -84,6 +83,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   bool get snapToGrid => ref.read(appSettingsProvider).snapToGrid;
   double get gridSpacing => ref.read(appSettingsProvider).gridSpacing;
   Color? canvasBackgroundColor;
+  Size canvasSize = const Size(3200, 2400);
 
   void _selectAll() {
     if (shapes.isEmpty) return;
@@ -147,6 +147,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     if (widget.initialProject != null) {
       fileName = widget.initialProject!.name;
       shapes = widget.initialProject!.shapes.map((s) => s.copyWith()).toList();
+      canvasSize = widget.initialProject!.canvasSize;
     } else {
       _loadSampleDemoShapes();
     }
@@ -247,11 +248,12 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
   void _persistCurrentProject() {
     final project =
-        (widget.initialProject ?? ProjectModel.createNew(name: fileName))
+        (widget.initialProject ?? ProjectModel.createNew(name: fileName, size: canvasSize))
             .copyWith(
               name: fileName,
               lastModified: DateTime.now(),
               shapes: shapes.map((s) => s.copyWith()).toList(),
+              canvasSize: canvasSize,
             );
     ref.read(projectsProvider.notifier).updateActiveProject(project);
   }
@@ -667,11 +669,55 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
               break;
           }
 
-          final newRadius = dragDistance.clamp(0.0, maxRadius);
+          final isShiftPressed = HardwareKeyboard.instance.isShiftPressed;
+          final isAltPressed = HardwareKeyboard.instance.isAltPressed;
+
+          double newRadius;
+          if (isShiftPressed) {
+            // Snaps in increments of 10: 0, 10, 20, 30, 40, 50, etc.
+            newRadius = (dragDistance / 10.0).roundToDouble() * 10.0;
+          } else {
+            newRadius = dragDistance.roundToDouble();
+          }
+          newRadius = newRadius.clamp(0.0, maxRadius);
+
           if (target.type == ShapeType.rectangle && newRadius > 0.0) {
             target.type = ShapeType.roundedRectangle;
           }
-          target.cornerRadius = newRadius.roundToDouble();
+
+          if (isAltPressed) {
+            // Only that held corner point changes
+            if (!target.hasIndependentCorners) {
+              target.topLeftRadius = target.cornerRadius;
+              target.topRightRadius = target.cornerRadius;
+              target.bottomLeftRadius = target.cornerRadius;
+              target.bottomRightRadius = target.cornerRadius;
+            }
+            switch (activeResizeHandle) {
+              case ResizeHandle.radiusTopLeft:
+                target.topLeftRadius = newRadius;
+                break;
+              case ResizeHandle.radiusTopRight:
+                target.topRightRadius = newRadius;
+                break;
+              case ResizeHandle.radiusBottomLeft:
+                target.bottomLeftRadius = newRadius;
+                break;
+              case ResizeHandle.radiusBottomRight:
+                target.bottomRightRadius = newRadius;
+                break;
+              default:
+                break;
+            }
+          } else {
+            // All corners change together
+            target.cornerRadius = newRadius;
+            target.topLeftRadius = null;
+            target.topRightRadius = null;
+            target.bottomLeftRadius = null;
+            target.bottomRightRadius = null;
+          }
+
           target.invalidateCache();
         } else if (activeResizeHandle != ResizeHandle.none &&
             selectedShapeIds.length == 1 &&
@@ -974,11 +1020,14 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     _saveHistorySnapshot();
   }
 
-  void _alignShapes(String align) {
+  void _alignShapes(String align, {bool? toCanvas}) {
+    final isAlt = HardwareKeyboard.instance.isAltPressed;
     CanvasGeometry.alignShapes(
       shapes: shapes,
       selectedIds: selectedShapeIds,
       align: align,
+      canvasFrame: Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
+      alignToCanvas: toCanvas ?? isAlt,
     );
     setState(() {});
     _saveHistorySnapshot();
@@ -1329,8 +1378,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
   void _centerCanvas() {
     final size = _getCanvasViewportSize();
-    const canvasWidth = 3200.0;
-    const canvasHeight = 2400.0;
+    final canvasWidth = canvasSize.width;
+    final canvasHeight = canvasSize.height;
     final scale = CanvasTransformHelper.getScale(
       _transformationController.value,
     );
@@ -1408,16 +1457,17 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
   void _openExportDialog() {
     final settings = ref.read(appSettingsProvider);
-    final svgCode = SvgExportService.generateSvg(
-      shapes,
-      includeXmlHeader: settings.svgIncludeXml,
-      prettyPrint: settings.svgPrettyPrint,
-      exportScale: settings.exportScale,
-    );
     showDialog(
       context: context,
-      builder: (context) =>
-          ExportDialog(svgContent: svgCode, fileName: '$fileName.svg'),
+      builder: (context) => ExportDialog(
+        shapes: shapes,
+        selectedShapeIds: selectedShapeIds,
+        canvasSize: canvasSize,
+        fileName: '$fileName.svg',
+        initialIncludeXml: settings.svgIncludeXml,
+        initialPrettyPrint: settings.svgPrettyPrint,
+        initialExportScale: settings.exportScale,
+      ),
     );
   }
 
@@ -2122,6 +2172,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                 shapes: shapes,
                                 selectedShapeIds: selectedShapeIds,
                                 currentMode: currentMode,
+                                canvasSize: canvasSize,
+                                artboardTitle: fileName,
                                 draftShapeType: draftShapeType,
                                 draftIsShiftPressed:
                                     HardwareKeyboard.instance.logicalKeysPressed
@@ -2308,6 +2360,11 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                         onDuplicateShape: _duplicateSelected,
                                         onDeleteSelected: _deleteSelected,
                                         onAlignShape: _alignShapes,
+                                        canvasSize: canvasSize,
+                                        onCanvasSizeChanged: (newSize) {
+                                          setState(() => canvasSize = newSize);
+                                          _saveHistorySnapshot();
+                                        },
                                         canvasBackgroundColor:
                                             canvasBackgroundColor,
                                         onCanvasBackgroundColorChanged: (col) {
@@ -2421,6 +2478,11 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                               onDuplicateShape: _duplicateSelected,
                               onDeleteSelected: _deleteSelected,
                               onAlignShape: _alignShapes,
+                              canvasSize: canvasSize,
+                              onCanvasSizeChanged: (newSize) {
+                                setState(() => canvasSize = newSize);
+                                _saveHistorySnapshot();
+                              },
                               canvasBackgroundColor: canvasBackgroundColor,
                               onCanvasBackgroundColorChanged: (col) {
                                 setState(() => canvasBackgroundColor = col);

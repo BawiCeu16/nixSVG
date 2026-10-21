@@ -100,10 +100,27 @@ class _MiniCanvasPainter extends CustomPainter {
           break;
 
         case ShapeType.roundedRectangle:
-          final rrect = RRect.fromRectAndRadius(
-            shape.rect,
-            Radius.circular(shape.cornerRadius),
-          );
+          final maxR = math.min(shape.rect.width, shape.rect.height) / 2;
+          final rrect = shape.hasIndependentCorners
+              ? RRect.fromRectAndCorners(
+                  shape.rect,
+                  topLeft: Radius.circular(
+                    shape.effectiveTopLeftRadius.clamp(0.0, maxR),
+                  ),
+                  topRight: Radius.circular(
+                    shape.effectiveTopRightRadius.clamp(0.0, maxR),
+                  ),
+                  bottomRight: Radius.circular(
+                    shape.effectiveBottomRightRadius.clamp(0.0, maxR),
+                  ),
+                  bottomLeft: Radius.circular(
+                    shape.effectiveBottomLeftRadius.clamp(0.0, maxR),
+                  ),
+                )
+              : RRect.fromRectAndRadius(
+                  shape.rect,
+                  Radius.circular(shape.cornerRadius.clamp(0.0, maxR)),
+                );
           if (shape.isFilled) canvas.drawRRect(rrect, fillPaint);
           if (shape.isStroked) canvas.drawRRect(rrect, strokePaint);
           break;

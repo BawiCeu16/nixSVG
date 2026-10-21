@@ -100,5 +100,14 @@ void main() {
     );
     expect(canvasPointUnderCursorSecond.dx, closeTo(200.0, 1.0));
     expect(canvasPointUnderCursorSecond.dy, closeTo(240.0, 1.0));
+
+    // Verify Alt + wheel does NOT zoom (per user requirement)
+    final scaleBeforeAlt = CanvasTransformHelper.getScale(controller.value);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    tester.binding.handlePointerEvent(scrollEvent);
+    await tester.pump();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    final scaleAfterAlt = CanvasTransformHelper.getScale(controller.value);
+    expect(scaleAfterAlt, equals(scaleBeforeAlt));
   });
 }

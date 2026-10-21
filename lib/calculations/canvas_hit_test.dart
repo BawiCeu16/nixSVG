@@ -85,23 +85,35 @@ class CanvasHitTester {
     }
     final rect = shape.rect;
     final maxRadius = math.min(rect.width, rect.height) / 2;
-    final currentRadius = (shape.type == ShapeType.roundedRectangle
-            ? shape.cornerRadius
-            : 0.0)
-        .clamp(0.0, maxRadius);
-    final handleInset = currentRadius > 0
-        ? currentRadius.clamp(8.0 * s, maxRadius)
+    final isRound = shape.type == ShapeType.roundedRectangle;
+
+    final tlRadius = (isRound ? shape.effectiveTopLeftRadius : 0.0).clamp(0.0, maxRadius);
+    final trRadius = (isRound ? shape.effectiveTopRightRadius : 0.0).clamp(0.0, maxRadius);
+    final blRadius = (isRound ? shape.effectiveBottomLeftRadius : 0.0).clamp(0.0, maxRadius);
+    final brRadius = (isRound ? shape.effectiveBottomRightRadius : 0.0).clamp(0.0, maxRadius);
+
+    final tlInset = tlRadius > 0
+        ? tlRadius.clamp(8.0 * s, maxRadius)
+        : math.min(16.0 * s, maxRadius * 0.4);
+    final trInset = trRadius > 0
+        ? trRadius.clamp(8.0 * s, maxRadius)
+        : math.min(16.0 * s, maxRadius * 0.4);
+    final blInset = blRadius > 0
+        ? blRadius.clamp(8.0 * s, maxRadius)
+        : math.min(16.0 * s, maxRadius * 0.4);
+    final brInset = brRadius > 0
+        ? brRadius.clamp(8.0 * s, maxRadius)
         : math.min(16.0 * s, maxRadius * 0.4);
 
     return {
       ResizeHandle.radiusTopLeft:
-          Offset(rect.left + handleInset, rect.top + handleInset),
+          Offset(rect.left + tlInset, rect.top + tlInset),
       ResizeHandle.radiusTopRight:
-          Offset(rect.right - handleInset, rect.top + handleInset),
+          Offset(rect.right - trInset, rect.top + trInset),
       ResizeHandle.radiusBottomLeft:
-          Offset(rect.left + handleInset, rect.bottom - handleInset),
+          Offset(rect.left + blInset, rect.bottom - blInset),
       ResizeHandle.radiusBottomRight:
-          Offset(rect.right - handleInset, rect.bottom - handleInset),
+          Offset(rect.right - brInset, rect.bottom - brInset),
     };
   }
 

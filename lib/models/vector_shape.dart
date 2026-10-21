@@ -179,6 +179,22 @@ class VectorShape {
   bool isFilled;
   bool isStroked;
   double cornerRadius;
+  double? topLeftRadius;
+  double? topRightRadius;
+  double? bottomRightRadius;
+  double? bottomLeftRadius;
+
+  bool get hasIndependentCorners =>
+      topLeftRadius != null ||
+      topRightRadius != null ||
+      bottomRightRadius != null ||
+      bottomLeftRadius != null;
+
+  double get effectiveTopLeftRadius => topLeftRadius ?? cornerRadius;
+  double get effectiveTopRightRadius => topRightRadius ?? cornerRadius;
+  double get effectiveBottomRightRadius => bottomRightRadius ?? cornerRadius;
+  double get effectiveBottomLeftRadius => bottomLeftRadius ?? cornerRadius;
+
   String textContent;
   double fontSize;
   String fontFamily;
@@ -201,6 +217,10 @@ class VectorShape {
   Path? _cachedPath;
   Rect? _lastPathRect;
   double? _lastPathRadius;
+  double? _lastTlRadius;
+  double? _lastTrRadius;
+  double? _lastBrRadius;
+  double? _lastBlRadius;
   double? _lastPathCurvature;
   bool? _lastPathIsCurved;
   ShapeType? _lastPathType;
@@ -262,6 +282,10 @@ class VectorShape {
     this.isFilled = true,
     this.isStroked = false,
     this.cornerRadius = 12.0,
+    this.topLeftRadius,
+    this.topRightRadius,
+    this.bottomRightRadius,
+    this.bottomLeftRadius,
     this.textContent = 'Text Element',
     this.fontSize = 24.0,
     this.fontFamily = 'Roboto',
@@ -309,6 +333,11 @@ class VectorShape {
     bool? isFilled,
     bool? isStroked,
     double? cornerRadius,
+    double? topLeftRadius,
+    double? topRightRadius,
+    double? bottomRightRadius,
+    double? bottomLeftRadius,
+    bool clearIndependentCorners = false,
     String? textContent,
     double? fontSize,
     String? fontFamily,
@@ -364,6 +393,18 @@ class VectorShape {
       isFilled: isFilled ?? this.isFilled,
       isStroked: isStroked ?? this.isStroked,
       cornerRadius: cornerRadius ?? this.cornerRadius,
+      topLeftRadius: clearIndependentCorners
+          ? null
+          : (topLeftRadius ?? this.topLeftRadius),
+      topRightRadius: clearIndependentCorners
+          ? null
+          : (topRightRadius ?? this.topRightRadius),
+      bottomRightRadius: clearIndependentCorners
+          ? null
+          : (bottomRightRadius ?? this.bottomRightRadius),
+      bottomLeftRadius: clearIndependentCorners
+          ? null
+          : (bottomLeftRadius ?? this.bottomLeftRadius),
       textContent: textContent ?? this.textContent,
       fontSize: fontSize ?? this.fontSize,
       fontFamily: fontFamily ?? this.fontFamily,
@@ -417,6 +458,10 @@ class VectorShape {
       'isFilled': isFilled,
       'isStroked': isStroked,
       'cornerRadius': cornerRadius,
+      'topLeftRadius': topLeftRadius,
+      'topRightRadius': topRightRadius,
+      'bottomRightRadius': bottomRightRadius,
+      'bottomLeftRadius': bottomLeftRadius,
       'textContent': textContent,
       'fontSize': fontSize,
       'fontFamily': fontFamily,
@@ -566,6 +611,10 @@ class VectorShape {
       isFilled: json['isFilled'] as bool? ?? true,
       isStroked: json['isStroked'] as bool? ?? false,
       cornerRadius: (json['cornerRadius'] as num?)?.toDouble() ?? 12.0,
+      topLeftRadius: (json['topLeftRadius'] as num?)?.toDouble(),
+      topRightRadius: (json['topRightRadius'] as num?)?.toDouble(),
+      bottomRightRadius: (json['bottomRightRadius'] as num?)?.toDouble(),
+      bottomLeftRadius: (json['bottomLeftRadius'] as num?)?.toDouble(),
       textContent: json['textContent'] as String? ?? 'Text Element',
       fontSize: (json['fontSize'] as num?)?.toDouble() ?? 24.0,
       fontFamily: json['fontFamily'] as String? ?? 'Roboto',
@@ -703,6 +752,24 @@ class VectorShape {
       case ShapeType.rectangle:
         return '  <rect x="${rect.left}" y="${rect.top}" width="${rect.width}" height="${rect.height}" $fillAttr $strokeAttr$transformAttr />';
       case ShapeType.roundedRectangle:
+        if (hasIndependentCorners) {
+          final maxR = math.min(rect.width, rect.height) / 2;
+          final tl = effectiveTopLeftRadius.clamp(0.0, maxR);
+          final tr = effectiveTopRightRadius.clamp(0.0, maxR);
+          final br = effectiveBottomRightRadius.clamp(0.0, maxR);
+          final bl = effectiveBottomLeftRadius.clamp(0.0, maxR);
+          final d = 'M ${rect.left + tl} ${rect.top} '
+              'H ${rect.right - tr} '
+              '${tr > 0 ? 'A $tr $tr 0 0 1 ${rect.right} ${rect.top + tr} ' : ''}'
+              'V ${rect.bottom - br} '
+              '${br > 0 ? 'A $br $br 0 0 1 ${rect.right - br} ${rect.bottom} ' : ''}'
+              'H ${rect.left + bl} '
+              '${bl > 0 ? 'A $bl $bl 0 0 1 ${rect.left} ${rect.bottom - bl} ' : ''}'
+              'V ${rect.top + tl} '
+              '${tl > 0 ? 'A $tl $tl 0 0 1 ${rect.left + tl} ${rect.top} ' : ''}'
+              'Z';
+          return '  <path d="$d" $fillAttr $strokeAttr$transformAttr />';
+        }
         return '  <rect x="${rect.left}" y="${rect.top}" width="${rect.width}" height="${rect.height}" rx="$cornerRadius" ry="$cornerRadius" $fillAttr $strokeAttr$transformAttr />';
       case ShapeType.ellipse:
         final cx = rect.center.dx;
@@ -848,6 +915,10 @@ class VectorShape {
     if (_cachedPath != null &&
         _lastPathRect == rect &&
         _lastPathRadius == cornerRadius &&
+        _lastTlRadius == topLeftRadius &&
+        _lastTrRadius == topRightRadius &&
+        _lastBrRadius == bottomRightRadius &&
+        _lastBlRadius == bottomLeftRadius &&
         _lastPathCurvature == curvature &&
         _lastPathIsCurved == isCurved &&
         _lastPathType == type) {
@@ -860,9 +931,25 @@ class VectorShape {
         path.addRect(rect);
         break;
       case ShapeType.roundedRectangle:
-        path.addRRect(
-          RRect.fromRectAndRadius(rect, Radius.circular(cornerRadius)),
-        );
+        final maxR = math.min(rect.width, rect.height) / 2;
+        if (hasIndependentCorners) {
+          path.addRRect(
+            RRect.fromRectAndCorners(
+              rect,
+              topLeft: Radius.circular(effectiveTopLeftRadius.clamp(0.0, maxR)),
+              topRight: Radius.circular(effectiveTopRightRadius.clamp(0.0, maxR)),
+              bottomRight: Radius.circular(effectiveBottomRightRadius.clamp(0.0, maxR)),
+              bottomLeft: Radius.circular(effectiveBottomLeftRadius.clamp(0.0, maxR)),
+            ),
+          );
+        } else {
+          path.addRRect(
+            RRect.fromRectAndRadius(
+              rect,
+              Radius.circular(cornerRadius.clamp(0.0, maxR)),
+            ),
+          );
+        }
         break;
       case ShapeType.ellipse:
         path.addOval(rect);
@@ -896,6 +983,10 @@ class VectorShape {
     _cachedPath = path;
     _lastPathRect = rect;
     _lastPathRadius = cornerRadius;
+    _lastTlRadius = topLeftRadius;
+    _lastTrRadius = topRightRadius;
+    _lastBrRadius = bottomRightRadius;
+    _lastBlRadius = bottomLeftRadius;
     _lastPathCurvature = curvature;
     _lastPathIsCurved = isCurved;
     _lastPathType = type;

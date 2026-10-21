@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:m3e_buttons/m3e_buttons.dart';
 import 'package:m3e_floating_toolbar/m3e_floating_toolbar.dart';
 import 'package:nixsvg/models/vector_shape.dart';
+import 'package:nixsvg/theme/physics/m3e_physics_spring.dart';
 import 'package:remixicon/remixicon.dart';
 
 class FloatingToolBar extends StatelessWidget {
@@ -131,32 +132,34 @@ class FloatingToolBar extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: M3EButton(
-        onPressed: () => onModeChanged(mode),
-        style: isActive ? M3EButtonStyle.filled : M3EButtonStyle.text,
-        size: M3EButtonSize.sm,
-
+      child: M3PhysicsPressable(
         tooltip: tooltip,
-        decoration: M3EButtonDecoration(
-          backgroundColor: WidgetStateProperty.resolveWith((states) {
-            if (isActive) return colorScheme.primary;
-            if (states.contains(WidgetState.hovered)) {
-              return colorScheme.surfaceContainerHighest;
-            }
-            return Colors.transparent;
-          }),
-          foregroundColor: WidgetStateProperty.resolveWith((states) {
-            if (isActive) return colorScheme.onPrimary;
-            if (states.contains(WidgetState.hovered)) {
-              return colorScheme.onSurface;
-            }
-            return colorScheme.onSurfaceVariant;
-          }),
-        ),
-        child: Icon(
-          icon,
-          size: 20,
-          color: isActive ? colorScheme.onPrimary : null,
+        onTap: () => onModeChanged(mode),
+        child: M3EButton(
+          onPressed: () => onModeChanged(mode),
+          style: isActive ? M3EButtonStyle.filled : M3EButtonStyle.text,
+          size: M3EButtonSize.sm,
+          decoration: M3EButtonDecoration(
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (isActive) return colorScheme.primary;
+              if (states.contains(WidgetState.hovered)) {
+                return colorScheme.surfaceContainerHighest;
+              }
+              return Colors.transparent;
+            }),
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              if (isActive) return colorScheme.onPrimary;
+              if (states.contains(WidgetState.hovered)) {
+                return colorScheme.onSurface;
+              }
+              return colorScheme.onSurfaceVariant;
+            }),
+          ),
+          child: Icon(
+            icon,
+            size: 20,
+            color: isActive ? colorScheme.onPrimary : null,
+          ),
         ),
       ),
     );

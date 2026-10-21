@@ -170,7 +170,7 @@ void main() {
       // Target mouse position on canvas
       final center = tester.getCenter(ivFinder);
 
-      // Hold Ctrl and send scroll wheel up (zoom in)
+      // Hold Ctrl and send scroll wheel (zoom in)
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
       final pointer = TestPointer(1, PointerDeviceKind.mouse);
       pointer.hover(center);
@@ -180,6 +180,13 @@ void main() {
 
       final zoomedScale = controller.value.getMaxScaleOnAxis();
       expect(zoomedScale, greaterThan(initialScale));
+
+      // Verify Alt + wheel does NOT zoom
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, -100)));
+      await tester.pumpAndSettle();
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+      expect(controller.value.getMaxScaleOnAxis(), equals(zoomedScale));
 
       // Canvas should still have valid finite translation and be visible
       expect(controller.value.storage[12].isFinite, isTrue);

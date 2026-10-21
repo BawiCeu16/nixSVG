@@ -8,12 +8,13 @@ import 'package:nixsvg/models/project_model.dart';
 import 'package:nixsvg/models/vector_shape.dart';
 import 'package:nixsvg/providers/project_provider.dart';
 import 'package:nixsvg/providers/theme_provider.dart';
+import 'package:nixsvg/theme/physics/m3e_physics_spring.dart';
 import 'package:nixsvg/ui/home/widgets/mini_project_preview.dart';
 import 'package:nixsvg/ui/workspace/figma_workspace.dart';
 import 'package:nixsvg/widgets/settings_dialog.dart';
 import 'package:remixicon/remixicon.dart';
 
-/// Mac-style startup Home Screen for nixSVG.
+/// Material 3 Expressive startup Home Screen for nixSVG.
 /// Shown on startup when no project file is opened recently or when a project was closed.
 class HomeScreen extends ConsumerStatefulWidget {
   final ValueChanged<ProjectModel>? onOpenProject;
@@ -315,60 +316,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
           const Spacer(),
 
-          // Search Box (Desktop / Tablet)
+          // Search Box (Desktop / Tablet) using Flutter native SearchBar
           Flexible(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 260),
-              child: Container(
-                height: 36,
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.5,
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                  ),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Row(
-                  children: [
-                    Icon(
-                      RemixIcons.search_line,
-                      size: 15,
-                      color: colorScheme.onSurfaceVariant,
+              constraints: const BoxConstraints(maxWidth: 280),
+              child: SizedBox(
+                height: 38,
+                child: SearchBar(
+                  controller: _searchController,
+                  hintText: 'Search projects...',
+                  hintStyle: WidgetStatePropertyAll(
+                    textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                      fontSize: 13,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurface,
-                          fontSize: 13,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: 'Search projects...',
-                          hintStyle: textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onSurfaceVariant.withValues(
-                              alpha: 0.7,
-                            ),
-                            fontSize: 13,
-                          ),
-                          isDense: true,
-                          border: InputBorder.none,
-                        ),
-                      ),
+                  ),
+                  textStyle: WidgetStatePropertyAll(
+                    textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurface,
+                      fontSize: 13,
                     ),
+                  ),
+                  leading: Icon(
+                    RemixIcons.search_line,
+                    size: 16,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  trailing: [
                     if (_searchController.text.isNotEmpty)
-                      GestureDetector(
-                        onTap: () => _searchController.clear(),
-                        child: Icon(
+                      IconButton(
+                        icon: Icon(
                           RemixIcons.close_circle_line,
-                          size: 14,
+                          size: 16,
                           color: colorScheme.onSurfaceVariant,
                         ),
+                        onPressed: () => _searchController.clear(),
                       ),
                   ],
+                  elevation: const WidgetStatePropertyAll(0),
+                  backgroundColor: WidgetStatePropertyAll(
+                    colorScheme.surfaceContainerHigh,
+                  ),
+                  shape: WidgetStatePropertyAll(
+                    RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(19),
+                      side: BorderSide(
+                        color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+                        width: 1.0,
+                      ),
+                    ),
+                  ),
+                  padding: const WidgetStatePropertyAll(
+                    EdgeInsets.symmetric(horizontal: 12),
+                  ),
                 ),
               ),
             ),
@@ -456,21 +456,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(width: 8),
 
           // Primary "New Project" Button
-          M3EButton.icon(
-            onPressed: () => _handleCreateNew(),
-            style: M3EButtonStyle.filled,
-            size: M3EButtonSize.sm,
-            icon: Icon(
-              RemixIcons.add_line,
-              size: 16,
-              color: colorScheme.onPrimary,
-            ),
-            label: Text(
-              'New File',
-              style: TextStyle(
+          M3PhysicsPressable(
+            tooltip: 'Create New Vector File',
+            onTap: () => _handleCreateNew(),
+            child: M3EButton.icon(
+              onPressed: () => _handleCreateNew(),
+              style: M3EButtonStyle.filled,
+              size: M3EButtonSize.sm,
+              icon: Icon(
+                RemixIcons.add_line,
+                size: 16,
                 color: colorScheme.onPrimary,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
+              ),
+              label: Text(
+                'New File',
+                style: TextStyle(
+                  color: colorScheme.onPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
               ),
             ),
           ),

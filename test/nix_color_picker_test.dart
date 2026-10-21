@@ -159,25 +159,21 @@ void main() {
       expect(find.text('B'), findsOneWidget);
     });
 
-    testWidgets('ColorPickerExperimentWidget launches and tests modes', (tester) async {
+    testWidgets('ColorPickerDialog renders cleanly and selects color', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
+        MaterialApp(
           home: Scaffold(
-            body: ColorPickerExperimentWidget(),
+            body: ColorPickerDialog(
+              initialColor: const Color(0xFF6366F1),
+              onColorSelected: (_) {},
+            ),
           ),
         ),
       );
 
-      expect(find.text('COLOR & GRADIENT LAB'), findsOneWidget);
-      expect(find.text('Adaptive Popover'), findsOneWidget);
-      expect(find.text('Modal Dialog'), findsOneWidget);
-      expect(find.text('Embedded Inline'), findsOneWidget);
-
-      // Switch to Embedded Inline mode
-      await tester.tap(find.text('Embedded Inline'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('LIVE EMBEDDED WIDGET'), findsOneWidget);
+      expect(find.byType(ColorPickerDialog), findsOneWidget);
+      expect(find.byType(NixColorPicker), findsOneWidget);
+      expect(find.text('HEX'), findsWidgets);
     });
 
     testWidgets('Header drag callback triggers delta updates', (tester) async {
