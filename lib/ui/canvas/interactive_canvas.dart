@@ -215,6 +215,7 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
         case EditorMode.drawLine:
         case EditorMode.drawCurve:
         case EditorMode.drawStar:
+        case EditorMode.drawPolygon:
           return SystemMouseCursors.precise;
         default:
           return SystemMouseCursors.basic;
@@ -226,7 +227,8 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
         widget.activeResizeHandle == ResizeHandle.rotation) {
       return SystemMouseCursors.alias;
     }
-    if (widget.activeResizeHandle.isRadius) {
+    if (widget.activeResizeHandle.isRadius ||
+        widget.activeResizeHandle.isRatio) {
       return SystemMouseCursors.precise;
     }
     if (widget.activeResizeHandle != ResizeHandle.none) {

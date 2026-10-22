@@ -20,6 +20,9 @@ class PropertiesSidebar extends StatelessWidget {
   final VoidCallback onDuplicateShape;
   final VoidCallback onDeleteSelected;
   final Function(String align) onAlignShape;
+  final Function(String direction)? onDistributeShapes;
+  final Function(PathOperation op)? onBooleanOperation;
+  final int selectedShapesCount;
   final VoidCallback? onGroupShapes;
   final VoidCallback? onUngroupShapes;
   final bool canGroup;
@@ -58,6 +61,9 @@ class PropertiesSidebar extends StatelessWidget {
     required this.onDuplicateShape,
     required this.onDeleteSelected,
     required this.onAlignShape,
+    this.onDistributeShapes,
+    this.onBooleanOperation,
+    this.selectedShapesCount = 1,
     this.onGroupShapes,
     this.onUngroupShapes,
     this.canGroup = false,
@@ -151,7 +157,9 @@ class PropertiesSidebar extends StatelessWidget {
                               if (selectedShape!.groupName != null) ...[
                                 const SizedBox(width: 4),
                                 ConstrainedBox(
-                                  constraints: const BoxConstraints(maxWidth: 90),
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 90,
+                                  ),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 5,
@@ -192,81 +200,7 @@ class PropertiesSidebar extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              if (onGroupShapes != null) ...[
-                                Expanded(
-                                  child: M3EButton(
-                                    onPressed: canGroup ? onGroupShapes : null,
-                                    style: M3EButtonStyle.tonal,
-                                    size: M3EButtonSize.sm,
-                                    tooltip: 'Group (Ctrl+G)',
-                                    child: Icon(
-                                      Icons.folder_outlined,
-                                      size: 15,
-                                      color: canGroup
-                                          ? colorScheme.onSecondaryContainer
-                                          : colorScheme.onSurface.withValues(
-                                              alpha: 0.38,
-                                            ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                              ],
-                              if (canUngroup && onUngroupShapes != null) ...[
-                                Expanded(
-                                  child: M3EButton(
-                                    onPressed: onUngroupShapes,
-                                    style: M3EButtonStyle.tonal,
-                                    size: M3EButtonSize.sm,
-                                    tooltip: 'Ungroup (Ctrl+Shift+G)',
-                                    child: Icon(
-                                      Icons.folder_open_outlined,
-                                      size: 15,
-                                      color: colorScheme.onSecondaryContainer,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                              ],
-                              Expanded(
-                                child: M3EButton(
-                                  onPressed: onDuplicateShape,
-                                  style: M3EButtonStyle.tonal,
-                                  size: M3EButtonSize.sm,
-                                  tooltip: 'Duplicate (Ctrl+D)',
-                                  child: Icon(
-                                    RemixIcons.file_copy_line,
-                                    size: 15,
-                                    color: colorScheme.onSecondaryContainer,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: M3EButton(
-                                  onPressed: onDeleteSelected,
-                                  style: M3EButtonStyle.tonal,
-                                  size: M3EButtonSize.sm,
-                                  tooltip: 'Delete (Del)',
-                                  decoration: M3EButtonDecoration(
-                                    backgroundColor: WidgetStatePropertyAll(
-                                      colorScheme.errorContainer,
-                                    ),
-                                    foregroundColor: WidgetStatePropertyAll(
-                                      colorScheme.onErrorContainer,
-                                    ),
-                                  ),
-                                  child: Icon(
-                                    RemixIcons.delete_bin_line,
-                                    size: 15,
-                                    color: colorScheme.onErrorContainer,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                          _buildHeaderActionButtons(context),
                         ],
                       ),
                     ),
@@ -393,9 +327,142 @@ class PropertiesSidebar extends StatelessWidget {
                               ),
                             ],
                           ),
+                          const SizedBox(height: 4),
+
+                          // Row 3: Distribute Spacing (Horizontal & Vertical)
+                          M3ESegmentedRow(
+                            onTap: (index) {
+                              if (onDistributeShapes != null) {
+                                onDistributeShapes!(
+                                  index == 0 ? 'horizontal' : 'vertical',
+                                );
+                              }
+                            },
+                            equalWidth: true,
+                            gap: 1.5,
+                            decoration: M3ESegmentedListDecoration(
+                              outerRadius: 8.0,
+                              innerRadius: 3.0,
+                              gap: 1.5,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 4,
+                              ),
+                              color: colorScheme.surfaceContainerHigh,
+                              hoverColor: colorScheme.surfaceContainerHighest,
+                              pressedRadius: 6.0,
+                              pressedScale: 1.0,
+                            ),
+                            children: [
+                              Tooltip(
+                                message: 'Distribute Horizontal Spacing (⌥⌘H)',
+                                child: Center(
+                                  child: Icon(
+                                    RemixIcons.space,
+                                    size: 15,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                              Tooltip(
+                                message: 'Distribute Vertical Spacing (⌥⌘V)',
+                                child: Center(
+                                  child: Icon(
+                                    RemixIcons.line_height,
+                                    size: 15,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
+
+                    // Boolean Operations Card (Union, Subtract, Intersect, Exclude)
+                    if (selectedShapesCount >= 2 && onBooleanOperation != null)
+                      _buildSectionCard(
+                        context,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'BOOLEAN GROUPS',
+                              style: _getSectionHeaderStyle(theme),
+                            ),
+                            const SizedBox(height: 5),
+                            M3ESegmentedRow(
+                              onTap: (index) {
+                                const ops = [
+                                  PathOperation.union,
+                                  PathOperation.difference,
+                                  PathOperation.intersect,
+                                  PathOperation.xor,
+                                ];
+                                onBooleanOperation!(ops[index]);
+                              },
+                              equalWidth: true,
+                              gap: 1.5,
+                              decoration: M3ESegmentedListDecoration(
+                                outerRadius: 8.0,
+                                innerRadius: 3.0,
+                                gap: 1.5,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 4,
+                                ),
+                                color: colorScheme.surfaceContainerHigh,
+                                hoverColor: colorScheme.surfaceContainerHighest,
+                                pressedRadius: 6.0,
+                                pressedScale: 1.0,
+                              ),
+                              children: [
+                                Tooltip(
+                                  message: 'Boolean Union (⌥⌘U)',
+                                  child: Center(
+                                    child: Icon(
+                                      RemixIcons.shape_line,
+                                      size: 15,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                                Tooltip(
+                                  message: 'Boolean Subtract (⌥⌘S)',
+                                  child: Center(
+                                    child: Icon(
+                                      RemixIcons.subtract_line,
+                                      size: 15,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                                Tooltip(
+                                  message: 'Boolean Intersect (⌥⌘I)',
+                                  child: Center(
+                                    child: Icon(
+                                      RemixIcons.pie_chart_line,
+                                      size: 15,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                                Tooltip(
+                                  message: 'Boolean Exclude (⌥⌘X)',
+                                  child: Center(
+                                    child: Icon(
+                                      RemixIcons.contrast_line,
+                                      size: 15,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
 
                     // Transform Card
                     _buildSectionCard(
@@ -642,6 +709,7 @@ class PropertiesSidebar extends StatelessWidget {
                                       ShapeType.roundedRectangle ||
                                   selectedShape!.type == ShapeType.rectangle ||
                                   selectedShape!.type == ShapeType.star ||
+                                  selectedShape!.type == ShapeType.polygon ||
                                   selectedShape!.type == ShapeType.image) ...[
                                 const SizedBox(width: 8),
                                 Expanded(
@@ -1018,6 +1086,86 @@ class PropertiesSidebar extends StatelessWidget {
                                   style: theme.textTheme.labelSmall?.copyWith(
                                     color: colorScheme.onSurface,
                                     fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Polygon Geometry Card (Sides & Corner Radius)
+                    if (selectedShape!.type == ShapeType.polygon)
+                      _buildSectionCard(
+                        context,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'POLYGON',
+                                    style: _getSectionHeaderStyle(theme),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.primary.withValues(
+                                      alpha: 0.12,
+                                    ),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '${selectedShape!.pointCount} Sides',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: colorScheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildNumberField(
+                                    context,
+                                    'Sides',
+                                    selectedShape!.pointCount.toDouble(),
+                                    (val) {
+                                      final updated = selectedShape!.copyWith(
+                                        pointCount: val.round().clamp(3, 32),
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                    min: 3,
+                                    max: 32,
+                                    isInteger: true,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _buildNumberField(
+                                    context,
+                                    'R',
+                                    selectedShape!.cornerRadius,
+                                    (val) {
+                                      final updated = selectedShape!.copyWith(
+                                        cornerRadius: val.clamp(0, 100),
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                    min: 0,
+                                    max: 100,
                                   ),
                                 ),
                               ],
@@ -2761,6 +2909,117 @@ class PropertiesSidebar extends StatelessWidget {
         const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.2);
   }
 
+  Widget _buildHeaderActionButtons(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    final actions =
+        <
+          ({
+            Widget icon,
+            String tooltip,
+            bool enabled,
+            VoidCallback onTap,
+            M3EToggleButtonDecoration? decoration,
+          })
+        >[
+          if (onGroupShapes != null)
+            (
+              icon: Icon(
+                Icons.folder_outlined,
+                size: 15,
+                color: canGroup
+                    ? colorScheme.onSecondaryContainer
+                    : colorScheme.onSurface.withValues(alpha: 0.38),
+              ),
+              tooltip: 'Group (Ctrl+G)',
+              enabled: canGroup,
+              onTap: onGroupShapes!,
+              decoration: null,
+            ),
+          if (canUngroup && onUngroupShapes != null)
+            (
+              icon: Icon(
+                Icons.folder_open_outlined,
+                size: 15,
+                color: colorScheme.onSecondaryContainer,
+              ),
+              tooltip: 'Ungroup (Ctrl+Shift+G)',
+              enabled: true,
+              onTap: onUngroupShapes!,
+              decoration: null,
+            ),
+          (
+            icon: Icon(
+              RemixIcons.file_copy_line,
+              size: 15,
+              color: colorScheme.onSecondaryContainer,
+            ),
+            tooltip: 'Duplicate (Ctrl+D)',
+            enabled: true,
+            onTap: onDuplicateShape,
+            decoration: null,
+          ),
+          (
+            icon: Icon(
+              RemixIcons.delete_bin_line,
+              size: 15,
+              color: colorScheme.onErrorContainer,
+            ),
+            tooltip: 'Delete (Del)',
+            enabled: true,
+            onTap: onDeleteSelected,
+            decoration: M3EToggleButtonDecoration(
+              backgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.hovered)) {
+                  return colorScheme.errorContainer.withValues(alpha: 0.85);
+                }
+                return colorScheme.errorContainer;
+              }),
+              foregroundColor: WidgetStatePropertyAll(
+                colorScheme.onErrorContainer,
+              ),
+            ),
+          ),
+        ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final count = actions.length;
+        final itemWidth = (constraints.maxWidth / count).floorToDouble();
+        final size = M3EButtonSize.fromBase(M3EButtonSize.sm, width: itemWidth);
+
+        return M3EToggleButtonGroup(
+          type: M3EButtonGroupType.standard,
+          style: M3EButtonStyle.tonal,
+          size: size,
+          neighborSquish: true,
+
+          shape: M3EButtonShape.round,
+          density: M3EButtonGroupDensity.compact,
+          overflow: M3EButtonGroupOverflow.none,
+          selectedIndex: null,
+          onSelectedIndexChanged: (idx) {
+            if (idx != null && idx >= 0 && idx < actions.length) {
+              final action = actions[idx];
+              if (action.enabled) {
+                action.onTap();
+              }
+            }
+          },
+          actions: actions.map((a) {
+            return M3EToggleButtonGroupAction(
+              icon: a.icon,
+              tooltip: a.tooltip,
+              enabled: a.enabled,
+              decoration: a.decoration,
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
   Widget _buildToggleGroup({
     required int selectedIndex,
     required ValueChanged<int> onChanged,
@@ -2823,7 +3082,8 @@ class PropertiesSidebar extends StatelessWidget {
           Widget? checkedLabel = action.checkedLabel;
           if (uncheckedLabel is Text) {
             final textStr = uncheckedLabel.data ?? '';
-            final originalStyle = uncheckedLabel.style ??
+            final originalStyle =
+                uncheckedLabel.style ??
                 theme.textTheme.labelSmall ??
                 const TextStyle();
             uncheckedLabel = Text(
@@ -2935,6 +3195,10 @@ class PropertiesSidebar extends StatelessWidget {
         return RemixIcons.line_line;
       case ShapeType.star:
         return RemixIcons.star_line;
+      case ShapeType.polygon:
+        return RemixIcons.hexagon_line;
+      case ShapeType.path:
+        return RemixIcons.pen_nib_line;
       case ShapeType.text:
         return RemixIcons.t_box_line;
       case ShapeType.image:

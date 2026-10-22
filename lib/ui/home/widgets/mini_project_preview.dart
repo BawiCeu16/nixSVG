@@ -158,6 +158,8 @@ class _MiniCanvasPainter extends CustomPainter {
           break;
 
         case ShapeType.star:
+        case ShapeType.polygon:
+        case ShapeType.path:
           final path = shape.getPath();
           if (shape.isFilled) canvas.drawPath(path, fillPaint);
           if (shape.isStroked) canvas.drawPath(path, strokePaint);

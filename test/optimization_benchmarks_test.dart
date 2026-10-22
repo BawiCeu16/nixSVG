@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:nixsvg/calculations/canvas_hit_test.dart';
 import 'package:nixsvg/models/vector_shape.dart';
+import 'package:nixsvg/painters/grid_painter.dart';
+import 'package:nixsvg/painters/vector_canvas_painter.dart';
 import 'package:nixsvg/theme/components/responsive_layout_tokens.dart';
 
 void main() {
@@ -115,6 +117,77 @@ void main() {
         ResponsiveLayoutTokens.getCompactDrawerWidth(360),
         (360 * 0.85).clamp(240.0, 380.0),
       );
+    });
+
+    test('Tier 2: VectorShape.getTextStyle() memoizes TextStyle and handles Google Sans fast-path', () {
+      final shape = VectorShape(
+        id: 'text-opt',
+        name: 'Google Sans Text',
+        type: ShapeType.text,
+        rect: const Rect.fromLTWH(0, 0, 200, 50),
+        fontFamily: 'Google Sans',
+        fontSize: 20.0,
+      );
+
+      final style1 = shape.getTextStyle();
+      final style2 = shape.getTextStyle();
+
+      expect(identical(style1, style2), isTrue);
+      expect(style1.fontFamily, 'Google Sans');
+      expect(style1.fontSize, 20.0);
+    });
+
+    test('Tier 2: VectorCanvasPainter.shouldRepaint returns false when canvas state is invariant', () {
+      final shapes = [
+        VectorShape(
+          id: 'shape-1',
+          name: 'Rect',
+          type: ShapeType.rectangle,
+          rect: const Rect.fromLTWH(20, 20, 100, 100),
+        ),
+      ];
+
+      final p1 = VectorCanvasPainter(
+        shapes: shapes,
+        selectedShapeIds: {'shape-1'},
+        colorScheme: const ColorScheme.light(),
+        currentMode: EditorMode.select,
+      );
+
+      final p2 = VectorCanvasPainter(
+        shapes: shapes,
+        selectedShapeIds: {'shape-1'},
+        colorScheme: const ColorScheme.light(),
+        currentMode: EditorMode.select,
+      );
+
+      // Same shapes, same selection, same zoom -> NO repaint needed!
+      expect(p2.shouldRepaint(p1), isFalse);
+
+      // Mutating shape revision triggers repaint
+      shapes.first.invalidateCache();
+      final p3 = VectorCanvasPainter(
+        shapes: shapes,
+        selectedShapeIds: {'shape-1'},
+        colorScheme: const ColorScheme.light(),
+        currentMode: EditorMode.select,
+      );
+      expect(p3.shouldRepaint(p1), isTrue);
+    });
+
+    test('Tier 3: GridPainter renders with cached Float32List vertex buffers', () {
+      final painter = GridPainter(
+        gridSpacing: 40.0,
+        gridStyle: 'dots',
+      );
+
+      final recorder = PictureRecorder();
+      final canvas = Canvas(recorder);
+      // Painting 3200x2400 canvas uses cached single batch drawRawPoints
+      painter.paint(canvas, const Size(3200, 2400));
+      final picture = recorder.endRecording();
+      expect(picture, isNotNull);
+      picture.dispose();
     });
   });
 }

@@ -9,7 +9,7 @@ trigger: always_on
 
 It is engineered to blend:
 - The **precision, power, and intuitive canvas workflows** of modern industry-standard vector tools (Figma, Sketch, Adobe Illustrator).
-- The **tactile fluidity, elegance, and solid polish** of native Apple macOS desktop applications.
+- The **tactile fluidity, elegance, and solid polish** of native desktop applications.
 - The **modern styling language of Material 3 Expressive (M3E)**, delivering vibrant, dynamic, and adaptive interfaces.
 
 ## 2. Core Pillars & Architecture

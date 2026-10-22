@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/services.dart';
+import 'package:nixsvg/calculations/svg_path_parser.dart';
 import 'package:nixsvg/models/vector_shape.dart';
 
 /// Calculation result for active smart alignment guidelines.
@@ -222,6 +223,7 @@ class CanvasGeometry {
         case ResizeHandle.radiusTopRight:
         case ResizeHandle.radiusBottomLeft:
         case ResizeHandle.radiusBottomRight:
+        case ResizeHandle.ratio:
         case ResizeHandle.none:
           break;
       }
@@ -260,6 +262,7 @@ class CanvasGeometry {
         case ResizeHandle.radiusTopRight:
         case ResizeHandle.radiusBottomLeft:
         case ResizeHandle.radiusBottomRight:
+        case ResizeHandle.ratio:
         case ResizeHandle.none:
           break;
       }
@@ -273,11 +276,14 @@ class CanvasGeometry {
 
   /// Returns the corresponding [MouseCursor] for an active or hovered [ResizeHandle],
   /// adjusting angle dynamically based on [rotation].
-  static MouseCursor getHandleCursor(ResizeHandle handle, [double rotation = 0.0]) {
+  static MouseCursor getHandleCursor(
+    ResizeHandle handle, [
+    double rotation = 0.0,
+  ]) {
     if (handle == ResizeHandle.none) return SystemMouseCursors.basic;
     // Rotation handle & corner rotation zones: curved rotation cursor
     if (handle == ResizeHandle.rotation) return SystemMouseCursors.alias;
-    if (handle.isRadius) return SystemMouseCursors.precise;
+    if (handle.isRadius || handle.isRatio) return SystemMouseCursors.precise;
 
     double baseAngle = 0.0;
     switch (handle) {
@@ -310,8 +316,9 @@ class CanvasGeometry {
     }
 
     final effectiveAngle = (baseAngle + rotation) % 180.0;
-    final normalized =
-        effectiveAngle < 0 ? effectiveAngle + 180.0 : effectiveAngle;
+    final normalized = effectiveAngle < 0
+        ? effectiveAngle + 180.0
+        : effectiveAngle;
 
     if (normalized >= 22.5 && normalized < 67.5) {
       return SystemMouseCursors.resizeUpLeftDownRight;
@@ -431,22 +438,24 @@ class CanvasGeometry {
     required Rect marqueeRect,
     required List<VectorShape> shapes,
   }) {
-    final normalizedMarquee = Rect.fromLTRB(
-      math.min(marqueeRect.left, marqueeRect.right),
-      math.min(marqueeRect.top, marqueeRect.bottom),
-      math.max(marqueeRect.left, marqueeRect.right),
-      math.max(marqueeRect.top, marqueeRect.bottom),
-    );
+    final mLeft = math.min(marqueeRect.left, marqueeRect.right);
+    final mTop = math.min(marqueeRect.top, marqueeRect.bottom);
+    final mRight = math.max(marqueeRect.left, marqueeRect.right);
+    final mBottom = math.max(marqueeRect.top, marqueeRect.bottom);
 
-    if (normalizedMarquee.width == 0.0 || normalizedMarquee.height == 0.0) {
+    if (mRight <= mLeft || mBottom <= mTop) {
       return const <String>{};
     }
 
     final result = <String>{};
-    for (final shape in shapes) {
+    for (int i = 0; i < shapes.length; i++) {
+      final shape = shapes[i];
       if (shape.isVisible && !shape.isLocked) {
-        final shapeBounds = getShapeBoundingBox(shape);
-        if (normalizedMarquee.overlaps(shapeBounds)) {
+        final b = shape.getBoundingBox();
+        if (mRight > b.left &&
+            mLeft < b.right &&
+            mBottom > b.top &&
+            mTop < b.bottom) {
           result.add(shape.id);
         }
       }
@@ -702,7 +711,10 @@ class CanvasGeometry {
       final r = i.isEven ? outerRadius : innerRadius;
       final angle = i * angleStep - math.pi / 2;
       vertices.add(
-        Offset(center.dx + r * math.cos(angle), center.dy + r * math.sin(angle)),
+        Offset(
+          center.dx + r * math.cos(angle),
+          center.dy + r * math.sin(angle),
+        ),
       );
     }
 
@@ -805,7 +817,10 @@ class CanvasGeometry {
       final r = i.isEven ? outerRadius : innerRadius;
       final angle = i * angleStep - math.pi / 2;
       vertices.add(
-        Offset(center.dx + r * math.cos(angle), center.dy + r * math.sin(angle)),
+        Offset(
+          center.dx + r * math.cos(angle),
+          center.dy + r * math.sin(angle),
+        ),
       );
     }
 
@@ -873,9 +888,7 @@ class CanvasGeometry {
       final pi = vertices[idx];
       final tIn = tangentIn[idx];
       final tOut = tangentOut[idx];
-      sb.write(
-        ' L ${tIn.dx.toStringAsFixed(1)} ${tIn.dy.toStringAsFixed(1)}',
-      );
+      sb.write(' L ${tIn.dx.toStringAsFixed(1)} ${tIn.dy.toStringAsFixed(1)}');
       sb.write(
         ' Q ${pi.dx.toStringAsFixed(1)} ${pi.dy.toStringAsFixed(1)} ${tOut.dx.toStringAsFixed(1)} ${tOut.dy.toStringAsFixed(1)}',
       );
@@ -907,5 +920,335 @@ class CanvasGeometry {
       pointsList.add('${x.toStringAsFixed(1)},${y.toStringAsFixed(1)}');
     }
     return pointsList.join(' ');
+  }
+
+  /// Generates a geometric regular polygon [Path] fitted within [rect], supporting custom [sides]
+  /// and smooth [cornerRadius] corner rounding fillets.
+  static Path createPolygonPath(
+    Rect rect, {
+    int sides = 5,
+    double cornerRadius = 0.0,
+  }) {
+    final numSides = math.max(3, sides);
+    final center = rect.center;
+    final radiusX = rect.width / 2;
+    final radiusY = rect.height / 2;
+    final angleStep = (2 * math.pi) / numSides;
+
+    final vertices = <Offset>[];
+    for (int i = 0; i < numSides; i++) {
+      final angle = i * angleStep - math.pi / 2;
+      vertices.add(
+        Offset(
+          center.dx + radiusX * math.cos(angle),
+          center.dy + radiusY * math.sin(angle),
+        ),
+      );
+    }
+
+    final path = Path();
+    if (vertices.isEmpty) return path;
+
+    if (cornerRadius <= 0.0) {
+      path.moveTo(vertices[0].dx, vertices[0].dy);
+      for (int i = 1; i < numSides; i++) {
+        path.lineTo(vertices[i].dx, vertices[i].dy);
+      }
+      path.close();
+      return path;
+    }
+
+    // Compute edge lengths
+    final edgeLengths = <double>[];
+    for (int i = 0; i < numSides; i++) {
+      final nextIdx = (i + 1) % numSides;
+      edgeLengths.add((vertices[nextIdx] - vertices[i]).distance);
+    }
+
+    // Compute tangent points and conic fillet weights for each vertex
+    final tangentIn = <Offset>[];
+    final tangentOut = <Offset>[];
+    final filletWeights = <double>[];
+
+    for (int i = 0; i < numSides; i++) {
+      final prevIdx = (i - 1 + numSides) % numSides;
+      final pi = vertices[i];
+      final pPrev = vertices[prevIdx];
+      final pNext = vertices[(i + 1) % numSides];
+
+      final vIn = pPrev - pi;
+      final vOut = pNext - pi;
+      final lenIn = edgeLengths[prevIdx];
+      final lenOut = edgeLengths[i];
+
+      if (lenIn == 0 || lenOut == 0) {
+        tangentIn.add(pi);
+        tangentOut.add(pi);
+        filletWeights.add(1.0);
+        continue;
+      }
+
+      final uIn = Offset(vIn.dx / lenIn, vIn.dy / lenIn);
+      final uOut = Offset(vOut.dx / lenOut, vOut.dy / lenOut);
+
+      final dot = (uIn.dx * uOut.dx + uIn.dy * uOut.dy).clamp(-1.0, 1.0);
+      final angle = math.acos(dot);
+      final halfAngle = angle / 2;
+      final tanHalf = math.tan(halfAngle);
+
+      final maxFilletDist = math.min(lenIn, lenOut) * 0.49;
+      double d = 0.0;
+      if (tanHalf > 1e-4) {
+        d = (cornerRadius / tanHalf).clamp(0.0, maxFilletDist);
+      }
+
+      tangentIn.add(pi + Offset(uIn.dx * d, uIn.dy * d));
+      tangentOut.add(pi + Offset(uOut.dx * d, uOut.dy * d));
+      filletWeights.add(math.cos(halfAngle));
+    }
+
+    path.moveTo(tangentOut[0].dx, tangentOut[0].dy);
+    for (int i = 1; i <= numSides; i++) {
+      final idx = i % numSides;
+      path.lineTo(tangentIn[idx].dx, tangentIn[idx].dy);
+
+      final pi = vertices[idx];
+      path.conicTo(
+        pi.dx,
+        pi.dy,
+        tangentOut[idx].dx,
+        tangentOut[idx].dy,
+        filletWeights[idx],
+      );
+    }
+    path.close();
+    return path;
+  }
+
+  /// Generates SVG points list string for unrounded regular polygons.
+  static String generatePolygonPointsSvg(Rect rect, {int sides = 5}) {
+    final numSides = math.max(3, sides);
+    final center = rect.center;
+    final radiusX = rect.width / 2;
+    final radiusY = rect.height / 2;
+    final angleStep = (2 * math.pi) / numSides;
+    final pointsList = <String>[];
+
+    for (int i = 0; i < numSides; i++) {
+      final angle = i * angleStep - math.pi / 2;
+      final x = center.dx + radiusX * math.cos(angle);
+      final y = center.dy + radiusY * math.sin(angle);
+      pointsList.add('${x.toStringAsFixed(1)},${y.toStringAsFixed(1)}');
+    }
+    return pointsList.join(' ');
+  }
+
+  /// Generates SVG path data commands for a polygon with optional rounded corner fillets.
+  static String generatePolygonSvgPathData(
+    Rect rect, {
+    int sides = 5,
+    double cornerRadius = 0.0,
+  }) {
+    final numSides = math.max(3, sides);
+    final center = rect.center;
+    final radiusX = rect.width / 2;
+    final radiusY = rect.height / 2;
+    final angleStep = (2 * math.pi) / numSides;
+
+    final vertices = <Offset>[];
+    for (int i = 0; i < numSides; i++) {
+      final angle = i * angleStep - math.pi / 2;
+      vertices.add(
+        Offset(
+          center.dx + radiusX * math.cos(angle),
+          center.dy + radiusY * math.sin(angle),
+        ),
+      );
+    }
+
+    if (vertices.isEmpty) return '';
+
+    if (cornerRadius <= 0.0) {
+      final sb = StringBuffer(
+        'M ${vertices[0].dx.toStringAsFixed(1)} ${vertices[0].dy.toStringAsFixed(1)}',
+      );
+      for (int i = 1; i < numSides; i++) {
+        sb.write(
+          ' L ${vertices[i].dx.toStringAsFixed(1)} ${vertices[i].dy.toStringAsFixed(1)}',
+        );
+      }
+      sb.write(' Z');
+      return sb.toString();
+    }
+
+    final edgeLengths = <double>[];
+    for (int i = 0; i < numSides; i++) {
+      final nextIdx = (i + 1) % numSides;
+      edgeLengths.add((vertices[nextIdx] - vertices[i]).distance);
+    }
+
+    final tangentIn = <Offset>[];
+    final tangentOut = <Offset>[];
+
+    for (int i = 0; i < numSides; i++) {
+      final prevIdx = (i - 1 + numSides) % numSides;
+      final pi = vertices[i];
+      final pPrev = vertices[prevIdx];
+      final pNext = vertices[(i + 1) % numSides];
+
+      final vIn = pPrev - pi;
+      final vOut = pNext - pi;
+      final lenIn = edgeLengths[prevIdx];
+      final lenOut = edgeLengths[i];
+
+      if (lenIn == 0 || lenOut == 0) {
+        tangentIn.add(pi);
+        tangentOut.add(pi);
+        continue;
+      }
+
+      final uIn = Offset(vIn.dx / lenIn, vIn.dy / lenIn);
+      final uOut = Offset(vOut.dx / lenOut, vOut.dy / lenOut);
+
+      final dot = (uIn.dx * uOut.dx + uIn.dy * uOut.dy).clamp(-1.0, 1.0);
+      final angle = math.acos(dot);
+      final halfAngle = angle / 2;
+      final tanHalf = math.tan(halfAngle);
+
+      final maxFilletDist = math.min(lenIn, lenOut) * 0.49;
+      double d = 0.0;
+      if (tanHalf > 1e-4) {
+        d = (cornerRadius / tanHalf).clamp(0.0, maxFilletDist);
+      }
+
+      tangentIn.add(pi + Offset(uIn.dx * d, uIn.dy * d));
+      tangentOut.add(pi + Offset(uOut.dx * d, uOut.dy * d));
+    }
+
+    final sb = StringBuffer(
+      'M ${tangentOut[0].dx.toStringAsFixed(1)} ${tangentOut[0].dy.toStringAsFixed(1)}',
+    );
+    for (int i = 1; i <= numSides; i++) {
+      final idx = i % numSides;
+      final tIn = tangentIn[idx];
+      final pi = vertices[idx];
+      final tOut = tangentOut[idx];
+
+      sb.write(' L ${tIn.dx.toStringAsFixed(1)} ${tIn.dy.toStringAsFixed(1)}');
+      sb.write(
+        ' Q ${pi.dx.toStringAsFixed(1)} ${pi.dy.toStringAsFixed(1)} ${tOut.dx.toStringAsFixed(1)} ${tOut.dy.toStringAsFixed(1)}',
+      );
+    }
+    sb.write(' Z');
+    return sb.toString();
+  }
+
+  /// Distributes selected shapes evenly along [direction] ('horizontal' or 'vertical').
+  /// Requires at least 3 shapes to compute intermediate spacing gaps.
+  static void distributeShapes({
+    required List<VectorShape> shapes,
+    required Set<String> selectedIds,
+    required String direction,
+  }) {
+    if (selectedIds.length < 3) return;
+    final selected = shapes.where((s) => selectedIds.contains(s.id)).toList();
+    if (selected.length < 3) return;
+
+    if (direction == 'horizontal') {
+      selected.sort((a, b) => a.rect.left.compareTo(b.rect.left));
+      final first = selected.first;
+      final last = selected.last;
+      final totalSpan = last.rect.right - first.rect.left;
+      double sumWidths = 0.0;
+      for (final s in selected) {
+        sumWidths += s.rect.width;
+      }
+      final remainingSpace = totalSpan - sumWidths;
+      final gap = remainingSpace / (selected.length - 1);
+
+      double currentX = first.rect.left + first.rect.width + gap;
+      for (int i = 1; i < selected.length - 1; i++) {
+        final s = selected[i];
+        s.rect = Rect.fromLTWH(
+          currentX,
+          s.rect.top,
+          s.rect.width,
+          s.rect.height,
+        );
+        s.invalidateCache();
+        currentX += s.rect.width + gap;
+      }
+    } else {
+      selected.sort((a, b) => a.rect.top.compareTo(b.rect.top));
+      final first = selected.first;
+      final last = selected.last;
+      final totalSpan = last.rect.bottom - first.rect.top;
+      double sumHeights = 0.0;
+      for (final s in selected) {
+        sumHeights += s.rect.height;
+      }
+      final remainingSpace = totalSpan - sumHeights;
+      final gap = remainingSpace / (selected.length - 1);
+
+      double currentY = first.rect.top + first.rect.height + gap;
+      for (int i = 1; i < selected.length - 1; i++) {
+        final s = selected[i];
+        s.rect = Rect.fromLTWH(
+          s.rect.left,
+          currentY,
+          s.rect.width,
+          s.rect.height,
+        );
+        s.invalidateCache();
+        currentY += s.rect.height + gap;
+      }
+    }
+  }
+
+  /// Combines two or more shapes using a Boolean vector [operation].
+  /// Returns a new unified [VectorShape] of type [ShapeType.path].
+  static VectorShape? combineShapes({
+    required List<VectorShape> shapes,
+    required Set<String> selectedIds,
+    required PathOperation operation,
+    int shapeCounter = 1,
+  }) {
+    if (selectedIds.length < 2) return null;
+    final selected = shapes.where((s) => selectedIds.contains(s.id)).toList();
+    if (selected.length < 2) return null;
+
+    Path combined = selected.first.getPath();
+    for (int i = 1; i < selected.length; i++) {
+      combined = Path.combine(operation, combined, selected[i].getPath());
+    }
+
+    final bounds = combined.getBounds();
+    final svgData = SvgPathParser.pathToSvgData(combined);
+    final topShape = selected.last;
+
+    String opName = 'Union';
+    if (operation == PathOperation.difference) opName = 'Subtract';
+    if (operation == PathOperation.intersect) opName = 'Intersect';
+    if (operation == PathOperation.xor) opName = 'Exclude';
+
+    return VectorShape(
+      id: 'shape-${DateTime.now().millisecondsSinceEpoch}',
+      name: '$opName $shapeCounter',
+      type: ShapeType.path,
+      pathData: svgData,
+      customPath: combined,
+      rect: bounds,
+      fillColor: topShape.fillColor,
+      isFilled: topShape.isFilled,
+      fillOpacity: topShape.fillOpacity,
+      fillType: topShape.fillType,
+      fillGradient: topShape.fillGradient,
+      strokeColor: topShape.strokeColor,
+      isStroked: topShape.isStroked,
+      strokeWidth: topShape.strokeWidth,
+      strokeOpacity: topShape.strokeOpacity,
+      strokeType: topShape.strokeType,
+      strokeGradient: topShape.strokeGradient,
+    );
   }
 }

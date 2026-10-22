@@ -8,6 +8,7 @@ class AppTypography {
   /// Builds emphasized M3E light text theme using system typography.
   static TextTheme light(ColorScheme scheme) {
     final base = Typography.material2021().black.apply(
+      fontFamily: 'Google Sans',
       bodyColor: scheme.onSurface,
       displayColor: scheme.onSurface,
     );
@@ -17,6 +18,7 @@ class AppTypography {
   /// Builds emphasized M3E dark text theme using system typography.
   static TextTheme dark(ColorScheme scheme) {
     final base = Typography.material2021().white.apply(
+      fontFamily: 'Google Sans',
       bodyColor: scheme.onSurface,
       displayColor: scheme.onSurface,
     );

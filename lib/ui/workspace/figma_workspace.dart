@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -17,7 +18,9 @@ import 'package:nixsvg/providers/app_settings_provider.dart';
 import 'package:nixsvg/providers/project_provider.dart';
 import 'package:nixsvg/providers/workspace_settings_provider.dart';
 import 'package:nixsvg/theme/components/responsive_layout_tokens.dart';
+import 'package:nixsvg/theme/physics/m3e_physics_spring.dart';
 import 'package:nixsvg/services/svg_export_service.dart';
+import 'package:nixsvg/services/svg_import_service.dart';
 import 'package:nixsvg/ui/canvas/interactive_canvas.dart';
 import 'package:nixsvg/ui/widgets/sidebar_resize_handle.dart';
 import 'package:nixsvg/widgets/color_picker_dialog.dart';
@@ -96,7 +99,18 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   }
 
   void _resetZoom() {
+    _lastWorkspaceZoomScale = 1.0;
     setState(() => _transformationController.value = Matrix4.identity());
+  }
+
+  void _handleMatrixChanged() {
+    final currentScale = CanvasTransformHelper.getScale(
+      _transformationController.value,
+    );
+    if ((currentScale - _lastWorkspaceZoomScale).abs() >= 0.005) {
+      _lastWorkspaceZoomScale = currentScale;
+      setState(() {});
+    }
   }
 
   // Sidebar Resize & Visibility State
@@ -109,6 +123,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   Offset? panStartOffset;
   Offset? panCurrentOffset;
   Map<String, Rect>? initialShapeRects;
+  List<VectorShape> _activeSelectedShapes = [];
+  double _lastWorkspaceZoomScale = 1.0;
   ResizeHandle activeResizeHandle = ResizeHandle.none;
   bool isMovingShapes = false;
   bool isRotatingShape = false;
@@ -451,6 +467,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
             zoomScale: zoomScale,
           );
           if (activeResizeHandle != ResizeHandle.none) {
+            _activeSelectedShapes = [singleSelected];
             initialShapeRects = {singleSelected.id: singleSelected.rect};
             if (activeResizeHandle == ResizeHandle.rotation) {
               isRotatingShape = true;
@@ -479,9 +496,11 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           );
           if (handle != ResizeHandle.none) {
             activeResizeHandle = handle;
+            _activeSelectedShapes = shapes
+                .where((s) => selectedShapeIds.contains(s.id))
+                .toList();
             initialShapeRects = {
-              for (final id in selectedShapeIds)
-                id: shapes.firstWhere((s) => s.id == id).rect,
+              for (final s in _activeSelectedShapes) s.id: s.rect,
             };
             setState(() {});
             return;
@@ -559,9 +578,11 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
               _duplicateSelected(offset: Offset.zero);
             }
             isMovingShapes = true;
+            _activeSelectedShapes = shapes
+                .where((s) => selectedShapeIds.contains(s.id))
+                .toList();
             initialShapeRects = {
-              for (final id in selectedShapeIds)
-                id: shapes.firstWhere((s) => s.id == id).rect,
+              for (final s in _activeSelectedShapes) s.id: s.rect,
             };
           }
         });
@@ -673,7 +694,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
           switch (activeResizeHandle) {
             case ResizeHandle.radiusTopLeft:
-              if (target.type == ShapeType.star) {
+              if (target.type == ShapeType.star ||
+                  target.type == ShapeType.polygon) {
                 final dy = testPos.dy - (rect.center.dy - maxRadius);
                 dragDistance = dy;
               } else {
@@ -711,7 +733,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           } else {
             newRadius = dragDistance.roundToDouble();
           }
-          if (target.type == ShapeType.star) {
+          if (target.type == ShapeType.star ||
+              target.type == ShapeType.polygon) {
             newRadius = newRadius.clamp(0.0, maxRadius * 0.48);
           } else {
             newRadius = newRadius.clamp(0.0, maxRadius);
@@ -755,6 +778,44 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           }
 
           target.invalidateCache();
+        } else if (activeResizeHandle.isRatio &&
+            selectedShapeIds.length == 1) {
+          final target = shapes.firstWhere(
+            (s) => s.id == selectedShapeIds.first,
+          );
+          Offset testPos = localPos;
+          if (target.rotation != 0.0) {
+            final center = target.rect.center;
+            final rad = -target.rotation * math.pi / 180.0;
+            final cosVal = math.cos(rad);
+            final sinVal = math.sin(rad);
+            final dx = localPos.dx - center.dx;
+            final dy = localPos.dy - center.dy;
+            testPos = Offset(
+              center.dx + dx * cosVal - dy * sinVal,
+              center.dy + dx * sinVal + dy * cosVal,
+            );
+          }
+
+          final rect = target.rect;
+          final maxRadius = math.min(rect.width, rect.height) / 2;
+          if (maxRadius > 0) {
+            final center = rect.center;
+            final dist = (testPos - center).distance;
+            double newRatio = dist / maxRadius;
+
+            final isShiftPressed = HardwareKeyboard.instance.isShiftPressed;
+            if (isShiftPressed) {
+              // Holding Shift snaps in increments of 10% (0.1, 0.2, 0.3, etc.)
+              newRatio = (newRatio * 10).roundToDouble() / 10.0;
+            } else {
+              // Standard precision percentage increments
+              newRatio = (newRatio * 100).roundToDouble() / 100.0;
+            }
+
+            target.innerRadiusRatio = newRatio.clamp(0.05, 0.95);
+            target.invalidateCache();
+          }
         } else if (activeResizeHandle != ResizeHandle.none &&
             selectedShapeIds.length == 1 &&
             initialShapeRects != null) {
@@ -822,20 +883,22 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
             );
             final scaleX = newCombined.width / initialCombined.width;
             final scaleY = newCombined.height / initialCombined.height;
-            for (final id in selectedShapeIds) {
-              final s = shapes.firstWhere((shape) => shape.id == id);
-              final initR = initialShapeRects![id]!;
-              final relLeft = (initR.left - initialCombined.left) * scaleX;
-              final relTop = (initR.top - initialCombined.top) * scaleY;
-              final newW = initR.width * scaleX;
-              final newH = initR.height * scaleY;
-              s.rect = Rect.fromLTWH(
-                newCombined.left + relLeft,
-                newCombined.top + relTop,
-                math.max(4.0, newW),
-                math.max(4.0, newH),
-              );
-              s.invalidateCache();
+            for (int i = 0; i < _activeSelectedShapes.length; i++) {
+              final s = _activeSelectedShapes[i];
+              final initR = initialShapeRects![s.id];
+              if (initR != null) {
+                final relLeft = (initR.left - initialCombined.left) * scaleX;
+                final relTop = (initR.top - initialCombined.top) * scaleY;
+                final newW = initR.width * scaleX;
+                final newH = initR.height * scaleY;
+                s.rect = Rect.fromLTWH(
+                  newCombined.left + relLeft,
+                  newCombined.top + relTop,
+                  math.max(4.0, newW),
+                  math.max(4.0, newH),
+                );
+                s.invalidateCache();
+              }
             }
           }
         } else if (isMovingShapes && initialShapeRects != null) {
@@ -870,10 +933,13 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
             snapGuidelineX = null;
             snapGuidelineY = null;
           }
-          for (final id in selectedShapeIds) {
-            final s = shapes.firstWhere((s) => s.id == id);
-            final initR = initialShapeRects![id]!;
-            s.rect = initR.shift(delta);
+          for (int i = 0; i < _activeSelectedShapes.length; i++) {
+            final s = _activeSelectedShapes[i];
+            final initR = initialShapeRects![s.id];
+            if (initR != null) {
+              s.rect = initR.shift(delta);
+              s.invalidateCache();
+            }
           }
         }
       }
@@ -956,7 +1022,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
               : 0.0,
           isCurved: isCurveMode,
           curvature: isCurveMode ? 35.0 : 0.0,
-          pointCount: 5,
+          pointCount: draftShapeType == ShapeType.polygon ? 6 : 5,
           innerRadiusRatio: 0.4,
         );
         _shapeCounter++;
@@ -983,6 +1049,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       panStartOffset = null;
       panCurrentOffset = null;
       initialShapeRects = null;
+      _activeSelectedShapes.clear();
       activeResizeHandle = ResizeHandle.none;
       isMovingShapes = false;
       isRotatingShape = false;
@@ -1311,6 +1378,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         return 'Line';
       case ShapeType.star:
         return 'Star';
+      case ShapeType.polygon:
+        return 'Polygon';
+      case ShapeType.path:
+        return 'Vector Path';
       case ShapeType.text:
         return 'Text';
       case ShapeType.image:
@@ -1515,6 +1586,48 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
             _saveHistorySnapshot();
           },
         ),
+        if (selectedShapeIds.length >= 2) ...[
+          const FigmaMenuDivider(),
+          FigmaMenuItem(
+            label: 'Boolean Union',
+            icon: Icons.grain_rounded,
+            shortcut: '⌥⌘U',
+            onTap: () => _executeBooleanOperation(PathOperation.union),
+          ),
+          FigmaMenuItem(
+            label: 'Boolean Subtract',
+            icon: Icons.remove_circle_outline_rounded,
+            shortcut: '⌥⌘S',
+            onTap: () => _executeBooleanOperation(PathOperation.difference),
+          ),
+          FigmaMenuItem(
+            label: 'Boolean Intersect',
+            icon: Icons.pie_chart_outline_rounded,
+            shortcut: '⌥⌘I',
+            onTap: () => _executeBooleanOperation(PathOperation.intersect),
+          ),
+          FigmaMenuItem(
+            label: 'Boolean Exclude',
+            icon: Icons.contrast_rounded,
+            shortcut: '⌥⌘X',
+            onTap: () => _executeBooleanOperation(PathOperation.xor),
+          ),
+        ],
+        if (selectedShapeIds.length >= 3) ...[
+          const FigmaMenuDivider(),
+          FigmaMenuItem(
+            label: 'Distribute Horizontally',
+            icon: Icons.horizontal_distribute,
+            shortcut: '⌥⌘H',
+            onTap: () => _distributeShapes('horizontal'),
+          ),
+          FigmaMenuItem(
+            label: 'Distribute Vertically',
+            icon: Icons.vertical_distribute,
+            shortcut: '⌥⌘V',
+            onTap: () => _distributeShapes('vertical'),
+          ),
+        ],
         const FigmaMenuDivider(),
         FigmaMenuItem(
           label: 'Select All',
@@ -1567,6 +1680,18 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           icon: Icons.star_border_rounded,
           shortcut: 'S',
           onTap: () => _addShapeAt(ShapeType.star, canvasPos),
+        ),
+        FigmaMenuItem(
+          label: 'Add Polygon',
+          icon: Icons.hexagon_outlined,
+          shortcut: 'Y',
+          onTap: () => _addShapeAt(ShapeType.polygon, canvasPos),
+        ),
+        FigmaMenuItem(
+          label: 'Import SVG / Image...',
+          icon: Icons.file_download_outlined,
+          shortcut: '⌘I',
+          onTap: _importFileFromDevice,
         ),
         const FigmaMenuDivider(),
         FigmaMenuItem(
@@ -1640,6 +1765,40 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
             ? _lastMouseCanvasPosition!
             : _getViewportCanvasCenter();
 
+        final trimmed = text.trim();
+        if (trimmed.contains('<svg') ||
+            (trimmed.startsWith('<') &&
+                (trimmed.contains('<path') ||
+                    trimmed.contains('<rect') ||
+                    trimmed.contains('<circle') ||
+                    trimmed.contains('<g')))) {
+          final importedShapes = SvgImportService.parseSvg(
+            trimmed,
+            targetOrigin: focalPoint,
+          );
+          if (importedShapes.isNotEmpty) {
+            setState(() {
+              shapes.addAll(importedShapes);
+              selectedShapeIds.clear();
+              selectedShapeIds.addAll(importedShapes.map((s) => s.id));
+            });
+            _saveHistorySnapshot();
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Pasted ${importedShapes.length} vector shape(s) from SVG clipboard',
+                  ),
+                  duration: const Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+            return;
+          }
+        }
+
         final newShape = VectorShape(
           id: 'shape-${DateTime.now().millisecondsSinceEpoch}',
           name: 'Text $_shapeCounter',
@@ -1663,6 +1822,71 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       }
     } catch (e) {
       debugPrint('Error reading system clipboard: $e');
+    }
+  }
+
+  void _executeBooleanOperation(PathOperation operation) {
+    if (selectedShapeIds.length < 2) return;
+    _shapeCounter++;
+    final combined = CanvasGeometry.combineShapes(
+      shapes: shapes,
+      selectedIds: selectedShapeIds,
+      operation: operation,
+      shapeCounter: _shapeCounter,
+    );
+    if (combined == null) return;
+
+    int minIndex = shapes.length;
+    for (int i = 0; i < shapes.length; i++) {
+      if (selectedShapeIds.contains(shapes[i].id)) {
+        minIndex = math.min(minIndex, i);
+      }
+    }
+
+    setState(() {
+      shapes.removeWhere((s) => selectedShapeIds.contains(s.id));
+      shapes.insert(minIndex.clamp(0, shapes.length), combined);
+      selectedShapeIds.clear();
+      selectedShapeIds.add(combined.id);
+    });
+    _saveHistorySnapshot();
+
+    String opName = 'Union';
+    if (operation == PathOperation.difference) opName = 'Subtract';
+    if (operation == PathOperation.intersect) opName = 'Intersect';
+    if (operation == PathOperation.xor) opName = 'Exclude';
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Created Boolean $opName vector shape'),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  void _distributeShapes(String direction) {
+    if (selectedShapeIds.length < 3) return;
+    setState(() {
+      CanvasGeometry.distributeShapes(
+        shapes: shapes,
+        selectedIds: selectedShapeIds,
+        direction: direction,
+      );
+    });
+    _saveHistorySnapshot();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Distributed shapes ${direction == 'horizontal' ? 'horizontally' : 'vertically'}',
+          ),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -1915,11 +2139,12 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     _saveHistorySnapshot();
   }
 
-  Future<void> _importImageFromDevice() async {
+  Future<void> _importFileFromDevice() async {
     try {
       ensureFilePickerInitialized();
       final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
+        type: FileType.custom,
+        allowedExtensions: ['svg', 'png', 'jpg', 'jpeg', 'webp', 'gif'],
         allowMultiple: false,
         withData: true,
       );
@@ -1928,6 +2153,45 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         final file = result.files.first;
         final bytes = file.bytes;
         if (bytes != null) {
+          final isSvg = file.name.toLowerCase().endsWith('.svg') ||
+              (bytes.length > 5 &&
+                  utf8.decode(bytes.take(100).toList(), allowMalformed: true).contains('<svg'));
+
+          final focalPoint = (_isMouseOverCanvas && _lastMouseCanvasPosition != null)
+              ? _lastMouseCanvasPosition!
+              : _getViewportCanvasCenter();
+
+          if (isSvg) {
+            final svgContent = utf8.decode(bytes);
+            final importedShapes = SvgImportService.parseSvg(
+              svgContent,
+              targetOrigin: focalPoint,
+            );
+
+            if (importedShapes.isNotEmpty) {
+              setState(() {
+                shapes.addAll(importedShapes);
+                selectedShapeIds.clear();
+                selectedShapeIds.addAll(importedShapes.map((s) => s.id));
+              });
+              _saveHistorySnapshot();
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Imported ${importedShapes.length} vector shape(s) from ${file.name}',
+                    ),
+                    duration: const Duration(seconds: 3),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+              return;
+            }
+          }
+
+          // Raster bitmap fallback
           final codec = await ui.instantiateImageCodec(bytes);
           final frame = await codec.getNextFrame();
           final decodedImage = frame.image;
@@ -1939,7 +2203,12 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
             id: 'shape-${DateTime.now().millisecondsSinceEpoch}',
             name: 'Image ${file.name}',
             type: ShapeType.image,
-            rect: Rect.fromLTWH(300, 200, width, height),
+            rect: Rect.fromLTWH(
+              focalPoint.dx - width / 2,
+              focalPoint.dy - height / 2,
+              width,
+              height,
+            ),
             imageBytes: bytes,
             decodedImage: decodedImage,
           );
@@ -1953,11 +2222,11 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         }
       }
     } catch (e) {
-      debugPrint('Error picking image: $e');
+      debugPrint('Error importing file: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error picking image: $e'),
+            content: Text('Error importing file: $e'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -2320,8 +2589,35 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       final isCtrl =
           HardwareKeyboard.instance.isControlPressed ||
           HardwareKeyboard.instance.isMetaPressed;
+      final isAlt = HardwareKeyboard.instance.isAltPressed;
+
+      if (isCtrl && isAlt) {
+        if (event.logicalKey == LogicalKeyboardKey.keyU) {
+          _executeBooleanOperation(PathOperation.union);
+          return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.keyS) {
+          _executeBooleanOperation(PathOperation.difference);
+          return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.keyI) {
+          _executeBooleanOperation(PathOperation.intersect);
+          return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.keyX) {
+          _executeBooleanOperation(PathOperation.xor);
+          return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.keyH) {
+          _distributeShapes('horizontal');
+          return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.keyV) {
+          _distributeShapes('vertical');
+          return KeyEventResult.handled;
+        }
+      }
+
       if (isCtrl) {
-        if (event.logicalKey == LogicalKeyboardKey.keyA) {
+        if (event.logicalKey == LogicalKeyboardKey.keyI) {
+          _importFileFromDevice();
+          return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.keyA) {
           if (shapes.isNotEmpty) {
             _selectAll();
           }
@@ -2504,6 +2800,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         } else if (event.logicalKey == LogicalKeyboardKey.keyS) {
           setState(() => currentMode = EditorMode.drawStar);
           return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.keyY) {
+          setState(() => currentMode = EditorMode.drawPolygon);
+          return KeyEventResult.handled;
         } else if (event.logicalKey == LogicalKeyboardKey.keyT) {
           setState(() => currentMode = EditorMode.drawText);
           return KeyEventResult.handled;
@@ -2569,7 +2868,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                     ref.read(appSettingsProvider.notifier).setSnapToGrid(val);
                   },
                   onExportSvg: _openExportDialog,
-                  onImportImage: _importImageFromDevice,
+                  onImportImage: _importFileFromDevice,
+                  onBooleanOperation: _executeBooleanOperation,
+                  selectedShapesCount: selectedShapeIds.length,
                   onClearCanvas: _clearCanvas,
                   onShowShortcuts: _openShortcutsDialog,
                   onOpenSettings: _openSettingsDialog,
@@ -2780,13 +3081,45 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                 onPointerMove: _onPointerMove,
                                 onPointerUp: _onPointerUp,
                                 onPointerCancel: _onPointerCancel,
-                                onMatrixChanged: () => setState(() {}),
+                                onMatrixChanged: _handleMatrixChanged,
                                 onCanvasHoverChanged: (hovered) =>
                                     _isMouseOverCanvas = hovered,
                                 onPointerHover: (pos) =>
                                     _lastMouseCanvasPosition = pos,
                                 onSecondaryTap: _handleCanvasContextMenu,
                               ),
+
+                              // Backdrop Scrim for Compact Mobile Drawers
+                              if (isCompact && (showLayers || showProperties))
+                                Positioned.fill(
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () {
+                                      setState(() {
+                                        if (showLayers) {
+                                          isLayersPanelOpen = false;
+                                          ref
+                                              .read(appSettingsProvider.notifier)
+                                              .setShowLayers(false);
+                                        }
+                                        if (showProperties) {
+                                          isPropertiesPanelOpen = false;
+                                          ref
+                                              .read(appSettingsProvider.notifier)
+                                              .setShowProperties(false);
+                                        }
+                                      });
+                                    },
+                                    child: Container(
+                                      color: Colors.black.withValues(
+                                        alpha: Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? 0.45
+                                            : 0.25,
+                                      ),
+                                    ),
+                                  ),
+                                ),
 
                               // Overlay Drawer for Compact Mobile Screens
                               if (isCompact && showLayers)
@@ -2798,11 +3131,28 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                       ResponsiveLayoutTokens.getCompactDrawerWidth(
                                         constraints.maxWidth,
                                       ),
-                                  child: Material(
-                                    elevation: 8,
-                                    color: colorScheme.surfaceContainer,
-                                    child: RepaintBoundary(
-                                      child: LayersSidebar(
+                                  child: TweenAnimationBuilder<double>(
+                                    tween: Tween<double>(begin: -1.0, end: 0.0),
+                                    duration: const Duration(milliseconds: 240),
+                                    curve: M3PhysicsSpring.expressiveCurve,
+                                    builder: (context, slide, child) {
+                                      return FractionalTranslation(
+                                        translation: Offset(slide, 0),
+                                        child: child,
+                                      );
+                                    },
+                                    child: Material(
+                                      elevation: 12,
+                                      shadowColor:
+                                          Colors.black.withValues(alpha: 0.35),
+                                      color: colorScheme.surfaceContainer,
+                                      borderRadius:
+                                          const BorderRadius.horizontal(
+                                        right: Radius.circular(16),
+                                      ),
+                                      clipBehavior: Clip.antiAlias,
+                                      child: RepaintBoundary(
+                                        child: LayersSidebar(
                                         width:
                                             ResponsiveLayoutTokens.getCompactDrawerWidth(
                                               constraints.maxWidth,
@@ -2872,11 +3222,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                     ),
                                   ),
                                 ),
+                              ),
 
                               // Overlay Properties for Compact Mobile Screens
-                              if (isCompact &&
-                                  showProperties &&
-                                  selectedShape != null)
+                              if (isCompact && showProperties)
                                 Positioned(
                                   top: 0,
                                   bottom: 0,
@@ -2885,11 +3234,28 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                       ResponsiveLayoutTokens.getCompactDrawerWidth(
                                         constraints.maxWidth,
                                       ),
-                                  child: Material(
-                                    elevation: 8,
-                                    color: colorScheme.surfaceContainer,
-                                    child: RepaintBoundary(
-                                      child: PropertiesSidebar(
+                                  child: TweenAnimationBuilder<double>(
+                                    tween: Tween<double>(begin: 1.0, end: 0.0),
+                                    duration: const Duration(milliseconds: 240),
+                                    curve: M3PhysicsSpring.expressiveCurve,
+                                    builder: (context, slide, child) {
+                                      return FractionalTranslation(
+                                        translation: Offset(slide, 0),
+                                        child: child,
+                                      );
+                                    },
+                                    child: Material(
+                                      elevation: 12,
+                                      shadowColor:
+                                          Colors.black.withValues(alpha: 0.35),
+                                      color: colorScheme.surfaceContainer,
+                                      borderRadius:
+                                          const BorderRadius.horizontal(
+                                        left: Radius.circular(16),
+                                      ),
+                                      clipBehavior: Clip.antiAlias,
+                                      child: RepaintBoundary(
+                                        child: PropertiesSidebar(
                                         width:
                                             ResponsiveLayoutTokens.getCompactDrawerWidth(
                                               constraints.maxWidth,
@@ -2909,6 +3275,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                         onDuplicateShape: _duplicateSelected,
                                         onDeleteSelected: _deleteSelected,
                                         onAlignShape: _alignShapes,
+                                        onDistributeShapes: _distributeShapes,
+                                        onBooleanOperation: _executeBooleanOperation,
+                                        selectedShapesCount: selectedShapeIds.length,
                                         onGroupShapes: _groupSelected,
                                         onUngroupShapes: _ungroupSelected,
                                         canGroup: selectedShapeIds.isNotEmpty,
@@ -2964,6 +3333,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                     ),
                                   ),
                                 ),
+                              ),
 
                               // Center Dynamic Floating Tool Bar (Top or Bottom based on App Settings)
                               Positioned(
@@ -3034,6 +3404,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                               onDuplicateShape: _duplicateSelected,
                               onDeleteSelected: _deleteSelected,
                               onAlignShape: _alignShapes,
+                              onDistributeShapes: _distributeShapes,
+                              onBooleanOperation: _executeBooleanOperation,
+                              selectedShapesCount: selectedShapeIds.length,
                               onGroupShapes: _groupSelected,
                               onUngroupShapes: _ungroupSelected,
                               canGroup: selectedShapeIds.isNotEmpty,
@@ -3106,6 +3479,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         return ShapeType.line;
       case EditorMode.drawStar:
         return ShapeType.star;
+      case EditorMode.drawPolygon:
+        return ShapeType.polygon;
       case EditorMode.drawText:
         return ShapeType.text;
       case EditorMode.select:
@@ -3130,6 +3505,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         return 'Curve';
       case EditorMode.drawStar:
         return 'Star';
+      case EditorMode.drawPolygon:
+        return 'Polygon';
       case EditorMode.drawText:
         return 'Text';
       default:

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 enum FigmaContextMenuItemType {
@@ -179,6 +180,10 @@ class _FigmaMenuItemContent extends StatelessWidget {
         : (isEnabled
             ? colorScheme.onSurfaceVariant
             : colorScheme.onSurface.withValues(alpha: 0.38));
+    final isMac = !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
+    final displayShortcut = (shortcut != null && !isMac)
+        ? shortcut!.replaceAll('⌘', 'Ctrl+')
+        : shortcut;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -200,10 +205,10 @@ class _FigmaMenuItemContent extends StatelessWidget {
             ),
           ),
         ),
-        if (shortcut != null) ...[
+        if (displayShortcut != null) ...[
           const SizedBox(width: 14),
           Text(
-            shortcut!,
+            displayShortcut,
             style: theme.textTheme.labelSmall?.copyWith(
               color: isEnabled
                   ? colorScheme.onSurfaceVariant.withValues(alpha: 0.65)

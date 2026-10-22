@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:m3e_buttons/m3e_buttons.dart';
 import 'package:remixicon/remixicon.dart';
@@ -9,6 +10,8 @@ class ShortcutsDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isMac = !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
+    final mod = isMac ? '⌘' : 'Ctrl';
 
     return AlertDialog(
       backgroundColor: colorScheme.surfaceContainerHigh,
@@ -58,6 +61,7 @@ class ShortcutsDialog extends StatelessWidget {
                   ),
                   _buildShortcutRow(context, 'C / P', 'Draw Curve / Path Tool'),
                   _buildShortcutRow(context, 'S', 'Draw Star Tool'),
+                  _buildShortcutRow(context, 'Y', 'Draw Polygon Tool'),
                   _buildShortcutRow(context, 'T', 'Draw Text Tool'),
                   _buildShortcutRow(
                     context,
@@ -69,12 +73,12 @@ class ShortcutsDialog extends StatelessWidget {
               _buildShortcutCard(
                 context,
                 children: [
-                  _buildShortcutRow(context, 'Ctrl + C', 'Copy Selected Shapes'),
-                  _buildShortcutRow(context, 'Ctrl + X', 'Cut Selected Shapes'),
-                  _buildShortcutRow(context, 'Ctrl + V', 'Paste Shapes'),
+                  _buildShortcutRow(context, '$mod + C', 'Copy Selected Shapes'),
+                  _buildShortcutRow(context, '$mod + X', 'Cut Selected Shapes'),
+                  _buildShortcutRow(context, '$mod + V', 'Paste Shapes'),
                   _buildShortcutRow(
                     context,
-                    'Ctrl + D',
+                    '$mod + D',
                     'Duplicate Selected Shapes',
                   ),
                   _buildShortcutRow(
@@ -82,9 +86,9 @@ class ShortcutsDialog extends StatelessWidget {
                     'Delete / Backspace',
                     'Delete Selected Shapes',
                   ),
-                  _buildShortcutRow(context, 'Ctrl + A', 'Select All Shapes'),
-                  _buildShortcutRow(context, 'Ctrl + Z', 'Undo'),
-                  _buildShortcutRow(context, 'Ctrl + Shift + Z', 'Redo'),
+                  _buildShortcutRow(context, '$mod + A', 'Select All Shapes'),
+                  _buildShortcutRow(context, '$mod + Z', 'Undo'),
+                  _buildShortcutRow(context, '$mod + Shift + Z', 'Redo'),
                 ],
               ),
               _buildShortcutCard(
@@ -92,16 +96,46 @@ class ShortcutsDialog extends StatelessWidget {
                 children: [
                   _buildShortcutRow(
                     context,
-                    'Ctrl + ] / ]',
+                    '$mod + ] / ]',
                     'Bring Forward (Layer Up)',
                   ),
                   _buildShortcutRow(
                     context,
-                    'Ctrl + [ / [',
+                    '$mod + [ / [',
                     'Send Backward (Layer Down)',
                   ),
                   _buildShortcutRow(context, 'Shift + H', 'Flip Horizontally'),
                   _buildShortcutRow(context, 'Shift + V', 'Flip Vertically'),
+                  _buildShortcutRow(
+                    context,
+                    '$mod + Alt + U',
+                    'Boolean Union',
+                  ),
+                  _buildShortcutRow(
+                    context,
+                    '$mod + Alt + S',
+                    'Boolean Subtract',
+                  ),
+                  _buildShortcutRow(
+                    context,
+                    '$mod + Alt + I',
+                    'Boolean Intersect',
+                  ),
+                  _buildShortcutRow(
+                    context,
+                    '$mod + Alt + X',
+                    'Boolean Exclude',
+                  ),
+                  _buildShortcutRow(
+                    context,
+                    '$mod + Alt + H',
+                    'Distribute Horizontally',
+                  ),
+                  _buildShortcutRow(
+                    context,
+                    '$mod + Alt + V',
+                    'Distribute Vertically',
+                  ),
                 ],
               ),
               _buildShortcutCard(
@@ -109,29 +143,29 @@ class ShortcutsDialog extends StatelessWidget {
                 children: [
                   _buildShortcutRow(
                     context,
-                    'Ctrl + 0 / Shift + 0',
+                    '$mod + 0 / Shift + 0',
                     'Reset Zoom (100%)',
                   ),
                   _buildShortcutRow(
                     context,
-                    'Shift + 1 / Ctrl + 1',
+                    'Shift + 1 / $mod + 1',
                     'Zoom to Fit All',
                   ),
                   _buildShortcutRow(
                     context,
-                    'Shift + 2 / Ctrl + 2',
+                    'Shift + 2 / $mod + 2',
                     'Zoom to Selection',
                   ),
-                  _buildShortcutRow(context, 'Ctrl + / -', 'Zoom In / Out'),
+                  _buildShortcutRow(context, '$mod + / -', 'Zoom In / Out'),
                   _buildShortcutRow(
                     context,
-                    'Ctrl + Wheel',
+                    '$mod + Wheel',
                     'Zoom In / Out around Cursor (Figma)',
                   ),
                   _buildShortcutRow(
                     context,
                     'Arrow Keys',
-                    'Nudge 1px (Hold Shift for 10px)',
+                    'Nudge 1px (Hold Shift for 10px, Alt for 0.1px)',
                   ),
                   _buildShortcutRow(
                     context,
@@ -165,12 +199,12 @@ class ShortcutsDialog extends StatelessWidget {
                 children: [
                   _buildShortcutRow(
                     context,
-                    'Ctrl + , / ⌘ + ,',
+                    '$mod + ,',
                     'Open Settings & Preferences',
                   ),
                   _buildShortcutRow(
                     context,
-                    'Ctrl + E',
+                    '$mod + E',
                     'Export SVG Artwork',
                   ),
                 ],

@@ -24,6 +24,8 @@ class TopNavigationBar extends ConsumerWidget {
   final ValueChanged<bool> onSnapToGridChanged;
   final VoidCallback onExportSvg;
   final VoidCallback onImportImage;
+  final Function(PathOperation op)? onBooleanOperation;
+  final int selectedShapesCount;
   final VoidCallback onClearCanvas;
   final VoidCallback onShowShortcuts;
   final VoidCallback? onOpenSettings;
@@ -51,6 +53,8 @@ class TopNavigationBar extends ConsumerWidget {
     required this.onSnapToGridChanged,
     required this.onExportSvg,
     required this.onImportImage,
+    this.onBooleanOperation,
+    this.selectedShapesCount = 0,
     required this.onClearCanvas,
     required this.onShowShortcuts,
     this.onOpenSettings,
@@ -221,6 +225,110 @@ class TopNavigationBar extends ConsumerWidget {
                           onTap: () => onSnapToGridChanged(!snapToGrid),
                         ),
 
+                        if (selectedShapesCount >= 2 &&
+                            onBooleanOperation != null) ...[
+                          const SizedBox(width: 6),
+                          PopupMenuButton<PathOperation>(
+                            tooltip: 'Boolean Vector Operations',
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(
+                                color: colorScheme.outlineVariant.withValues(
+                                  alpha: 0.35,
+                                ),
+                              ),
+                            ),
+                            color: colorScheme.surfaceContainerHigh,
+                            elevation: 3,
+                            onSelected: onBooleanOperation,
+                            itemBuilder: (context) => [
+                              PopupMenuItem(
+                                value: PathOperation.union,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      RemixIcons.shape_line,
+                                      size: 16,
+                                      color: colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Text('Boolean Union (⌥⌘U)'),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: PathOperation.difference,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      RemixIcons.subtract_line,
+                                      size: 16,
+                                      color: colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Text('Boolean Subtract (⌥⌘S)'),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: PathOperation.intersect,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      RemixIcons.shape_2_line,
+                                      size: 16,
+                                      color: colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Text('Boolean Intersect (⌥⌘I)'),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: PathOperation.xor,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      RemixIcons.contrast_line,
+                                      size: 16,
+                                      color: colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Text('Boolean Exclude (⌥⌘X)'),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            child: _M3EPillContainer(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 5,
+                              ),
+                              children: [
+                                Icon(
+                                  RemixIcons.shape_line,
+                                  size: 14,
+                                  color: colorScheme.primary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Boolean',
+                                  style: textTheme.labelMedium?.copyWith(
+                                    color: colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 2),
+                                Icon(
+                                  RemixIcons.arrow_down_s_line,
+                                  size: 13,
+                                  color: colorScheme.primary,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+
                         const SizedBox(width: 6),
 
                         // --- Zoom Controls Segmented Pill ---
@@ -385,10 +493,35 @@ class TopNavigationBar extends ConsumerWidget {
                               ),
                             ),
                             color: colorScheme.surfaceContainerHigh,
-                            icon: Icon(
-                              RemixIcons.palette_line,
-                              color: colorScheme.primary,
-                              size: 17,
+                            icon: SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Icon(
+                                    RemixIcons.palette_line,
+                                    color: colorScheme.primary,
+                                    size: 16,
+                                  ),
+                                  Positioned(
+                                    right: 1,
+                                    bottom: 1,
+                                    child: Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: BoxDecoration(
+                                        color: themeState.seedColor,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: colorScheme.surfaceContainerHigh,
+                                          width: 1,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                             onSelected: (color) {
                               ref
@@ -560,8 +693,9 @@ class TopNavigationBar extends ConsumerWidget {
 /// Material 3 Expressive Container grouping related segmented actions.
 class _M3EPillContainer extends StatelessWidget {
   final List<Widget> children;
+  final EdgeInsetsGeometry? padding;
 
-  const _M3EPillContainer({required this.children});
+  const _M3EPillContainer({required this.children, this.padding});
 
   @override
   Widget build(BuildContext context) {
@@ -569,7 +703,7 @@ class _M3EPillContainer extends StatelessWidget {
 
     return Container(
       height: 30,
-      padding: const EdgeInsets.symmetric(horizontal: 2),
+      padding: padding ?? const EdgeInsets.symmetric(horizontal: 2),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(19),
@@ -610,6 +744,8 @@ class _M3EIconButton extends StatelessWidget {
     return M3PhysicsPressable(
       tooltip: tooltip,
       onTap: enabled ? onTap : null,
+      enableHoverHighlight: true,
+      borderRadius: BorderRadius.circular(8),
       child: Container(
         width: 26,
         height: 26,
@@ -654,6 +790,8 @@ class _M3ETogglePill extends StatelessWidget {
     return M3PhysicsPressable(
       tooltip: tooltip,
       onTap: onTap,
+      enableHoverHighlight: !selected,
+      borderRadius: BorderRadius.circular(19),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.fastOutSlowIn,
@@ -722,6 +860,8 @@ class _M3EPanelToggleButton extends StatelessWidget {
     return M3PhysicsPressable(
       tooltip: tooltip,
       onTap: onTap,
+      enableHoverHighlight: !active,
+      borderRadius: BorderRadius.circular(14),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.fastOutSlowIn,

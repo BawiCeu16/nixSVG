@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -57,9 +58,19 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Cut'), findsOneWidget);
-      expect(find.text('⌘X'), findsOneWidget);
+      expect(
+        find.text(
+          defaultTargetPlatform == TargetPlatform.macOS ? '⌘X' : 'Ctrl+X',
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Copy'), findsOneWidget);
-      expect(find.text('⌘C'), findsOneWidget);
+      expect(
+        find.text(
+          defaultTargetPlatform == TargetPlatform.macOS ? '⌘C' : 'Ctrl+C',
+        ),
+        findsOneWidget,
+      );
 
       await tester.tap(find.text('Cut'));
       await tester.pumpAndSettle();

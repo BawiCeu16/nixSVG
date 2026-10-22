@@ -6,8 +6,19 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:nixsvg/calculations/canvas_geometry.dart';
+import 'package:nixsvg/calculations/svg_path_parser.dart';
 
-enum ShapeType { rectangle, roundedRectangle, ellipse, line, star, text, image }
+enum ShapeType {
+  rectangle,
+  roundedRectangle,
+  ellipse,
+  line,
+  star,
+  polygon,
+  path,
+  text,
+  image,
+}
 
 enum EditorMode {
   select,
@@ -18,6 +29,7 @@ enum EditorMode {
   drawLine,
   drawCurve,
   drawStar,
+  drawPolygon,
   drawText,
 }
 
@@ -35,10 +47,13 @@ enum ResizeHandle {
   radiusTopRight,
   radiusBottomLeft,
   radiusBottomRight,
+  ratio,
   none,
 }
 
 extension ResizeHandleExt on ResizeHandle {
+  bool get isRatio => this == ResizeHandle.ratio;
+
   bool get isRadius =>
       this == ResizeHandle.radiusTopLeft ||
       this == ResizeHandle.radiusTopRight ||
@@ -217,6 +232,9 @@ class VectorShape {
   ui.Image? decodedImage;
   String? groupId;
   String? groupName;
+  String? pathData;
+  Path? customPath;
+  int revision;
 
   // Self-invalidating geometry and rendering caches
   Path? _cachedPath;
@@ -261,6 +279,20 @@ class VectorShape {
   ShapeGradient? _lastTextFillGradient;
   double? _lastTextFillOpacity;
   double? _lastTextRectWidth;
+
+  TextStyle? _cachedTextStyle;
+  String? _lastStyleFontFamily;
+  double? _lastStyleFontSize;
+  FontWeight? _lastStyleFontWeight;
+  bool? _lastStyleIsItalic;
+  bool? _lastStyleIsUnderline;
+  bool? _lastStyleIsStrikethrough;
+  double? _lastStyleLetterSpacing;
+  double? _lastStyleLineHeight;
+  Color? _lastStyleColor;
+  Paint? _lastStyleFillPaint;
+  PaintFillType? _lastStyleFillType;
+  ShapeGradient? _lastStyleFillGradient;
 
   VectorShape({
     required this.id,
@@ -314,6 +346,9 @@ class VectorShape {
     this.decodedImage,
     this.groupId,
     this.groupName,
+    this.pathData,
+    this.customPath,
+    this.revision = 0,
   }) : cornerRadius = cornerRadius ??
            (type == ShapeType.roundedRectangle ? 12.0 : 0.0),
        fontWeight =
@@ -373,6 +408,9 @@ class VectorShape {
     String? groupId,
     String? groupName,
     bool clearGroup = false,
+    String? pathData,
+    Path? customPath,
+    int? revision,
   }) {
     final effectiveIsBold =
         isBold ??
@@ -444,6 +482,9 @@ class VectorShape {
       decodedImage: decodedImage ?? this.decodedImage,
       groupId: clearGroup ? null : (groupId ?? this.groupId),
       groupName: clearGroup ? null : (groupName ?? this.groupName),
+      pathData: pathData ?? this.pathData,
+      customPath: customPath ?? this.customPath,
+      revision: revision ?? (this.revision + 1),
     );
   }
 
@@ -503,6 +544,7 @@ class VectorShape {
       'fontWeight': fontWeight.value,
       'isVisible': isVisible,
       'isLocked': isLocked,
+      'pathData': pathData,
       'imageBytes': imageBytes != null ? base64Encode(imageBytes!) : null,
     };
   }
@@ -604,6 +646,14 @@ class VectorShape {
       } catch (_) {}
     }
 
+    final pathData = json['pathData'] as String?;
+    Path? customPath;
+    if (pathData != null && pathData.isNotEmpty) {
+      try {
+        customPath = SvgPathParser.parse(pathData);
+      } catch (_) {}
+    }
+
     return VectorShape(
       id:
           json['id'] as String? ??
@@ -661,6 +711,8 @@ class VectorShape {
       isVisible: json['isVisible'] as bool? ?? true,
       isLocked: json['isLocked'] as bool? ?? false,
       imageBytes: imageBytes,
+      pathData: pathData,
+      customPath: customPath,
     );
   }
 
@@ -868,6 +920,26 @@ class VectorShape {
           innerRadiusRatio: innerRadiusRatio,
         );
         return '  <polygon points="$points" $fillAttr $strokeAttr$transformAttr />';
+      case ShapeType.polygon:
+        if (cornerRadius > 0) {
+          final d = CanvasGeometry.generatePolygonSvgPathData(
+            rect,
+            sides: pointCount,
+            cornerRadius: cornerRadius,
+          );
+          return '  <path d="$d" $fillAttr $strokeAttr$transformAttr />';
+        }
+        final points = CanvasGeometry.generatePolygonPointsSvg(
+          rect,
+          sides: pointCount,
+        );
+        return '  <polygon points="$points" $fillAttr $strokeAttr$transformAttr />';
+      case ShapeType.path:
+        final d = pathData ??
+            (customPath != null
+                ? SvgPathParser.pathToSvgData(customPath!)
+                : '');
+        return '  <path d="$d" $fillAttr $strokeAttr$transformAttr />';
       case ShapeType.text:
         String displayText = textContent;
         switch (textCase) {
@@ -1036,6 +1108,40 @@ class VectorShape {
           Offset.zero,
         );
         break;
+      case ShapeType.polygon:
+        path.addPath(
+          CanvasGeometry.createPolygonPath(
+            rect,
+            sides: pointCount,
+            cornerRadius: cornerRadius,
+          ),
+          Offset.zero,
+        );
+        break;
+      case ShapeType.path:
+        if (customPath != null) {
+          final origBounds = customPath!.getBounds();
+          if (origBounds.width > 0 &&
+              origBounds.height > 0 &&
+              origBounds != rect) {
+            final scaleX = rect.width / origBounds.width;
+            final scaleY = rect.height / origBounds.height;
+            final matrix = Matrix4.identity()
+              ..translateByDouble(rect.left, rect.top, 0.0, 1.0)
+              ..scaleByDouble(scaleX, scaleY, 1.0, 1.0)
+              ..translateByDouble(-origBounds.left, -origBounds.top, 0.0, 1.0);
+            customPath = customPath!.transform(matrix.storage);
+            pathData = SvgPathParser.pathToSvgData(customPath!);
+          }
+          path.addPath(customPath!, Offset.zero);
+        } else if (pathData != null && pathData!.isNotEmpty) {
+          final parsed = SvgPathParser.parse(pathData!);
+          customPath = parsed;
+          path.addPath(parsed, Offset.zero);
+        } else {
+          path.addRect(rect);
+        }
+        break;
       case ShapeType.line:
         final p1 = rect.topLeft;
         final p2 = rect.bottomRight;
@@ -1170,6 +1276,25 @@ class VectorShape {
   /// Returns the resolved [TextStyle] for typography shapes matching canvas metrics.
   TextStyle getTextStyle({Paint? fillPaint}) {
     final effectiveColor = fillColor.withValues(alpha: fillOpacity);
+    final isGradientText =
+        fillType != PaintFillType.solid && fillGradient != null;
+
+    if (_cachedTextStyle != null &&
+        _lastStyleFontFamily == fontFamily &&
+        _lastStyleFontSize == fontSize &&
+        _lastStyleFontWeight == fontWeight &&
+        _lastStyleIsItalic == isItalic &&
+        _lastStyleIsUnderline == isUnderline &&
+        _lastStyleIsStrikethrough == isStrikethrough &&
+        _lastStyleLetterSpacing == letterSpacing &&
+        _lastStyleLineHeight == lineHeight &&
+        _lastStyleColor == effectiveColor &&
+        _lastStyleFillPaint == fillPaint &&
+        _lastStyleFillType == fillType &&
+        _lastStyleFillGradient == fillGradient) {
+      return _cachedTextStyle!;
+    }
+
     final textDecorations = <TextDecoration>[];
     if (isUnderline) textDecorations.add(TextDecoration.underline);
     if (isStrikethrough) textDecorations.add(TextDecoration.lineThrough);
@@ -1177,24 +1302,9 @@ class VectorShape {
         ? TextDecoration.combine(textDecorations)
         : TextDecoration.none;
 
-    final isGradientText =
-        fillType != PaintFillType.solid && fillGradient != null;
-
-    try {
-      return GoogleFonts.getFont(
-        fontFamily,
-        color: isGradientText ? null : effectiveColor,
-        foreground: isGradientText ? fillPaint : null,
-        fontSize: fontSize,
-        fontWeight: fontWeight,
-        fontStyle: isItalic ? FontStyle.italic : FontStyle.normal,
-        letterSpacing: letterSpacing != 0.0 ? letterSpacing : null,
-        height: lineHeight,
-        decoration: decoration,
-        decorationColor: effectiveColor,
-      );
-    } catch (_) {
-      return TextStyle(
+    TextStyle resolved;
+    if (fontFamily == 'Google Sans' || !GoogleFonts.config.allowRuntimeFetching) {
+      resolved = TextStyle(
         color: isGradientText ? null : effectiveColor,
         foreground: isGradientText ? fillPaint : null,
         fontSize: fontSize,
@@ -1206,7 +1316,51 @@ class VectorShape {
         decoration: decoration,
         decorationColor: effectiveColor,
       );
+    } else {
+      try {
+        resolved = GoogleFonts.getFont(
+          fontFamily,
+          color: isGradientText ? null : effectiveColor,
+          foreground: isGradientText ? fillPaint : null,
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+          fontStyle: isItalic ? FontStyle.italic : FontStyle.normal,
+          letterSpacing: letterSpacing != 0.0 ? letterSpacing : null,
+          height: lineHeight,
+          decoration: decoration,
+          decorationColor: effectiveColor,
+        );
+      } catch (_) {
+        resolved = TextStyle(
+          color: isGradientText ? null : effectiveColor,
+          foreground: isGradientText ? fillPaint : null,
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+          fontStyle: isItalic ? FontStyle.italic : FontStyle.normal,
+          fontFamily: fontFamily,
+          letterSpacing: letterSpacing != 0.0 ? letterSpacing : null,
+          height: lineHeight,
+          decoration: decoration,
+          decorationColor: effectiveColor,
+        );
+      }
     }
+
+    _cachedTextStyle = resolved;
+    _lastStyleFontFamily = fontFamily;
+    _lastStyleFontSize = fontSize;
+    _lastStyleFontWeight = fontWeight;
+    _lastStyleIsItalic = isItalic;
+    _lastStyleIsUnderline = isUnderline;
+    _lastStyleIsStrikethrough = isStrikethrough;
+    _lastStyleLetterSpacing = letterSpacing;
+    _lastStyleLineHeight = lineHeight;
+    _lastStyleColor = effectiveColor;
+    _lastStyleFillPaint = fillPaint;
+    _lastStyleFillType = fillType;
+    _lastStyleFillGradient = fillGradient;
+
+    return resolved;
   }
 
   /// Returns cached [TextPainter] for typography shapes.
@@ -1280,9 +1434,11 @@ class VectorShape {
 
   /// Clears all memoized caches when shape undergoes deep modifications.
   void invalidateCache() {
+    revision++;
     _cachedPath = null;
     _cachedDashedPath = null;
     _cachedBoundingBox = null;
     _cachedTextPainter = null;
+    _cachedTextStyle = null;
   }
 }

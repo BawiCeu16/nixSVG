@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:nixsvg/calculations/canvas_geometry.dart';
 import 'package:nixsvg/calculations/canvas_hit_test.dart';
@@ -23,6 +24,7 @@ class VectorCanvasPainter extends CustomPainter {
   final ColorScheme colorScheme;
   final String? editingShapeId;
   final double zoomScale;
+  final int shapesRevision;
 
   VectorCanvasPainter({
     required this.shapes,
@@ -42,7 +44,16 @@ class VectorCanvasPainter extends CustomPainter {
     required this.colorScheme,
     this.editingShapeId,
     this.zoomScale = 1.0,
-  });
+    int? shapesRevision,
+  }) : shapesRevision = shapesRevision ?? _computeShapesRevision(shapes);
+
+  static int _computeShapesRevision(List<VectorShape> shapes) {
+    int hash = shapes.length;
+    for (int i = 0; i < shapes.length; i++) {
+      hash = 0x1fffffff & (hash + shapes[i].revision * 31);
+    }
+    return hash;
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -382,21 +393,44 @@ class VectorCanvasPainter extends CustomPainter {
         final trimStartDist = hasStartArrow ? startArrowSize * 0.7 : 0.0;
         final trimEndDist = hasEndArrow ? endArrowSize * 0.7 : 0.0;
 
-        Path pathToStroke = shape.getPath();
-
+        Path pathToStroke;
         if (hasStartArrow || hasEndArrow) {
-          final metrics = pathToStroke.computeMetrics().toList();
-          if (metrics.isNotEmpty) {
-            final totalLen = metrics.first.length;
+          if (!shape.isCurved && shape.curvature == 0.0) {
+            // Analytical trimming for straight lines without Skia PathMetrics overhead
+            final totalLen = lineLen;
             final effectiveStartTrim = math.min(totalLen * 0.45, trimStartDist);
             final effectiveEndTrim = math.min(totalLen * 0.45, trimEndDist);
             if (effectiveStartTrim + effectiveEndTrim < totalLen) {
-              pathToStroke = metrics.first.extractPath(
-                effectiveStartTrim,
-                totalLen - effectiveEndTrim,
-              );
+              final startFrac = effectiveStartTrim / totalLen;
+              final endFrac = (totalLen - effectiveEndTrim) / totalLen;
+              final tStart = Offset(p1.dx + dx * startFrac, p1.dy + dy * startFrac);
+              final tEnd = Offset(p1.dx + dx * endFrac, p1.dy + dy * endFrac);
+              pathToStroke = Path()
+                ..moveTo(tStart.dx, tStart.dy)
+                ..lineTo(tEnd.dx, tEnd.dy);
+            } else {
+              pathToStroke = shape.getPath();
+            }
+          } else {
+            // Curved line trimming using iterator without list allocation
+            pathToStroke = shape.getPath();
+            final metrics = pathToStroke.computeMetrics();
+            final it = metrics.iterator;
+            if (it.moveNext()) {
+              final metric = it.current;
+              final totalLen = metric.length;
+              final effectiveStartTrim = math.min(totalLen * 0.45, trimStartDist);
+              final effectiveEndTrim = math.min(totalLen * 0.45, trimEndDist);
+              if (effectiveStartTrim + effectiveEndTrim < totalLen) {
+                pathToStroke = metric.extractPath(
+                  effectiveStartTrim,
+                  totalLen - effectiveEndTrim,
+                );
+              }
             }
           }
+        } else {
+          pathToStroke = shape.getPath();
         }
 
         if (hasStartArrow || hasEndArrow) {
@@ -418,6 +452,18 @@ class VectorCanvasPainter extends CustomPainter {
         break;
 
       case ShapeType.star:
+        final path = shape.getPath();
+        if (shape.isFilled) canvas.drawPath(path, fillPaint);
+        if (shape.isStroked) drawStrokedPath(path, shapeBoundary: path);
+        break;
+
+      case ShapeType.polygon:
+        final path = shape.getPath();
+        if (shape.isFilled) canvas.drawPath(path, fillPaint);
+        if (shape.isStroked) drawStrokedPath(path, shapeBoundary: path);
+        break;
+
+      case ShapeType.path:
         final path = shape.getPath();
         if (shape.isFilled) canvas.drawPath(path, fillPaint);
         if (shape.isStroked) drawStrokedPath(path, shapeBoundary: path);
@@ -743,6 +789,7 @@ class VectorCanvasPainter extends CustomPainter {
         cornerRadius: (shape.type == ShapeType.roundedRectangle ||
                 shape.type == ShapeType.rectangle ||
                 shape.type == ShapeType.star ||
+                shape.type == ShapeType.polygon ||
                 shape.type == ShapeType.image)
             ? (activeResizeHandle == ResizeHandle.radiusTopLeft
                 ? shape.effectiveTopLeftRadius
@@ -753,6 +800,10 @@ class VectorCanvasPainter extends CustomPainter {
                         : activeResizeHandle == ResizeHandle.radiusBottomRight
                             ? shape.effectiveBottomRightRadius
                             : shape.cornerRadius)
+            : null,
+        ratio: (shape.type == ShapeType.star &&
+                activeResizeHandle == ResizeHandle.ratio)
+            ? shape.innerRadiusRatio
             : null,
       );
     }
@@ -848,6 +899,15 @@ class VectorCanvasPainter extends CustomPainter {
         canvas.drawPath(path, fillPaint);
         canvas.drawPath(path, strokePaint);
         break;
+      case ShapeType.polygon:
+        final path = CanvasGeometry.createPolygonPath(rect, sides: 6);
+        canvas.drawPath(path, fillPaint);
+        canvas.drawPath(path, strokePaint);
+        break;
+      case ShapeType.path:
+        canvas.drawRect(rect, fillPaint);
+        canvas.drawRect(rect, strokePaint);
+        break;
     }
   }
 
@@ -856,6 +916,7 @@ class VectorCanvasPainter extends CustomPainter {
     Rect rect, {
     ShapeType? shapeType,
     double? cornerRadius,
+    double? ratio,
   }) {
     final s = (1.0 / (zoomScale > 0 ? zoomScale : 1.0)).clamp(0.02, 50.0);
     final width = rect.width.abs().round();
@@ -874,9 +935,12 @@ class VectorCanvasPainter extends CustomPainter {
       final rx = (width / 2).round();
       final ry = (height / 2).round();
       badgeText = '$width × $height  (rx: $rx, ry: $ry)';
+    } else if (shapeType == ShapeType.star && ratio != null) {
+      badgeText = '$width × $height  (ratio: ${(ratio * 100).round()}%)';
     } else if ((shapeType == ShapeType.roundedRectangle ||
             shapeType == ShapeType.rectangle ||
             shapeType == ShapeType.star ||
+            shapeType == ShapeType.polygon ||
             shapeType == ShapeType.image) &&
         cornerRadius != null &&
         cornerRadius > 0) {
@@ -992,5 +1056,34 @@ class VectorCanvasPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant VectorCanvasPainter oldDelegate) => true;
+  bool shouldRepaint(covariant VectorCanvasPainter oldDelegate) {
+    if (oldDelegate.currentMode != currentMode) return true;
+    if (oldDelegate.isResizing != isResizing) return true;
+    if (oldDelegate.activeResizeHandle != activeResizeHandle) return true;
+    if (oldDelegate.hoveredHandle != hoveredHandle) return true;
+    if (oldDelegate.draftStartPoint != draftStartPoint) return true;
+    if (oldDelegate.draftCurrentPoint != draftCurrentPoint) return true;
+    if (oldDelegate.draftShapeType != draftShapeType) return true;
+    if (oldDelegate.draftIsShiftPressed != draftIsShiftPressed) return true;
+    if (oldDelegate.draftIsAltPressed != draftIsAltPressed) return true;
+    if (oldDelegate.marqueeRect != marqueeRect) return true;
+    if (oldDelegate.snapGuidelineX != snapGuidelineX) return true;
+    if (oldDelegate.snapGuidelineY != snapGuidelineY) return true;
+    if (oldDelegate.editingShapeId != editingShapeId) return true;
+    if (oldDelegate.zoomScale != zoomScale) return true;
+    if (oldDelegate.colorScheme != colorScheme) return true;
+    if (oldDelegate.shapesRevision != shapesRevision) return true;
+    if (oldDelegate.shapes.length != shapes.length) return true;
+    if (oldDelegate.selectedShapeIds.length != selectedShapeIds.length) return true;
+    if (!setEquals(oldDelegate.selectedShapeIds, selectedShapeIds)) return true;
+
+    for (int i = 0; i < shapes.length; i++) {
+      if (!identical(oldDelegate.shapes[i], shapes[i]) ||
+          oldDelegate.shapes[i].revision != shapes[i].revision) {
+        return true;
+      }
+    }
+
+    return false;
+  }
 }

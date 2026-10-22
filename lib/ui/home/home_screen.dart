@@ -379,12 +379,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             tooltip: 'Dynamic Theme Color',
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+                width: 1.0,
+              ),
             ),
             color: colorScheme.surfaceContainerHigh,
-            icon: Icon(
-              RemixIcons.palette_line,
-              color: colorScheme.primary,
-              size: 18,
+            icon: SizedBox(
+              width: 24,
+              height: 24,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(
+                    RemixIcons.palette_line,
+                    color: colorScheme.primary,
+                    size: 18,
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: themeState.seedColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: colorScheme.surfaceContainerHigh,
+                          width: 1.2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             onSelected: (color) {
               ref.read(themeProvider.notifier).setSeedColor(color);
@@ -688,62 +717,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     required String subtitle,
     required VoidCallback onTap,
   }) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    return InkWell(
+    return _HomeScreenActionCard(
+      icon: icon,
+      iconColor: iconColor,
+      title: title,
+      subtitle: subtitle,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        width: 180,
-        height: 128,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-            width: 1,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              alignment: Alignment.center,
-              child: Icon(icon, color: iconColor, size: 18),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: textTheme.labelSmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -837,150 +816,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     TextTheme textTheme,
     ProjectModel project,
   ) {
-    return InkWell(
+    return _HomeScreenProjectCard(
+      project: project,
       onTap: () => _handleOpenProject(project),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.25),
-            width: 1,
-          ),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Miniature Vector Preview Area
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                color: colorScheme.surfaceContainer.withValues(alpha: 0.4),
-                child: MiniProjectPreview(shapes: project.shapes),
-              ),
-            ),
-
-            // Card Footer with Title and Options
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          project.name,
-                          style: textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onSurface,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${project.shapes.length} layers • ${_formatTimeAgo(project.lastModified)}',
-                          style: textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Project Actions Context Menu
-                  PopupMenuButton<String>(
-                    tooltip: 'Project Options',
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    color: colorScheme.surfaceContainerHigh,
-                    icon: Icon(
-                      RemixIcons.more_2_line,
-                      size: 16,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    onSelected: (action) {
-                      switch (action) {
-                        case 'open':
-                          _handleOpenProject(project);
-                          break;
-                        case 'duplicate':
-                          ref
-                              .read(projectsProvider.notifier)
-                              .duplicateProject(project.id);
-                          break;
-                        case 'rename':
-                          _showRenameDialog(context, project);
-                          break;
-                        case 'delete':
-                          ref
-                              .read(projectsProvider.notifier)
-                              .deleteProject(project.id);
-                          break;
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'open',
-                        child: Row(
-                          children: [
-                            Icon(RemixIcons.external_link_line, size: 16),
-                            SizedBox(width: 8),
-                            Text('Open'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'duplicate',
-                        child: Row(
-                          children: [
-                            Icon(RemixIcons.file_copy_line, size: 16),
-                            SizedBox(width: 8),
-                            Text('Duplicate'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'rename',
-                        child: Row(
-                          children: [
-                            Icon(RemixIcons.edit_line, size: 16),
-                            SizedBox(width: 8),
-                            Text('Rename'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuDivider(),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(
-                              RemixIcons.delete_bin_line,
-                              size: 16,
-                              color: colorScheme.error,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Remove',
-                              style: TextStyle(color: colorScheme.error),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+      onDuplicate: () =>
+          ref.read(projectsProvider.notifier).duplicateProject(project.id),
+      onRename: () => _showRenameDialog(context, project),
+      onDelete: () =>
+          ref.read(projectsProvider.notifier).deleteProject(project.id),
     );
   }
 
@@ -1113,5 +956,410 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     if (diff.inDays < 7) return '${diff.inDays}d ago';
     return '${dt.day}/${dt.month}/${dt.year}';
+  }
+}
+
+/// Material 3 Expressive Action Card for template presets and quick actions.
+class _HomeScreenActionCard extends StatefulWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _HomeScreenActionCard({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  State<_HomeScreenActionCard> createState() => _HomeScreenActionCardState();
+}
+
+class _HomeScreenActionCardState extends State<_HomeScreenActionCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: M3PhysicsPressable(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          transform: Matrix4.translationValues(0, _isHovered ? -3.0 : 0.0, 0),
+          width: 184,
+          height: 132,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: _isHovered
+                ? colorScheme.surfaceContainerHigh.withValues(
+                    alpha: isDark ? 0.85 : 0.95,
+                  )
+                : colorScheme.surfaceContainerHighest.withValues(
+                    alpha: isDark ? 0.35 : 0.45,
+                  ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _isHovered
+                  ? widget.iconColor.withValues(alpha: 0.6)
+                  : colorScheme.outlineVariant.withValues(
+                      alpha: isDark ? 0.35 : 0.45,
+                    ),
+              width: _isHovered ? 1.4 : 1.0,
+            ),
+            boxShadow: _isHovered
+                ? [
+                    BoxShadow(
+                      color: widget.iconColor.withValues(
+                        alpha: isDark ? 0.22 : 0.15,
+                      ),
+                      blurRadius: 14,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(
+                        alpha: isDark ? 0.12 : 0.03,
+                      ),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          widget.iconColor.withValues(alpha: 0.25),
+                          widget.iconColor.withValues(alpha: 0.10),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: widget.iconColor.withValues(alpha: 0.25),
+                        width: 1.0,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(widget.icon, color: widget.iconColor, size: 20),
+                  ),
+                  AnimatedOpacity(
+                    opacity: _isHovered ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 150),
+                    child: Icon(
+                      RemixIcons.arrow_right_s_line,
+                      size: 16,
+                      color: widget.iconColor,
+                    ),
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.title,
+                    style: textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.1,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    widget.subtitle,
+                    style: textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.8,
+                      ),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Material 3 Expressive Project Card with miniature preview and options menu.
+class _HomeScreenProjectCard extends StatefulWidget {
+  final ProjectModel project;
+  final VoidCallback onTap;
+  final VoidCallback onDuplicate;
+  final VoidCallback onRename;
+  final VoidCallback onDelete;
+
+  const _HomeScreenProjectCard({
+    required this.project,
+    required this.onTap,
+    required this.onDuplicate,
+    required this.onRename,
+    required this.onDelete,
+  });
+
+  @override
+  State<_HomeScreenProjectCard> createState() => _HomeScreenProjectCardState();
+}
+
+class _HomeScreenProjectCardState extends State<_HomeScreenProjectCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: M3PhysicsPressable(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          transform: Matrix4.translationValues(0, _isHovered ? -2.5 : 0.0, 0),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest.withValues(
+              alpha: isDark ? 0.35 : 0.45,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _isHovered
+                  ? colorScheme.primary.withValues(alpha: 0.55)
+                  : colorScheme.outlineVariant.withValues(
+                      alpha: isDark ? 0.3 : 0.4,
+                    ),
+              width: _isHovered ? 1.3 : 1.0,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(
+                  alpha: isDark
+                      ? (_isHovered ? 0.3 : 0.15)
+                      : (_isHovered ? 0.12 : 0.04),
+                ),
+                blurRadius: _isHovered ? 14 : 6,
+                offset: Offset(0, _isHovered ? 4 : 2),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Miniature Vector Preview Area
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainer.withValues(
+                      alpha: isDark ? 0.5 : 0.3,
+                    ),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+                        width: 0.8,
+                      ),
+                    ),
+                  ),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: MiniProjectPreview(shapes: widget.project.shapes),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: AnimatedOpacity(
+                          opacity: _isHovered ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 150),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surface.withValues(
+                                alpha: 0.88,
+                              ),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: colorScheme.outlineVariant.withValues(
+                                  alpha: 0.3,
+                                ),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Text(
+                              'OPEN',
+                              style: textTheme.labelSmall?.copyWith(
+                                color: colorScheme.primary,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Card Footer with Title and Options
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.project.name,
+                            style: textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.onSurface,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${widget.project.shapes.length} layers • ${_HomeScreenState._formatTimeAgo(widget.project.lastModified)}',
+                            style: textTheme.labelSmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant.withValues(
+                                alpha: 0.8,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Project Actions Context Menu
+                    PopupMenuButton<String>(
+                      tooltip: 'Project Options',
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      color: colorScheme.surfaceContainerHigh,
+                      icon: Icon(
+                        RemixIcons.more_2_line,
+                        size: 16,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      onSelected: (action) {
+                        switch (action) {
+                          case 'open':
+                            widget.onTap();
+                            break;
+                          case 'duplicate':
+                            widget.onDuplicate();
+                            break;
+                          case 'rename':
+                            widget.onRename();
+                            break;
+                          case 'delete':
+                            widget.onDelete();
+                            break;
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'open',
+                          child: Row(
+                            children: [
+                              Icon(RemixIcons.external_link_line, size: 16),
+                              SizedBox(width: 8),
+                              Text('Open'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'duplicate',
+                          child: Row(
+                            children: [
+                              Icon(RemixIcons.file_copy_line, size: 16),
+                              SizedBox(width: 8),
+                              Text('Duplicate'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'rename',
+                          child: Row(
+                            children: [
+                              Icon(RemixIcons.edit_line, size: 16),
+                              SizedBox(width: 8),
+                              Text('Rename'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuDivider(),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(
+                                RemixIcons.delete_bin_line,
+                                size: 16,
+                                color: colorScheme.error,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Remove',
+                                style: TextStyle(color: colorScheme.error),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -838,6 +838,10 @@ class _LayersSidebarState extends State<LayersSidebar> {
         return RemixIcons.line_line;
       case ShapeType.star:
         return RemixIcons.star_line;
+      case ShapeType.polygon:
+        return RemixIcons.hexagon_line;
+      case ShapeType.path:
+        return RemixIcons.pen_nib_line;
       case ShapeType.text:
         return RemixIcons.t_box_line;
       case ShapeType.image:
@@ -923,6 +927,8 @@ class _M3EIconButton extends StatelessWidget {
     return M3PhysicsPressable(
       tooltip: tooltip,
       onTap: enabled ? onTap : null,
+      enableHoverHighlight: true,
+      borderRadius: BorderRadius.circular(8),
       child: Container(
         width: 26,
         height: 26,

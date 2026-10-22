@@ -319,8 +319,9 @@ void main() {
     testWidgets(
       'Resizing a circle shape activates isResizing badge with dimensions and radius',
       (tester) async {
-        await tester.binding.setSurfaceSize(const Size(1280, 800));
-        addTearDown(() => tester.binding.setSurfaceSize(null));
+        tester.view.physicalSize = const Size(1400, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
 
         await tester.pumpWidget(const NixSvgApp());
         await tester.pumpAndSettle();

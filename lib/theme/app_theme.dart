@@ -23,6 +23,7 @@ class AppTheme {
 
     if (isDark && oledDark) {
       colorScheme = colorScheme.copyWith(
+        
         surface: Colors.black,
         surfaceContainerLowest: Colors.black,
         surfaceContainerLow: const Color(0xFF070707),

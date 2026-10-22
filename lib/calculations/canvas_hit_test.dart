@@ -17,19 +17,26 @@ class CanvasHitTester {
 
     // Fast AABB rejection using cached bounding box before trig math
     final bounds = shape.getBoundingBox();
-    if (!bounds.inflate(padding).contains(point)) {
+    if (point.dx < bounds.left - padding ||
+        point.dx > bounds.right + padding ||
+        point.dy < bounds.top - padding ||
+        point.dy > bounds.bottom + padding) {
       return false;
     }
 
-    final effectiveRect = Rect.fromLTRB(
-      math.min(shape.rect.left, shape.rect.right) - padding,
-      math.min(shape.rect.top, shape.rect.bottom) - padding,
-      math.max(shape.rect.left, shape.rect.right) + padding,
-      math.max(shape.rect.top, shape.rect.bottom) + padding,
-    );
+    final left = math.min(shape.rect.left, shape.rect.right) - padding;
+    final top = math.min(shape.rect.top, shape.rect.bottom) - padding;
+    final right = math.max(shape.rect.left, shape.rect.right) + padding;
+    final bottom = math.max(shape.rect.top, shape.rect.bottom) + padding;
 
     if (shape.rotation == 0.0 && shape.type != ShapeType.line) {
-      return effectiveRect.contains(point);
+      if (shape.type == ShapeType.polygon || shape.type == ShapeType.path) {
+        return shape.getPath().contains(point);
+      }
+      return point.dx >= left &&
+          point.dx <= right &&
+          point.dy >= top &&
+          point.dy <= bottom;
     }
 
     // Transform query point into shape's unrotated coordinate system
@@ -66,10 +73,42 @@ class CanvasHitTester {
       return distance <= padding;
     }
 
-    return effectiveRect.contains(unrotatedPoint);
+    if (shape.type == ShapeType.polygon || shape.type == ShapeType.path) {
+      return shape.getPath().contains(unrotatedPoint);
+    }
+
+    return unrotatedPoint.dx >= left &&
+        unrotatedPoint.dx <= right &&
+        unrotatedPoint.dy >= top &&
+        unrotatedPoint.dy <= bottom;
   }
 
-  /// Returns the unrotated local positions for corner radius handles inside a rectangle,
+  /// Returns the unrotated local position for the star inner ratio handle,
+  /// dynamically adjusting for [zoomScale].
+  static Offset? getRatioHandlePosition(
+    VectorShape shape, {
+    double zoomScale = 1.0,
+  }) {
+    if (shape.type != ShapeType.star) return null;
+    final s = (1.0 / (zoomScale > 0 ? zoomScale : 1.0)).clamp(0.02, 50.0);
+    final minSize = 24.0 * s;
+    if (shape.rect.width < minSize || shape.rect.height < minSize) return null;
+
+    final rect = shape.rect;
+    final maxRadius = math.min(rect.width, rect.height) / 2;
+    final center = rect.center;
+    final numPoints = math.max(3, shape.pointCount);
+    final ratio = shape.innerRadiusRatio.clamp(0.05, 0.95);
+    final innerRadius = maxRadius * ratio;
+    final angleStep = math.pi / numPoints;
+    final angle = angleStep - math.pi / 2;
+    return Offset(
+      center.dx + innerRadius * math.cos(angle),
+      center.dy + innerRadius * math.sin(angle),
+    );
+  }
+
+  /// Returns the unrotated local positions for corner radius and ratio handles inside a shape,
   /// dynamically adjusting for [zoomScale].
   static Map<ResizeHandle, Offset> getRadiusHandlePositions(
     VectorShape shape, {
@@ -81,7 +120,7 @@ class CanvasHitTester {
       return const {};
     }
 
-    if (shape.type == ShapeType.star) {
+    if (shape.type == ShapeType.star || shape.type == ShapeType.polygon) {
       final rect = shape.rect;
       final maxRadius = math.min(rect.width, rect.height) / 2;
       final center = rect.center;
@@ -91,8 +130,10 @@ class CanvasHitTester {
             : 16.0 * s,
         maxRadius * 0.45,
       );
+      final ratioPoint = getRatioHandlePosition(shape, zoomScale: zoomScale);
       return {
         ResizeHandle.radiusTopLeft: Offset(center.dx, center.dy - maxRadius + rInset),
+        ResizeHandle.ratio: ?ratioPoint,
       };
     }
 
@@ -144,10 +185,15 @@ class CanvasHitTester {
     final s = (1.0 / (zoomScale > 0 ? zoomScale : 1.0)).clamp(0.02, 50.0);
     final rect = shape.rect;
     final double hitSize = 26.0 * s;
+    final double halfHit = hitSize / 2;
 
-    // Fast handle rejection using cached bounding box
+    // Fast handle rejection using cached bounding box without inflate allocation
     final bounds = shape.getBoundingBox();
-    if (!bounds.inflate(45.0 * s).contains(pos)) {
+    final pad = 45.0 * s;
+    if (pos.dx < bounds.left - pad ||
+        pos.dx > bounds.right + pad ||
+        pos.dy < bounds.top - pad ||
+        pos.dy > bounds.bottom + pad) {
       return ResizeHandle.none;
     }
 
@@ -166,18 +212,12 @@ class CanvasHitTester {
     }
 
     if (shape.type == ShapeType.line) {
-      if (Rect.fromCenter(
-        center: rect.topLeft,
-        width: hitSize,
-        height: hitSize,
-      ).contains(testPos)) {
+      if ((testPos.dx - rect.topLeft.dx).abs() <= halfHit &&
+          (testPos.dy - rect.topLeft.dy).abs() <= halfHit) {
         return ResizeHandle.topLeft;
       }
-      if (Rect.fromCenter(
-        center: rect.bottomRight,
-        width: hitSize,
-        height: hitSize,
-      ).contains(testPos)) {
+      if ((testPos.dx - rect.bottomRight.dx).abs() <= halfHit &&
+          (testPos.dy - rect.bottomRight.dy).abs() <= halfHit) {
         return ResizeHandle.bottomRight;
       }
       if (shape.isCurved || shape.curvature != 0.0) {
@@ -192,11 +232,8 @@ class CanvasHitTester {
         final len = math.sqrt(dx * dx + dy * dy);
         final perp = len > 0 ? Offset(-dy / len, dx / len) : Offset.zero;
         final controlPt = mid + perp * shape.curvature;
-        if (Rect.fromCenter(
-          center: controlPt,
-          width: hitSize,
-          height: hitSize,
-        ).contains(testPos)) {
+        if ((testPos.dx - controlPt.dx).abs() <= halfHit &&
+            (testPos.dy - controlPt.dy).abs() <= halfHit) {
           return ResizeHandle.topCenter;
         }
       }
@@ -218,69 +255,50 @@ class CanvasHitTester {
     }
 
     // 3. Corner Resize Handles (highest priority corner hits)
-    final double cornerHitSize = 24.0 * s;
-    if (Rect.fromCenter(
-      center: rect.topLeft,
-      width: cornerHitSize,
-      height: cornerHitSize,
-    ).contains(testPos)) {
+    final double cornerHalfHit = 12.0 * s;
+    if ((testPos.dx - rect.topLeft.dx).abs() <= cornerHalfHit &&
+        (testPos.dy - rect.topLeft.dy).abs() <= cornerHalfHit) {
       return ResizeHandle.topLeft;
     }
-    if (Rect.fromCenter(
-      center: rect.topRight,
-      width: cornerHitSize,
-      height: cornerHitSize,
-    ).contains(testPos)) {
+    if ((testPos.dx - rect.topRight.dx).abs() <= cornerHalfHit &&
+        (testPos.dy - rect.topRight.dy).abs() <= cornerHalfHit) {
       return ResizeHandle.topRight;
     }
-    if (Rect.fromCenter(
-      center: rect.bottomLeft,
-      width: cornerHitSize,
-      height: cornerHitSize,
-    ).contains(testPos)) {
+    if ((testPos.dx - rect.bottomLeft.dx).abs() <= cornerHalfHit &&
+        (testPos.dy - rect.bottomLeft.dy).abs() <= cornerHalfHit) {
       return ResizeHandle.bottomLeft;
     }
-    if (Rect.fromCenter(
-      center: rect.bottomRight,
-      width: cornerHitSize,
-      height: cornerHitSize,
-    ).contains(testPos)) {
+    if ((testPos.dx - rect.bottomRight.dx).abs() <= cornerHalfHit &&
+        (testPos.dy - rect.bottomRight.dy).abs() <= cornerHalfHit) {
       return ResizeHandle.bottomRight;
     }
 
     // 4. Edge Midpoint Resize Handles
-    final double edgeHitSize = 22.0 * s;
-    if (Rect.fromCenter(
-      center: rect.topCenter,
-      width: edgeHitSize,
-      height: edgeHitSize,
-    ).contains(testPos)) {
+    final double edgeHalfHit = 11.0 * s;
+    if ((testPos.dx - rect.topCenter.dx).abs() <= edgeHalfHit &&
+        (testPos.dy - rect.topCenter.dy).abs() <= edgeHalfHit) {
       return ResizeHandle.topCenter;
     }
-    if (Rect.fromCenter(
-      center: rect.bottomCenter,
-      width: edgeHitSize,
-      height: edgeHitSize,
-    ).contains(testPos)) {
+    if ((testPos.dx - rect.bottomCenter.dx).abs() <= edgeHalfHit &&
+        (testPos.dy - rect.bottomCenter.dy).abs() <= edgeHalfHit) {
       return ResizeHandle.bottomCenter;
     }
-    if (Rect.fromCenter(
-      center: rect.centerLeft,
-      width: edgeHitSize,
-      height: edgeHitSize,
-    ).contains(testPos)) {
+    if ((testPos.dx - rect.centerLeft.dx).abs() <= edgeHalfHit &&
+        (testPos.dy - rect.centerLeft.dy).abs() <= edgeHalfHit) {
       return ResizeHandle.centerLeft;
     }
-    if (Rect.fromCenter(
-      center: rect.centerRight,
-      width: edgeHitSize,
-      height: edgeHitSize,
-    ).contains(testPos)) {
+    if ((testPos.dx - rect.centerRight.dx).abs() <= edgeHalfHit &&
+        (testPos.dy - rect.centerRight.dy).abs() <= edgeHalfHit) {
       return ResizeHandle.centerRight;
     }
 
     // 5. Outer corner rotation zones (Figma rotates when cursor is slightly outside corner handles)
-    if (!rect.deflate(2.0 * s).contains(testPos)) {
+    final deflatePad = 2.0 * s;
+    final isInsideDeflated = testPos.dx >= rect.left + deflatePad &&
+        testPos.dx <= rect.right - deflatePad &&
+        testPos.dy >= rect.top + deflatePad &&
+        testPos.dy <= rect.bottom - deflatePad;
+    if (!isInsideDeflated) {
       for (final c in [
         rect.topLeft,
         rect.topRight,
@@ -304,29 +322,37 @@ class CanvasHitTester {
     double zoomScale = 1.0,
   }) {
     final s = (1.0 / (zoomScale > 0 ? zoomScale : 1.0)).clamp(0.02, 50.0);
-    final double hitSize = 22.0 * s;
-    if (Rect.fromCenter(center: rect.topLeft, width: hitSize, height: hitSize).contains(pos)) {
+    final double halfHit = 11.0 * s;
+    if ((pos.dx - rect.topLeft.dx).abs() <= halfHit &&
+        (pos.dy - rect.topLeft.dy).abs() <= halfHit) {
       return ResizeHandle.topLeft;
     }
-    if (Rect.fromCenter(center: rect.topRight, width: hitSize, height: hitSize).contains(pos)) {
+    if ((pos.dx - rect.topRight.dx).abs() <= halfHit &&
+        (pos.dy - rect.topRight.dy).abs() <= halfHit) {
       return ResizeHandle.topRight;
     }
-    if (Rect.fromCenter(center: rect.bottomLeft, width: hitSize, height: hitSize).contains(pos)) {
+    if ((pos.dx - rect.bottomLeft.dx).abs() <= halfHit &&
+        (pos.dy - rect.bottomLeft.dy).abs() <= halfHit) {
       return ResizeHandle.bottomLeft;
     }
-    if (Rect.fromCenter(center: rect.bottomRight, width: hitSize, height: hitSize).contains(pos)) {
+    if ((pos.dx - rect.bottomRight.dx).abs() <= halfHit &&
+        (pos.dy - rect.bottomRight.dy).abs() <= halfHit) {
       return ResizeHandle.bottomRight;
     }
-    if (Rect.fromCenter(center: rect.topCenter, width: hitSize, height: hitSize).contains(pos)) {
+    if ((pos.dx - rect.topCenter.dx).abs() <= halfHit &&
+        (pos.dy - rect.topCenter.dy).abs() <= halfHit) {
       return ResizeHandle.topCenter;
     }
-    if (Rect.fromCenter(center: rect.bottomCenter, width: hitSize, height: hitSize).contains(pos)) {
+    if ((pos.dx - rect.bottomCenter.dx).abs() <= halfHit &&
+        (pos.dy - rect.bottomCenter.dy).abs() <= halfHit) {
       return ResizeHandle.bottomCenter;
     }
-    if (Rect.fromCenter(center: rect.centerLeft, width: hitSize, height: hitSize).contains(pos)) {
+    if ((pos.dx - rect.centerLeft.dx).abs() <= halfHit &&
+        (pos.dy - rect.centerLeft.dy).abs() <= halfHit) {
       return ResizeHandle.centerLeft;
     }
-    if (Rect.fromCenter(center: rect.centerRight, width: hitSize, height: hitSize).contains(pos)) {
+    if ((pos.dx - rect.centerRight.dx).abs() <= halfHit &&
+        (pos.dy - rect.centerRight.dy).abs() <= halfHit) {
       return ResizeHandle.centerRight;
     }
     return ResizeHandle.none;

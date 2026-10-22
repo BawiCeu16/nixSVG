@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:m3e_buttons/m3e_buttons.dart';
 import 'package:m3e_floating_toolbar/m3e_floating_toolbar.dart';
 import 'package:nixsvg/models/vector_shape.dart';
+import 'package:nixsvg/theme/physics/m3e_physics_spring.dart';
 import 'package:remixicon/remixicon.dart';
 
 class FloatingToolBar extends StatelessWidget {
@@ -19,31 +20,33 @@ class FloatingToolBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
       child: M3EFabHorizontalFloatingToolbar(
         floatingActionButton: M3EFloatingActionButton(
           elevation: 0,
           onPressed: onExportSvg,
-          tooltip: 'Export SVG',
+          tooltip: 'Export SVG (⌘E)',
           child: const Icon(RemixIcons.download_line),
         ),
         expanded: true,
         decoration: M3EFloatingToolbarDecoration(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 2,
+          ),
           colors: M3EFloatingToolbarColors(
-            toolbarContainerColor: colorScheme.surfaceContainerHigh,
+            toolbarContainerColor: colorScheme.surfaceContainerHigh.withValues(
+              alpha: isDark ? 0.92 : 0.96,
+            ),
             toolbarContentColor: colorScheme.onSurface,
             fabContainerColor: colorScheme.primaryContainer,
             fabContentColor: colorScheme.onPrimaryContainer,
-          ),
-          shape: StadiumBorder(
-            side: BorderSide(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.4),
-              width: 1,
-            ),
           ),
           expandedShadowElevation: 0,
           collapsedShadowElevation: 0,
@@ -52,48 +55,47 @@ class FloatingToolBar extends StatelessWidget {
         content: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Navigation Tools
             _buildExpressiveToolBtn(
               context,
               icon: RemixIcons.cursor_line,
               mode: EditorMode.select,
-              tooltip: 'Select (V)',
+              tooltip: 'Select Tool (V)',
             ),
             _buildExpressiveToolBtn(
               context,
               icon: LucideIcons.hand,
               mode: EditorMode.pan,
-              tooltip: 'Hand / Pan (H)',
+              tooltip: 'Hand / Pan Canvas (H / Space+Drag)',
             ),
             const SizedBox(width: 4),
-            VerticalDivider(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.4),
-              indent: 10.0,
-              endIndent: 10.0,
-            ),
+            _buildToolDivider(colorScheme),
             const SizedBox(width: 4),
+
+            // Vector Primitives
             _buildExpressiveToolBtn(
               context,
               icon: RemixIcons.checkbox_blank_line,
               mode: EditorMode.drawRectangle,
-              tooltip: 'Rectangle (R)',
+              tooltip: 'Rectangle Tool (R)',
             ),
             _buildExpressiveToolBtn(
               context,
               icon: RemixIcons.rectangle_line,
               mode: EditorMode.drawRoundedRectangle,
-              tooltip: 'Rounded Rectangle (U)',
+              tooltip: 'Rounded Rectangle Tool (U)',
             ),
             _buildExpressiveToolBtn(
               context,
               icon: RemixIcons.checkbox_blank_circle_line,
               mode: EditorMode.drawEllipse,
-              tooltip: 'Ellipse / Circle (O)',
+              tooltip: 'Ellipse / Circle Tool (O)',
             ),
             _buildExpressiveToolBtn(
               context,
               icon: LucideIcons.minus,
               mode: EditorMode.drawLine,
-              tooltip: 'Line (L)',
+              tooltip: 'Line Tool (L)',
             ),
             _buildExpressiveToolBtn(
               context,
@@ -105,8 +107,19 @@ class FloatingToolBar extends StatelessWidget {
               context,
               icon: RemixIcons.star_line,
               mode: EditorMode.drawStar,
-              tooltip: 'Star / Polygon (S)',
+              tooltip: 'Star Tool (S)',
             ),
+            _buildExpressiveToolBtn(
+              context,
+              icon: RemixIcons.hexagon_line,
+              mode: EditorMode.drawPolygon,
+              tooltip: 'Polygon Tool (Y)',
+            ),
+            const SizedBox(width: 4),
+            _buildToolDivider(colorScheme),
+            const SizedBox(width: 4),
+
+            // Typography
             _buildExpressiveToolBtn(
               context,
               icon: RemixIcons.t_box_line,
@@ -116,6 +129,14 @@ class FloatingToolBar extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildToolDivider(ColorScheme colorScheme) {
+    return Container(
+      width: 1.0,
+      height: 20.0,
+      color: colorScheme.outlineVariant.withValues(alpha: 0.35),
     );
   }
 
@@ -129,34 +150,51 @@ class FloatingToolBar extends StatelessWidget {
     final isActive = currentMode == mode;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: Tooltip(
-        message: tooltip,
-        waitDuration: const Duration(milliseconds: 500),
-        child: M3EButton(
-          onPressed: () => onModeChanged(mode),
-          style: isActive ? M3EButtonStyle.filled : M3EButtonStyle.text,
-          size: M3EButtonSize.sm,
-          decoration: M3EButtonDecoration(
-            backgroundColor: WidgetStateProperty.resolveWith((states) {
-              if (isActive) return colorScheme.primary;
-              if (states.contains(WidgetState.hovered)) {
-                return colorScheme.surfaceContainerHighest;
-              }
-              return Colors.transparent;
-            }),
-            foregroundColor: WidgetStateProperty.resolveWith((states) {
-              if (isActive) return colorScheme.onPrimary;
-              if (states.contains(WidgetState.hovered)) {
-                return colorScheme.onSurface;
-              }
-              return colorScheme.onSurfaceVariant;
-            }),
+      padding: const EdgeInsets.symmetric(horizontal: 1.5),
+      child: M3PhysicsPressable(
+        tooltip: tooltip,
+        onTap: () => onModeChanged(mode),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.fastOutSlowIn,
+          decoration: BoxDecoration(
+            color: isActive ? colorScheme.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: colorScheme.primary.withValues(alpha: 0.3),
+                      blurRadius: 6,
+                      offset: const Offset(0, 1),
+                    ),
+                  ]
+                : null,
           ),
-          child: Icon(
-            icon,
-            size: 17,
-            color: isActive ? colorScheme.onPrimary : null,
+          child: M3EButton(
+            onPressed: () => onModeChanged(mode),
+            style: isActive ? M3EButtonStyle.filled : M3EButtonStyle.text,
+            size: M3EButtonSize.sm,
+            decoration: M3EButtonDecoration(
+              backgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (isActive) return colorScheme.primary;
+                if (states.contains(WidgetState.hovered)) {
+                  return colorScheme.surfaceContainerHighest;
+                }
+                return Colors.transparent;
+              }),
+              foregroundColor: WidgetStateProperty.resolveWith((states) {
+                if (isActive) return colorScheme.onPrimary;
+                if (states.contains(WidgetState.hovered)) {
+                  return colorScheme.onSurface;
+                }
+                return colorScheme.onSurfaceVariant;
+              }),
+            ),
+            child: Icon(
+              icon,
+              size: 17,
+              color: isActive ? colorScheme.onPrimary : null,
+            ),
           ),
         ),
       ),

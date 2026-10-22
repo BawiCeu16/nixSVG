@@ -13,9 +13,9 @@ Every agent working on **nixSVG** must strictly uphold the following visual and 
   - Dynamic color schemes derived systematically from active seed colors via `M3EColorScheme` and `AppTheme`.
   - All surface elevations, tonal palettes, and contrast ratios must dynamically adjust to light/dark modes and user-selected primary accents.
 
-## 2. Solid Foundation & macOS-Style Polish
+## 2. Solid Foundation & Polish
 - **The Experience Benchmark**:
-  - The application must feel **solid, responsive, and exquisitely crafted**—comparable to premier macOS desktop applications (e.g., Apple Pages/Keynote, Sketch, Craft, Figma).
+  - The application must feel **solid, responsive, and exquisitely crafted**—comparable to premier desktop applications (e.g., Sketch, Craft, Figma).
   - High frame rate (60/120 FPS) with zero frame stutter or layout recalculation thrashing during scrubbing, dragging, or panning.
 - **Physics & Micro-Animations**:
   - Employ spring physics (`m3e_physics_spring.dart`, `motor`, `morph_expressive`) for transitions, sidebar drawer sliding, floating toolbars, and modal popups.

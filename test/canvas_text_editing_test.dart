@@ -468,8 +468,9 @@ void main() {
     testWidgets(
       'Clicking on already selected text element auto-focuses text field ready to write',
       (tester) async {
-        await tester.binding.setSurfaceSize(const Size(1920, 1080));
-        addTearDown(() => tester.binding.setSurfaceSize(null));
+        tester.view.physicalSize = const Size(1920, 1080);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
 
         final textShape = VectorShape(
           id: 'txt-click-selected',
@@ -504,7 +505,6 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.byType(CanvasInlineTextEditor), findsNothing);
 
-        // Click on the already selected text shape
         final canvasOrigin = tester.getTopLeft(find.byType(InteractiveCanvas));
         final clickLocation = canvasOrigin + textShape.rect.center;
 

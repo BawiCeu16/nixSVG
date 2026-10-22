@@ -53,7 +53,7 @@ Every agent contributing to **nixSVG** must understand, preserve, and enhance th
 ## 6. SVG Import & Export Engine
 - **SVG Generation (`SvgExportService`, `ExportDialog`)**:
   - Clean, valid, standards-compliant SVG markup with proper `<defs>`, `<rect>`, `<circle>`, `<path>`, `<text>`, and `<style>` attributes.
-  - High-resolution raster export (PNG, WebP) with user-selectable scale factors (1x, 2x, 3x, 4x).
+  - High-resolution raster export (PNG, WebP,Jpeg etc.) with user-selectable scale factors (1x, 2x, 3x, 4x).
 - **Import**:
   - Parsing incoming SVG XML nodes into native `VectorShape` models while preserving transforms and styles.
 

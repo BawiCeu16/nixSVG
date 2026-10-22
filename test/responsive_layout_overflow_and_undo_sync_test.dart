@@ -89,7 +89,7 @@ void main() {
                   onDeleteShape: (_) {},
                   onBringForward: () {},
                   onSendBackward: () {},
-                  onRenameShape: (_, __) {},
+                  onRenameShape: (_, _) {},
                   width: 160,
                 ),
               ),

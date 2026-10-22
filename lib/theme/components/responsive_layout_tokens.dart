@@ -24,9 +24,9 @@ class ResponsiveLayoutTokens {
 
   /// Calculates dynamic height for the [TopNavigationBar].
   static double getTopBarHeight(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final isLandscape = media.orientation == Orientation.landscape;
-    final width = media.size.width;
+    final orientation = MediaQuery.orientationOf(context);
+    final isLandscape = orientation == Orientation.landscape;
+    final width = MediaQuery.sizeOf(context).width;
 
     if (isDesktop || width >= 1200) {
       return 46.0;
@@ -40,17 +40,17 @@ class ResponsiveLayoutTokens {
 
   /// Determines whether the layout is in compact mode (e.g. phones or narrow windows).
   static bool isCompact(BuildContext context) {
-    return MediaQuery.of(context).size.width < 900.0;
+    return MediaQuery.sizeOf(context).width < 900.0;
   }
 
   /// True for small phone screen viewports (<600px width).
   static bool isPhone(BuildContext context) {
-    return MediaQuery.of(context).size.width < 600.0;
+    return MediaQuery.sizeOf(context).width < 600.0;
   }
 
   /// True for large desktop and 4k ultrawide screens (>=1600px width).
   static bool isUltraWide(BuildContext context) {
-    return MediaQuery.of(context).size.width >= 1600.0;
+    return MediaQuery.sizeOf(context).width >= 1600.0;
   }
 
   /// Calculates dynamic maximum allowed sidebar width.
@@ -86,19 +86,20 @@ class ResponsiveLayoutTokens {
 
   /// Dynamic bottom padding for the [FloatingToolBar].
   static double getFloatingToolbarBottomMargin(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final bottomInset = media.padding.bottom;
-    if (media.orientation == Orientation.landscape && media.size.height < 500) {
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final size = MediaQuery.sizeOf(context);
+    final orientation = MediaQuery.orientationOf(context);
+    if (orientation == Orientation.landscape && size.height < 500) {
       return 8.0 + bottomInset;
     }
-    return (media.size.width < 600)
+    return (size.width < 600)
         ? (10.0 + bottomInset)
         : (14.0 + bottomInset);
   }
 
   /// Dynamic scale factor for the [FloatingToolBar] across device form factors.
   static double getFloatingToolbarScale(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
+    final width = MediaQuery.sizeOf(context).width;
     if (width < 400) return 0.84;
     if (width < 600) return 0.92;
     if (width >= 2000) return 1.05;
