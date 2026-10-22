@@ -20,6 +20,10 @@ class PropertiesSidebar extends StatelessWidget {
   final VoidCallback onDuplicateShape;
   final VoidCallback onDeleteSelected;
   final Function(String align) onAlignShape;
+  final VoidCallback? onGroupShapes;
+  final VoidCallback? onUngroupShapes;
+  final bool canGroup;
+  final bool canUngroup;
   final double? width;
   final Color? canvasBackgroundColor;
   final Size? canvasSize;
@@ -54,6 +58,10 @@ class PropertiesSidebar extends StatelessWidget {
     required this.onDuplicateShape,
     required this.onDeleteSelected,
     required this.onAlignShape,
+    this.onGroupShapes,
+    this.onUngroupShapes,
+    this.canGroup = false,
+    this.canUngroup = false,
     this.width,
     this.canvasSize,
     this.onCanvasSizeChanged,
@@ -107,65 +115,157 @@ class PropertiesSidebar extends StatelessWidget {
               ? _buildCanvasProperties(context, theme, colorScheme, isDark)
               : ListView(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
+                    horizontal: 8,
+                    vertical: 8,
                   ),
                   children: [
                     // Header Card
                     _buildSectionCard(
                       context,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
+                        horizontal: 8,
+                        vertical: 6,
                       ),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            _getShapeIcon(selectedShape!.type),
-                            size: 18,
-                            color: colorScheme.primary,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              selectedShape!.name,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: colorScheme.onSurface,
-                                fontWeight: FontWeight.bold,
+                          Row(
+                            children: [
+                              Icon(
+                                _getShapeIcon(selectedShape!.type),
+                                size: 16,
+                                color: colorScheme.primary,
                               ),
-                            ),
-                          ),
-                          M3EButton(
-                            onPressed: onDuplicateShape,
-                            style: M3EButtonStyle.tonal,
-                            size: M3EButtonSize.sm,
-                            tooltip: 'Duplicate (Ctrl+D)',
-                            child: Icon(
-                              RemixIcons.file_copy_line,
-                              size: 16,
-                              color: colorScheme.onSecondaryContainer,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          M3EButton(
-                            onPressed: onDeleteSelected,
-                            style: M3EButtonStyle.tonal,
-                            size: M3EButtonSize.sm,
-                            tooltip: 'Delete (Del)',
-                            decoration: M3EButtonDecoration(
-                              backgroundColor: WidgetStatePropertyAll(
-                                colorScheme.errorContainer,
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  selectedShape!.name,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    color: colorScheme.onSurface,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
-                              foregroundColor: WidgetStatePropertyAll(
-                                colorScheme.onErrorContainer,
+                              if (selectedShape!.groupName != null) ...[
+                                const SizedBox(width: 4),
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(maxWidth: 90),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 5,
+                                      vertical: 1.5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.primaryContainer
+                                          .withValues(alpha: 0.5),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.folder_outlined,
+                                          size: 10,
+                                          color: colorScheme.primary,
+                                        ),
+                                        const SizedBox(width: 3),
+                                        Flexible(
+                                          child: Text(
+                                            selectedShape!.groupName!,
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
+                                            style: theme.textTheme.labelSmall
+                                                ?.copyWith(
+                                                  color: colorScheme.primary,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              if (onGroupShapes != null) ...[
+                                Expanded(
+                                  child: M3EButton(
+                                    onPressed: canGroup ? onGroupShapes : null,
+                                    style: M3EButtonStyle.tonal,
+                                    size: M3EButtonSize.sm,
+                                    tooltip: 'Group (Ctrl+G)',
+                                    child: Icon(
+                                      Icons.folder_outlined,
+                                      size: 15,
+                                      color: canGroup
+                                          ? colorScheme.onSecondaryContainer
+                                          : colorScheme.onSurface.withValues(
+                                              alpha: 0.38,
+                                            ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                              ],
+                              if (canUngroup && onUngroupShapes != null) ...[
+                                Expanded(
+                                  child: M3EButton(
+                                    onPressed: onUngroupShapes,
+                                    style: M3EButtonStyle.tonal,
+                                    size: M3EButtonSize.sm,
+                                    tooltip: 'Ungroup (Ctrl+Shift+G)',
+                                    child: Icon(
+                                      Icons.folder_open_outlined,
+                                      size: 15,
+                                      color: colorScheme.onSecondaryContainer,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                              ],
+                              Expanded(
+                                child: M3EButton(
+                                  onPressed: onDuplicateShape,
+                                  style: M3EButtonStyle.tonal,
+                                  size: M3EButtonSize.sm,
+                                  tooltip: 'Duplicate (Ctrl+D)',
+                                  child: Icon(
+                                    RemixIcons.file_copy_line,
+                                    size: 15,
+                                    color: colorScheme.onSecondaryContainer,
+                                  ),
+                                ),
                               ),
-                            ),
-                            child: Icon(
-                              RemixIcons.delete_bin_line,
-                              size: 16,
-                              color: colorScheme.onErrorContainer,
-                            ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: M3EButton(
+                                  onPressed: onDeleteSelected,
+                                  style: M3EButtonStyle.tonal,
+                                  size: M3EButtonSize.sm,
+                                  tooltip: 'Delete (Del)',
+                                  decoration: M3EButtonDecoration(
+                                    backgroundColor: WidgetStatePropertyAll(
+                                      colorScheme.errorContainer,
+                                    ),
+                                    foregroundColor: WidgetStatePropertyAll(
+                                      colorScheme.onErrorContainer,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    RemixIcons.delete_bin_line,
+                                    size: 15,
+                                    color: colorScheme.onErrorContainer,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -181,7 +281,7 @@ class PropertiesSidebar extends StatelessWidget {
                             'ALIGNMENT',
                             style: _getSectionHeaderStyle(theme),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 5),
 
                           // Row 1: Horizontal Alignment (Left, Center, Right - connected)
                           M3ESegmentedRow(
@@ -190,18 +290,18 @@ class PropertiesSidebar extends StatelessWidget {
                               onAlignShape(types[index]);
                             },
                             equalWidth: true,
-                            gap: 2.0,
+                            gap: 1.5,
                             decoration: M3ESegmentedListDecoration(
-                              outerRadius: 14.0,
-                              innerRadius: 4.0,
-                              gap: 2.0,
+                              outerRadius: 8.0,
+                              innerRadius: 3.0,
+                              gap: 1.5,
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 8,
+                                horizontal: 6,
+                                vertical: 4,
                               ),
                               color: colorScheme.surfaceContainerHigh,
                               hoverColor: colorScheme.surfaceContainerHighest,
-                              pressedRadius: 8.0,
+                              pressedRadius: 6.0,
                               pressedScale: 1.0,
                             ),
                             children: [
@@ -210,7 +310,7 @@ class PropertiesSidebar extends StatelessWidget {
                                 child: Center(
                                   child: Icon(
                                     RemixIcons.align_left,
-                                    size: 18,
+                                    size: 15,
                                     color: colorScheme.onSurfaceVariant,
                                   ),
                                 ),
@@ -220,7 +320,7 @@ class PropertiesSidebar extends StatelessWidget {
                                 child: Center(
                                   child: Icon(
                                     RemixIcons.align_center,
-                                    size: 18,
+                                    size: 15,
                                     color: colorScheme.onSurfaceVariant,
                                   ),
                                 ),
@@ -230,14 +330,14 @@ class PropertiesSidebar extends StatelessWidget {
                                 child: Center(
                                   child: Icon(
                                     RemixIcons.align_right,
-                                    size: 18,
+                                    size: 15,
                                     color: colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 4),
 
                           // Row 2: Vertical Alignment (Top, Middle, Bottom - connected)
                           M3ESegmentedRow(
@@ -246,18 +346,18 @@ class PropertiesSidebar extends StatelessWidget {
                               onAlignShape(types[index]);
                             },
                             equalWidth: true,
-                            gap: 2.0,
+                            gap: 1.5,
                             decoration: M3ESegmentedListDecoration(
-                              outerRadius: 14.0,
-                              innerRadius: 4.0,
-                              gap: 2.0,
+                              outerRadius: 8.0,
+                              innerRadius: 3.0,
+                              gap: 1.5,
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 8,
+                                horizontal: 6,
+                                vertical: 4,
                               ),
                               color: colorScheme.surfaceContainerHigh,
                               hoverColor: colorScheme.surfaceContainerHighest,
-                              pressedRadius: 8.0,
+                              pressedRadius: 6.0,
                               pressedScale: 1.0,
                             ),
                             children: [
@@ -266,7 +366,7 @@ class PropertiesSidebar extends StatelessWidget {
                                 child: Center(
                                   child: Icon(
                                     RemixIcons.align_top,
-                                    size: 18,
+                                    size: 15,
                                     color: colorScheme.onSurfaceVariant,
                                   ),
                                 ),
@@ -276,7 +376,7 @@ class PropertiesSidebar extends StatelessWidget {
                                 child: Center(
                                   child: Icon(
                                     RemixIcons.align_vertically,
-                                    size: 18,
+                                    size: 15,
                                     color: colorScheme.onSurfaceVariant,
                                   ),
                                 ),
@@ -286,7 +386,7 @@ class PropertiesSidebar extends StatelessWidget {
                                 child: Center(
                                   child: Icon(
                                     RemixIcons.align_bottom,
-                                    size: 18,
+                                    size: 15,
                                     color: colorScheme.onSurfaceVariant,
                                   ),
                                 ),
@@ -303,313 +403,628 @@ class PropertiesSidebar extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('TRANSFORM', style: _getSectionHeaderStyle(theme)),
+                          Text(
+                            'TRANSFORM',
+                            style: _getSectionHeaderStyle(theme),
+                          ),
                           const SizedBox(height: 10),
 
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildNumberField(
-                            context,
-                            'X',
-                            selectedShape!.rect.left,
-                            (val) {
-                              final isLine =
-                                  selectedShape!.type == ShapeType.line;
-                              final newRect = isLine
-                                  ? Rect.fromLTRB(
-                                      val,
-                                      selectedShape!.rect.top,
-                                      val +
-                                          (selectedShape!.rect.right -
-                                              selectedShape!.rect.left),
-                                      selectedShape!.rect.bottom,
-                                    )
-                                  : Rect.fromLTWH(
-                                      val,
-                                      selectedShape!.rect.top,
-                                      selectedShape!.rect.width,
-                                      selectedShape!.rect.height,
-                                    );
-                              final updated = selectedShape!.copyWith(
-                                rect: newRect,
-                              );
-                              onShapeChanged(updated);
-                              onShapeChangeEnd?.call(updated);
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildNumberField(
-                            context,
-                            'Y',
-                            selectedShape!.rect.top,
-                            (val) {
-                              final isLine =
-                                  selectedShape!.type == ShapeType.line;
-                              final newRect = isLine
-                                  ? Rect.fromLTRB(
-                                      selectedShape!.rect.left,
-                                      val,
-                                      selectedShape!.rect.right,
-                                      val +
-                                          (selectedShape!.rect.bottom -
-                                              selectedShape!.rect.top),
-                                    )
-                                  : Rect.fromLTWH(
-                                      selectedShape!.rect.left,
-                                      val,
-                                      selectedShape!.rect.width,
-                                      selectedShape!.rect.height,
-                                    );
-                              final updated = selectedShape!.copyWith(
-                                rect: newRect,
-                              );
-                              onShapeChanged(updated);
-                              onShapeChangeEnd?.call(updated);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    if (selectedShape!.type == ShapeType.line) ...[
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildNumberField(
-                              context,
-                              'L',
-                              math.sqrt(
-                                (selectedShape!.rect.right -
-                                            selectedShape!.rect.left) *
-                                        (selectedShape!.rect.right -
-                                            selectedShape!.rect.left) +
-                                    (selectedShape!.rect.bottom -
-                                            selectedShape!.rect.top) *
-                                        (selectedShape!.rect.bottom -
-                                            selectedShape!.rect.top),
-                              ),
-                              (val) {
-                                final p1 = selectedShape!.rect.topLeft;
-                                final p2 = selectedShape!.rect.bottomRight;
-                                final dx = p2.dx - p1.dx;
-                                final dy = p2.dy - p1.dy;
-                                final currentLen = math.sqrt(dx * dx + dy * dy);
-                                final angle = currentLen > 0
-                                    ? math.atan2(dy, dx)
-                                    : 0.0;
-                                final newLen = val.clamp(1.0, 10000.0);
-                                final newEnd =
-                                    p1 +
-                                    Offset(
-                                      newLen * math.cos(angle),
-                                      newLen * math.sin(angle),
-                                    );
-                                final newRect = Rect.fromLTRB(
-                                  p1.dx,
-                                  p1.dy,
-                                  newEnd.dx,
-                                  newEnd.dy,
-                                );
-                                final updated = selectedShape!.copyWith(
-                                  rect: newRect,
-                                );
-                                onShapeChanged(updated);
-                                onShapeChangeEnd?.call(updated);
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildNumberField(
-                              context,
-                              'A°',
-                              (math.atan2(
-                                        selectedShape!.rect.bottom -
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildNumberField(
+                                  context,
+                                  'X',
+                                  selectedShape!.rect.left,
+                                  (val) {
+                                    final isLine =
+                                        selectedShape!.type == ShapeType.line;
+                                    final newRect = isLine
+                                        ? Rect.fromLTRB(
+                                            val,
                                             selectedShape!.rect.top,
-                                        selectedShape!.rect.right -
-                                            selectedShape!.rect.left,
-                                      ) *
-                                      180 /
-                                      math.pi)
-                                  .roundToDouble(),
-                              (val) {
-                                final p1 = selectedShape!.rect.topLeft;
-                                final p2 = selectedShape!.rect.bottomRight;
-                                final dx = p2.dx - p1.dx;
-                                final dy = p2.dy - p1.dy;
-                                final currentLen = math.max(
-                                  1.0,
-                                  math.sqrt(dx * dx + dy * dy),
-                                );
-                                final rad = val * math.pi / 180.0;
-                                final newEnd =
-                                    p1 +
-                                    Offset(
-                                      currentLen * math.cos(rad),
-                                      currentLen * math.sin(rad),
+                                            val +
+                                                (selectedShape!.rect.right -
+                                                    selectedShape!.rect.left),
+                                            selectedShape!.rect.bottom,
+                                          )
+                                        : Rect.fromLTWH(
+                                            val,
+                                            selectedShape!.rect.top,
+                                            selectedShape!.rect.width,
+                                            selectedShape!.rect.height,
+                                          );
+                                    final updated = selectedShape!.copyWith(
+                                      rect: newRect,
                                     );
-                                final newRect = Rect.fromLTRB(
-                                  p1.dx,
-                                  p1.dy,
-                                  newEnd.dx,
-                                  newEnd.dy,
-                                );
-                                final updated = selectedShape!.copyWith(
-                                  rect: newRect,
-                                );
-                                onShapeChanged(updated);
-                                onShapeChangeEnd?.call(updated);
-                              },
+                                    onShapeChanged(updated);
+                                    onShapeChangeEnd?.call(updated);
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildNumberField(
+                                  context,
+                                  'Y',
+                                  selectedShape!.rect.top,
+                                  (val) {
+                                    final isLine =
+                                        selectedShape!.type == ShapeType.line;
+                                    final newRect = isLine
+                                        ? Rect.fromLTRB(
+                                            selectedShape!.rect.left,
+                                            val,
+                                            selectedShape!.rect.right,
+                                            val +
+                                                (selectedShape!.rect.bottom -
+                                                    selectedShape!.rect.top),
+                                          )
+                                        : Rect.fromLTWH(
+                                            selectedShape!.rect.left,
+                                            val,
+                                            selectedShape!.rect.width,
+                                            selectedShape!.rect.height,
+                                          );
+                                    final updated = selectedShape!.copyWith(
+                                      rect: newRect,
+                                    );
+                                    onShapeChanged(updated);
+                                    onShapeChangeEnd?.call(updated);
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          if (selectedShape!.type == ShapeType.line) ...[
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildNumberField(
+                                    context,
+                                    'L',
+                                    math.sqrt(
+                                      (selectedShape!.rect.right -
+                                                  selectedShape!.rect.left) *
+                                              (selectedShape!.rect.right -
+                                                  selectedShape!.rect.left) +
+                                          (selectedShape!.rect.bottom -
+                                                  selectedShape!.rect.top) *
+                                              (selectedShape!.rect.bottom -
+                                                  selectedShape!.rect.top),
+                                    ),
+                                    (val) {
+                                      final p1 = selectedShape!.rect.topLeft;
+                                      final p2 =
+                                          selectedShape!.rect.bottomRight;
+                                      final dx = p2.dx - p1.dx;
+                                      final dy = p2.dy - p1.dy;
+                                      final currentLen = math.sqrt(
+                                        dx * dx + dy * dy,
+                                      );
+                                      final angle = currentLen > 0
+                                          ? math.atan2(dy, dx)
+                                          : 0.0;
+                                      final newLen = val.clamp(1.0, 10000.0);
+                                      final newEnd =
+                                          p1 +
+                                          Offset(
+                                            newLen * math.cos(angle),
+                                            newLen * math.sin(angle),
+                                          );
+                                      final newRect = Rect.fromLTRB(
+                                        p1.dx,
+                                        p1.dy,
+                                        newEnd.dx,
+                                        newEnd.dy,
+                                      );
+                                      final updated = selectedShape!.copyWith(
+                                        rect: newRect,
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _buildNumberField(
+                                    context,
+                                    'A°',
+                                    (math.atan2(
+                                              selectedShape!.rect.bottom -
+                                                  selectedShape!.rect.top,
+                                              selectedShape!.rect.right -
+                                                  selectedShape!.rect.left,
+                                            ) *
+                                            180 /
+                                            math.pi)
+                                        .roundToDouble(),
+                                    (val) {
+                                      final p1 = selectedShape!.rect.topLeft;
+                                      final p2 =
+                                          selectedShape!.rect.bottomRight;
+                                      final dx = p2.dx - p1.dx;
+                                      final dy = p2.dy - p1.dy;
+                                      final currentLen = math.max(
+                                        1.0,
+                                        math.sqrt(dx * dx + dy * dy),
+                                      );
+                                      final rad = val * math.pi / 180.0;
+                                      final newEnd =
+                                          p1 +
+                                          Offset(
+                                            currentLen * math.cos(rad),
+                                            currentLen * math.sin(rad),
+                                          );
+                                      final newRect = Rect.fromLTRB(
+                                        p1.dx,
+                                        p1.dy,
+                                        newEnd.dx,
+                                        newEnd.dy,
+                                      );
+                                      final updated = selectedShape!.copyWith(
+                                        rect: newRect,
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                  ),
+                                ),
+                              ],
                             ),
+                          ] else ...[
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildNumberField(
+                                    context,
+                                    'W',
+                                    selectedShape!.rect.width,
+                                    (val) {
+                                      final newRect = Rect.fromLTWH(
+                                        selectedShape!.rect.left,
+                                        selectedShape!.rect.top,
+                                        val.clamp(5, 5000),
+                                        selectedShape!.rect.height,
+                                      );
+                                      final updated = selectedShape!.copyWith(
+                                        rect: newRect,
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _buildNumberField(
+                                    context,
+                                    'H',
+                                    selectedShape!.rect.height,
+                                    (val) {
+                                      final newRect = Rect.fromLTWH(
+                                        selectedShape!.rect.left,
+                                        selectedShape!.rect.top,
+                                        selectedShape!.rect.width,
+                                        val.clamp(5, 5000),
+                                      );
+                                      final updated = selectedShape!.copyWith(
+                                        rect: newRect,
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildNumberField(
+                                  context,
+                                  '°',
+                                  selectedShape!.rotation,
+                                  (val) {
+                                    final updated = selectedShape!.copyWith(
+                                      rotation: val % 360,
+                                    );
+                                    onShapeChanged(updated);
+                                    onShapeChangeEnd?.call(updated);
+                                  },
+                                ),
+                              ),
+                              if (selectedShape!.type ==
+                                      ShapeType.roundedRectangle ||
+                                  selectedShape!.type == ShapeType.rectangle ||
+                                  selectedShape!.type == ShapeType.star ||
+                                  selectedShape!.type == ShapeType.image) ...[
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _buildNumberField(
+                                    context,
+                                    'R',
+                                    selectedShape!.cornerRadius,
+                                    (val) {
+                                      final updated = selectedShape!.copyWith(
+                                        cornerRadius: val.clamp(0, 200),
+                                        clearIndependentCorners: true,
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                  ),
+                                ),
+                                if (selectedShape!.type ==
+                                        ShapeType.rectangle ||
+                                    selectedShape!.type ==
+                                        ShapeType.roundedRectangle ||
+                                    selectedShape!.type == ShapeType.image) ...[
+                                  const SizedBox(width: 4),
+                                  Tooltip(
+                                    message:
+                                        selectedShape!.hasIndependentCorners
+                                        ? 'Link Corner Radii'
+                                        : 'Independent Corner Radii',
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(8),
+                                      onTap: () {
+                                        FocusManager.instance.primaryFocus
+                                            ?.unfocus();
+                                        if (selectedShape!
+                                            .hasIndependentCorners) {
+                                          final updated = selectedShape!
+                                              .copyWith(
+                                                clearIndependentCorners: true,
+                                              );
+                                          onShapeChanged(updated);
+                                          onShapeChangeEnd?.call(updated);
+                                        } else {
+                                          final cur =
+                                              selectedShape!.cornerRadius;
+                                          final updated = selectedShape!
+                                              .copyWith(
+                                                topLeftRadius: cur,
+                                                topRightRadius: cur,
+                                                bottomRightRadius: cur,
+                                                bottomLeftRadius: cur,
+                                              );
+                                          onShapeChanged(updated);
+                                          onShapeChangeEnd?.call(updated);
+                                        }
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              selectedShape!
+                                                  .hasIndependentCorners
+                                              ? colorScheme.primary.withValues(
+                                                  alpha: 0.16,
+                                                )
+                                              : colorScheme
+                                                    .surfaceContainerHighest,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          border: Border.all(
+                                            color:
+                                                selectedShape!
+                                                    .hasIndependentCorners
+                                                ? colorScheme.primary
+                                                : colorScheme.outlineVariant
+                                                      .withValues(alpha: 0.5),
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          RemixIcons.corner_up_left_line,
+                                          size: 15,
+                                          color:
+                                              selectedShape!
+                                                  .hasIndependentCorners
+                                              ? colorScheme.primary
+                                              : colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ],
+                          ),
+                          if ((selectedShape!.type == ShapeType.rectangle ||
+                                  selectedShape!.type ==
+                                      ShapeType.roundedRectangle ||
+                                  selectedShape!.type == ShapeType.image) &&
+                              selectedShape!.hasIndependentCorners) ...[
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildNumberField(
+                                    context,
+                                    'TL',
+                                    selectedShape!.effectiveTopLeftRadius,
+                                    (val) {
+                                      final updated = selectedShape!.copyWith(
+                                        topLeftRadius: val.clamp(0, 200),
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _buildNumberField(
+                                    context,
+                                    'TR',
+                                    selectedShape!.effectiveTopRightRadius,
+                                    (val) {
+                                      final updated = selectedShape!.copyWith(
+                                        topRightRadius: val.clamp(0, 200),
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildNumberField(
+                                    context,
+                                    'BL',
+                                    selectedShape!.effectiveBottomLeftRadius,
+                                    (val) {
+                                      final updated = selectedShape!.copyWith(
+                                        bottomLeftRadius: val.clamp(0, 200),
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _buildNumberField(
+                                    context,
+                                    'BR',
+                                    selectedShape!.effectiveBottomRightRadius,
+                                    (val) {
+                                      final updated = selectedShape!.copyWith(
+                                        bottomRightRadius: val.clamp(0, 200),
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () {
+                                    FocusManager.instance.primaryFocus
+                                        ?.unfocus();
+                                    final updated = selectedShape!.copyWith(
+                                      rotation:
+                                          (-selectedShape!.rotation) % 360,
+                                    );
+                                    onShapeChanged(updated);
+                                    onShapeChangeEnd?.call(updated);
+                                  },
+                                  icon: const Icon(
+                                    RemixIcons.swap_line,
+                                    size: 14,
+                                  ),
+                                  label: Text(
+                                    'Flip H',
+                                    style: theme.textTheme.labelSmall,
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 4,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () {
+                                    FocusManager.instance.primaryFocus
+                                        ?.unfocus();
+                                    final updated = selectedShape!.copyWith(
+                                      rotation:
+                                          (180 - selectedShape!.rotation) % 360,
+                                    );
+                                    onShapeChanged(updated);
+                                    onShapeChangeEnd?.call(updated);
+                                  },
+                                  icon: const Icon(
+                                    RemixIcons.swap_box_line,
+                                    size: 14,
+                                  ),
+                                  label: Text(
+                                    'Flip V',
+                                    style: theme.textTheme.labelSmall,
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 4,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ] else ...[
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildNumberField(
-                              context,
-                              'W',
-                              selectedShape!.rect.width,
-                              (val) {
-                                final newRect = Rect.fromLTWH(
-                                  selectedShape!.rect.left,
-                                  selectedShape!.rect.top,
-                                  val.clamp(5, 5000),
-                                  selectedShape!.rect.height,
-                                );
-                                final updated = selectedShape!.copyWith(
-                                  rect: newRect,
-                                );
-                                onShapeChanged(updated);
-                                onShapeChangeEnd?.call(updated);
-                              },
+                    ),
+
+                    // Star Geometry Card (Sharp Points Count & Ratio)
+                    if (selectedShape!.type == ShapeType.star)
+                      _buildSectionCard(
+                        context,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'STAR',
+                                    style: _getSectionHeaderStyle(theme),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.primary.withValues(
+                                      alpha: 0.12,
+                                    ),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '${selectedShape!.pointCount} Points',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: colorScheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildNumberField(
-                              context,
-                              'H',
-                              selectedShape!.rect.height,
-                              (val) {
-                                final newRect = Rect.fromLTWH(
-                                  selectedShape!.rect.left,
-                                  selectedShape!.rect.top,
-                                  selectedShape!.rect.width,
-                                  val.clamp(5, 5000),
-                                );
-                                final updated = selectedShape!.copyWith(
-                                  rect: newRect,
-                                );
-                                onShapeChanged(updated);
-                                onShapeChangeEnd?.call(updated);
-                              },
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildNumberField(
+                                    context,
+                                    'PTS',
+                                    selectedShape!.pointCount.toDouble(),
+                                    (val) {
+                                      final updated = selectedShape!.copyWith(
+                                        pointCount: val.round().clamp(3, 60),
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                    min: 3,
+                                    max: 60,
+                                    isInteger: true,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _buildNumberField(
+                                    context,
+                                    '%',
+                                    (selectedShape!.innerRadiusRatio * 100)
+                                        .roundToDouble(),
+                                    (val) {
+                                      final updated = selectedShape!.copyWith(
+                                        innerRadiusRatio: (val / 100.0).clamp(
+                                          0.05,
+                                          0.95,
+                                        ),
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                    min: 5,
+                                    max: 95,
+                                    isInteger: true,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                _ScrubbableLabel(
+                                  label: 'Ratio',
+                                  value: (selectedShape!.innerRadiusRatio * 100)
+                                      .clamp(5.0, 95.0),
+                                  min: 5.0,
+                                  max: 95.0,
+                                  onChanged: (val) {
+                                    final updated = selectedShape!.copyWith(
+                                      innerRadiusRatio: (val / 100.0).clamp(
+                                        0.05,
+                                        0.95,
+                                      ),
+                                    );
+                                    onShapeChanged(updated);
+                                  },
+                                  onEditingComplete: () {
+                                    final updated = selectedShape!.copyWith(
+                                      innerRadiusRatio:
+                                          (selectedShape!.innerRadiusRatio)
+                                              .clamp(0.05, 0.95),
+                                    );
+                                    onShapeChangeEnd?.call(updated);
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: NixSlider(
+                                    value:
+                                        (selectedShape!.innerRadiusRatio * 100)
+                                            .clamp(5.0, 95.0),
+                                    min: 5.0,
+                                    max: 95.0,
+                                    onChanged: (val) {
+                                      final updated = selectedShape!.copyWith(
+                                        innerRadiusRatio: (val / 100.0).clamp(
+                                          0.05,
+                                          0.95,
+                                        ),
+                                      );
+                                      onShapeChanged(updated);
+                                    },
+                                    onChangeEnd: (val) {
+                                      final updated = selectedShape!.copyWith(
+                                        innerRadiusRatio: (val / 100.0).clamp(
+                                          0.05,
+                                          0.95,
+                                        ),
+                                      );
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${(selectedShape!.innerRadiusRatio * 100).round()}%',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: colorScheme.onSurface,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildNumberField(
-                            context,
-                            '°',
-                            selectedShape!.rotation,
-                            (val) {
-                              final updated = selectedShape!.copyWith(
-                                rotation: val % 360,
-                              );
-                              onShapeChanged(updated);
-                              onShapeChangeEnd?.call(updated);
-                            },
-                          ),
-                        ),
-                        if (selectedShape!.type ==
-                            ShapeType.roundedRectangle) ...[
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildNumberField(
-                              context,
-                              'R',
-                              selectedShape!.cornerRadius,
-                              (val) {
-                                final updated = selectedShape!.copyWith(
-                                  cornerRadius: val.clamp(0, 200),
-                                  clearIndependentCorners: true,
-                                );
-                                onShapeChanged(updated);
-                                onShapeChangeEnd?.call(updated);
-                              },
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              FocusManager.instance.primaryFocus?.unfocus();
-                              final updated = selectedShape!.copyWith(
-                                rotation: (-selectedShape!.rotation) % 360,
-                              );
-                              onShapeChanged(updated);
-                              onShapeChangeEnd?.call(updated);
-                            },
-                            icon: const Icon(RemixIcons.swap_line, size: 14),
-                            label: const Text(
-                              'Flip H',
-                              style: TextStyle(fontSize: 11),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 4,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              FocusManager.instance.primaryFocus?.unfocus();
-                              final updated = selectedShape!.copyWith(
-                                rotation: (180 - selectedShape!.rotation) % 360,
-                              );
-                              onShapeChanged(updated);
-                              onShapeChangeEnd?.call(updated);
-                            },
-                            icon: const Icon(
-                              RemixIcons.swap_box_line,
-                              size: 14,
-                            ),
-                            label: const Text(
-                              'Flip V',
-                              style: TextStyle(fontSize: 11),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 4,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
 
                     // Fill Color, Gradient & Opacity
                     if (selectedShape!.type != ShapeType.line &&
@@ -632,7 +1047,8 @@ class PropertiesSidebar extends StatelessWidget {
                                   value: selectedShape!.isFilled,
                                   activeTrackColor: colorScheme.primary,
                                   onChanged: (val) {
-                                    FocusManager.instance.primaryFocus?.unfocus();
+                                    FocusManager.instance.primaryFocus
+                                        ?.unfocus();
                                     final updated = selectedShape!.copyWith(
                                       isFilled: val,
                                     );
@@ -648,7 +1064,8 @@ class PropertiesSidebar extends StatelessWidget {
                                 children: [
                                   GestureDetector(
                                     onTapUp: (details) {
-                                      FocusManager.instance.primaryFocus?.unfocus();
+                                      FocusManager.instance.primaryFocus
+                                          ?.unfocus();
                                       onOpenColorPickerFill(
                                         Rect.fromCenter(
                                           center: details.globalPosition,
@@ -661,16 +1078,25 @@ class PropertiesSidebar extends StatelessWidget {
                                       width: 32,
                                       height: 32,
                                       decoration: BoxDecoration(
-                                        color: selectedShape!.fillType == PaintFillType.solid
+                                        color:
+                                            selectedShape!.fillType ==
+                                                PaintFillType.solid
                                             ? selectedShape!.fillColor
                                             : null,
-                                        gradient: selectedShape!.fillType != PaintFillType.solid &&
-                                                selectedShape!.fillGradient != null
+                                        gradient:
+                                            selectedShape!.fillType !=
+                                                    PaintFillType.solid &&
+                                                selectedShape!.fillGradient !=
+                                                    null
                                             ? LinearGradient(
-                                                colors: selectedShape!.fillGradient!.stops
+                                                colors: selectedShape!
+                                                    .fillGradient!
+                                                    .stops
                                                     .map((s) => s.color)
                                                     .toList(),
-                                                stops: selectedShape!.fillGradient!.stops
+                                                stops: selectedShape!
+                                                    .fillGradient!
+                                                    .stops
                                                     .map((s) => s.offset)
                                                     .toList(),
                                               )
@@ -683,38 +1109,86 @@ class PropertiesSidebar extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  InkWell(
-                                    onTapUp: (details) {
-                                      FocusManager.instance.primaryFocus?.unfocus();
-                                      onOpenColorPickerFill(
-                                        Rect.fromCenter(
-                                          center: details.globalPosition,
-                                          width: 60,
-                                          height: 24,
+                                  Expanded(
+                                    child: InkWell(
+                                      onTapUp: (details) {
+                                        FocusManager.instance.primaryFocus
+                                            ?.unfocus();
+                                        onOpenColorPickerFill(
+                                          Rect.fromCenter(
+                                            center: details.globalPosition,
+                                            width: 60,
+                                            height: 24,
+                                          ),
+                                        );
+                                      },
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 4,
                                         ),
-                                      );
-                                    },
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 4,
-                                      ),
-                                      child: Text(
-                                        selectedShape!.fillType == PaintFillType.solid
-                                            ? _colorToHex(selectedShape!.fillColor)
-                                            : (selectedShape!.fillType == PaintFillType.linearGradient
-                                                ? 'Linear'
-                                                : 'Radial'),
-                                        style: theme.textTheme.bodySmall?.copyWith(
-                                          fontFamily: selectedShape!.fillType == PaintFillType.solid
-                                              ? 'monospace'
-                                              : null,
-                                          fontWeight: FontWeight.bold,
-                                          color: colorScheme.onSurface,
+                                        child: Text(
+                                          selectedShape!.fillType ==
+                                                  PaintFillType.solid
+                                              ? _colorToHex(
+                                                  selectedShape!.fillColor,
+                                                )
+                                              : (selectedShape!.fillType ==
+                                                        PaintFillType
+                                                            .linearGradient
+                                                    ? 'Linear'
+                                                    : 'Radial'),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                                fontFamily:
+                                                    selectedShape!.fillType ==
+                                                        PaintFillType.solid
+                                                    ? 'monospace'
+                                                    : null,
+                                                fontWeight: FontWeight.bold,
+                                                color: colorScheme.onSurface,
+                                              ),
                                         ),
                                       ),
                                     ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${(selectedShape!.fillOpacity * 100).round()}%',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  _ScrubbableLabel(
+                                    label: 'Opacity',
+                                    value: (selectedShape!.fillOpacity * 100)
+                                        .clamp(0.0, 100.0),
+                                    min: 0.0,
+                                    max: 100.0,
+                                    onChanged: (val) {
+                                      onShapeChanged(
+                                        selectedShape!.copyWith(
+                                          fillOpacity: (val / 100.0).clamp(
+                                            0.0,
+                                            1.0,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    onEditingComplete: () {
+                                      (onShapeChangeEnd ?? onShapeChanged)(
+                                        selectedShape!,
+                                      );
+                                    },
                                   ),
                                   const Spacer(),
                                   Text(
@@ -726,47 +1200,30 @@ class PropertiesSidebar extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Text(
-                              'Opacity',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
+                              const SizedBox(height: 4),
+                              NixSlider(
+                                value: selectedShape!.fillOpacity,
+                                min: 0.0,
+                                max: 1.0,
+                                onChangeStart: (_) => FocusManager
+                                    .instance
+                                    .primaryFocus
+                                    ?.unfocus(),
+                                onChanged: (val) {
+                                  onShapeChanged(
+                                    selectedShape!.copyWith(fillOpacity: val),
+                                  );
+                                },
+                                onChangeEnd: (val) {
+                                  (onShapeChangeEnd ?? onShapeChanged)(
+                                    selectedShape!.copyWith(fillOpacity: val),
+                                  );
+                                },
                               ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              '${(selectedShape!.fillOpacity * 100).round()}%',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                            ],
                           ],
                         ),
-                        const SizedBox(height: 4),
-                        NixSlider(
-                          value: selectedShape!.fillOpacity,
-                          min: 0.0,
-                          max: 1.0,
-                          onChangeStart: (_) =>
-                              FocusManager.instance.primaryFocus?.unfocus(),
-                          onChanged: (val) {
-                            onShapeChanged(
-                              selectedShape!.copyWith(fillOpacity: val),
-                            );
-                          },
-                          onChangeEnd: (val) {
-                            (onShapeChangeEnd ?? onShapeChanged)(
-                              selectedShape!.copyWith(fillOpacity: val),
-                            );
-                          },
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+                      ),
 
                     // Stroke Color, Gradient, Opacity & Styles
                     if (selectedShape!.type != ShapeType.image &&
@@ -778,13 +1235,17 @@ class PropertiesSidebar extends StatelessWidget {
                           children: [
                             Row(
                               children: [
-                                Text('STROKE', style: _getSectionHeaderStyle(theme)),
+                                Text(
+                                  'STROKE',
+                                  style: _getSectionHeaderStyle(theme),
+                                ),
                                 const Spacer(),
                                 Switch(
                                   value: selectedShape!.isStroked,
                                   activeTrackColor: colorScheme.primary,
                                   onChanged: (val) {
-                                    FocusManager.instance.primaryFocus?.unfocus();
+                                    FocusManager.instance.primaryFocus
+                                        ?.unfocus();
                                     final updated = selectedShape!.copyWith(
                                       isStroked: val,
                                     );
@@ -794,786 +1255,895 @@ class PropertiesSidebar extends StatelessWidget {
                                 ),
                               ],
                             ),
-                      if (selectedShape!.isStroked) ...[
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            GestureDetector(
-                              onTapUp: (details) {
-                                FocusManager.instance.primaryFocus?.unfocus();
-                                onOpenColorPickerStroke(
-                                  Rect.fromCenter(
-                                    center: details.globalPosition,
-                                    width: 32,
-                                    height: 32,
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                width: 32,
-                                height: 32,
-                                decoration: BoxDecoration(
-                                  color: selectedShape!.strokeType == PaintFillType.solid
-                                      ? selectedShape!.strokeColor
-                                      : null,
-                                  gradient: selectedShape!.strokeType != PaintFillType.solid &&
-                                          selectedShape!.strokeGradient != null
-                                      ? LinearGradient(
-                                          colors: selectedShape!.strokeGradient!.stops
-                                              .map((s) => s.color)
-                                              .toList(),
-                                          stops: selectedShape!.strokeGradient!.stops
-                                              .map((s) => s.offset)
-                                              .toList(),
-                                        )
-                                      : null,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: colorScheme.outlineVariant,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            InkWell(
-                              onTapUp: (details) {
-                                FocusManager.instance.primaryFocus?.unfocus();
-                                onOpenColorPickerStroke(
-                                  Rect.fromCenter(
-                                    center: details.globalPosition,
-                                    width: 60,
-                                    height: 24,
-                                  ),
-                                );
-                              },
-                              borderRadius: BorderRadius.circular(6),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 4,
-                                ),
-                                child: Text(
-                                  selectedShape!.strokeType == PaintFillType.solid
-                                      ? _colorToHex(selectedShape!.strokeColor)
-                                      : (selectedShape!.strokeType == PaintFillType.linearGradient
-                                          ? 'Linear'
-                                          : 'Radial'),
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    fontFamily: selectedShape!.strokeType == PaintFillType.solid
-                                        ? 'monospace'
-                                        : null,
-                                    fontWeight: FontWeight.bold,
-                                    color: colorScheme.onSurface,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              '${selectedShape!.strokeWidth.round()} px',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        // Stroke Width Slider
-                        Row(
-                          children: [
-                            Text(
-                              'Width',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              '${selectedShape!.strokeWidth.round()} px',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        NixSlider(
-                          value: selectedShape!.strokeWidth,
-                          min: 1.0,
-                          max: 30.0,
-                          onChangeStart: (_) =>
-                              FocusManager.instance.primaryFocus?.unfocus(),
-                          onChanged: (val) {
-                            onShapeChanged(
-                              selectedShape!.copyWith(strokeWidth: val),
-                            );
-                          },
-                          onChangeEnd: (val) {
-                            (onShapeChangeEnd ?? onShapeChanged)(
-                              selectedShape!.copyWith(strokeWidth: val),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 8),
-                        // Stroke Opacity Slider
-                        Row(
-                          children: [
-                            Text(
-                              'Opacity',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              '${(selectedShape!.strokeOpacity * 100).round()}%',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        NixSlider(
-                          value: selectedShape!.strokeOpacity,
-                          min: 0.0,
-                          max: 1.0,
-                          onChangeStart: (_) =>
-                              FocusManager.instance.primaryFocus?.unfocus(),
-                          onChanged: (val) {
-                            onShapeChanged(
-                              selectedShape!.copyWith(strokeOpacity: val),
-                            );
-                          },
-                          onChangeEnd: (val) {
-                            (onShapeChangeEnd ?? onShapeChanged)(
-                              selectedShape!.copyWith(strokeOpacity: val),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 10),
-                        // Stroke Alignment: Inside, Center, Outside
-                        Text(
-                          'ALIGNMENT',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        _buildToggleGroup(
-                          selectedIndex: switch (selectedShape!.strokeAlign) {
-                            StrokeAlign.inside => 0,
-                            StrokeAlign.center => 1,
-                            StrokeAlign.outside => 2,
-                          },
-                          onChanged: (index) {
-                            FocusManager.instance.primaryFocus?.unfocus();
-                            const aligns = [
-                              StrokeAlign.inside,
-                              StrokeAlign.center,
-                              StrokeAlign.outside,
-                            ];
-                            final updated = selectedShape!.copyWith(
-                              strokeAlign: aligns[index],
-                            );
-                            onShapeChanged(updated);
-                            onShapeChangeEnd?.call(updated);
-                          },
-                          actions: const [
-                            M3EToggleButtonGroupAction(
-                              label: Text(
-                                'Inside',
-                                style: TextStyle(fontSize: 11),
-                              ),
-                              tooltip: 'Inside Stroke',
-                            ),
-                            M3EToggleButtonGroupAction(
-                              label: Text(
-                                'Center',
-                                style: TextStyle(fontSize: 11),
-                              ),
-                              tooltip: 'Center Stroke',
-                            ),
-                            M3EToggleButtonGroupAction(
-                              label: Text(
-                                'Outside',
-                                style: TextStyle(fontSize: 11),
-                              ),
-                              tooltip: 'Outside Stroke',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        // Stroke Style: Solid, Dashed, Dotted
-                        Text(
-                          'STYLE',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        _buildToggleGroup(
-                          selectedIndex: switch (selectedShape!.strokeStyle) {
-                            StrokeStyle.solid => 0,
-                            StrokeStyle.dashed => 1,
-                            StrokeStyle.dotted => 2,
-                          },
-                          onChanged: (index) {
-                            FocusManager.instance.primaryFocus?.unfocus();
-                            final styles = [
-                              StrokeStyle.solid,
-                              StrokeStyle.dashed,
-                              StrokeStyle.dotted,
-                            ];
-                            final updated = selectedShape!.copyWith(
-                              strokeStyle: styles[index],
-                            );
-                            onShapeChanged(updated);
-                            onShapeChangeEnd?.call(updated);
-                          },
-                          actions: const [
-                            M3EToggleButtonGroupAction(
-                              label: Text(
-                                'Solid',
-                                style: TextStyle(fontSize: 11),
-                              ),
-                              tooltip: 'Solid Style',
-                            ),
-                            M3EToggleButtonGroupAction(
-                              label: Text(
-                                'Dashed',
-                                style: TextStyle(fontSize: 11),
-                              ),
-                              tooltip: 'Dashed Style',
-                            ),
-                            M3EToggleButtonGroupAction(
-                              label: Text(
-                                'Dotted',
-                                style: TextStyle(fontSize: 11),
-                              ),
-                              tooltip: 'Dotted Style',
-                            ),
-                          ],
-                        ),
-                        if (selectedShape!.strokeStyle ==
-                            StrokeStyle.dashed) ...[
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Text(
-                                'Dash Length',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                              const Spacer(),
-                              Text(
-                                '${selectedShape!.strokeDashLength.round()} px',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          NixSlider(
-                            value: selectedShape!.strokeDashLength,
-                            min: 1.0,
-                            max: 40.0,
-                            onChangeStart: (_) =>
-                                FocusManager.instance.primaryFocus?.unfocus(),
-                            onChanged: (val) {
-                              onShapeChanged(
-                                selectedShape!.copyWith(strokeDashLength: val),
-                              );
-                            },
-                            onChangeEnd: (val) {
-                              (onShapeChangeEnd ?? onShapeChanged)(
-                                selectedShape!.copyWith(strokeDashLength: val),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              Text(
-                                'Dash Gap',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                              const Spacer(),
-                              Text(
-                                '${selectedShape!.strokeDashGap.round()} px',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          NixSlider(
-                            value: selectedShape!.strokeDashGap,
-                            min: 1.0,
-                            max: 40.0,
-                            onChangeStart: (_) =>
-                                FocusManager.instance.primaryFocus?.unfocus(),
-                            onChanged: (val) {
-                              onShapeChanged(
-                                selectedShape!.copyWith(strokeDashGap: val),
-                              );
-                            },
-                            onChangeEnd: (val) {
-                              (onShapeChangeEnd ?? onShapeChanged)(
-                                selectedShape!.copyWith(strokeDashGap: val),
-                              );
-                            },
-                          ),
-                        ],
-                      ],
-
-                      if (selectedShape!.type == ShapeType.line) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          'CAP STYLE',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        _buildToggleGroup(
-                          selectedIndex: switch (selectedShape!.strokeCap) {
-                            StrokeCap.butt => 0,
-                            StrokeCap.round => 1,
-                            StrokeCap.square => 2,
-                          },
-                          onChanged: (index) {
-                            final caps = [
-                              StrokeCap.butt,
-                              StrokeCap.round,
-                              StrokeCap.square,
-                            ];
-                            onShapeChanged(
-                              selectedShape!.copyWith(strokeCap: caps[index]),
-                            );
-                          },
-                          actions: const [
-                            M3EToggleButtonGroupAction(
-                              icon: Icon(LucideIcons.minus, size: 14),
-                              label: Text(
-                                'Flat',
-                                style: TextStyle(fontSize: 11),
-                              ),
-                              tooltip: 'Butt / Flat Cap',
-                            ),
-                            M3EToggleButtonGroupAction(
-                              icon: Icon(LucideIcons.circle, size: 12),
-                              label: Text(
-                                'Round',
-                                style: TextStyle(fontSize: 11),
-                              ),
-                              tooltip: 'Round Cap',
-                            ),
-                            M3EToggleButtonGroupAction(
-                              icon: Icon(LucideIcons.square, size: 12),
-                              label: Text(
-                                'Square',
-                                style: TextStyle(fontSize: 11),
-                              ),
-                              tooltip: 'Square Cap',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'START & END POINTS',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                            if (selectedShape!.isStroked) ...[
+                              const SizedBox(height: 8),
+                              Row(
                                 children: [
-                                  Text(
-                                    'Start Point',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: colorScheme.onSurfaceVariant,
+                                  GestureDetector(
+                                    onTapUp: (details) {
+                                      FocusManager.instance.primaryFocus
+                                          ?.unfocus();
+                                      onOpenColorPickerStroke(
+                                        Rect.fromCenter(
+                                          center: details.globalPosition,
+                                          width: 32,
+                                          height: 32,
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      width: 32,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        color:
+                                            selectedShape!.strokeType ==
+                                                PaintFillType.solid
+                                            ? selectedShape!.strokeColor
+                                            : null,
+                                        gradient:
+                                            selectedShape!.strokeType !=
+                                                    PaintFillType.solid &&
+                                                selectedShape!.strokeGradient !=
+                                                    null
+                                            ? LinearGradient(
+                                                colors: selectedShape!
+                                                    .strokeGradient!
+                                                    .stops
+                                                    .map((s) => s.color)
+                                                    .toList(),
+                                                stops: selectedShape!
+                                                    .strokeGradient!
+                                                    .stops
+                                                    .map((s) => s.offset)
+                                                    .toList(),
+                                              )
+                                            : null,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: colorScheme.outlineVariant,
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Container(
-                                    height: 36,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color:
-                                          colorScheme.surfaceContainerHighest,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<LineCapStyle>(
-                                        value: selectedShape!.startCap,
-                                        isExpanded: true,
-                                        isDense: true,
-                                        icon: const Icon(
-                                          LucideIcons.chevronDown,
-                                          size: 14,
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: InkWell(
+                                      onTapUp: (details) {
+                                        FocusManager.instance.primaryFocus
+                                            ?.unfocus();
+                                        onOpenColorPickerStroke(
+                                          Rect.fromCenter(
+                                            center: details.globalPosition,
+                                            width: 60,
+                                            height: 24,
+                                          ),
+                                        );
+                                      },
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 4,
                                         ),
-                                        items: const [
-                                          DropdownMenuItem(
-                                            value: LineCapStyle.none,
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  LucideIcons.minus,
-                                                  size: 14,
-                                                ),
-                                                SizedBox(width: 4),
-                                                Expanded(
-                                                  child: Text(
-                                                    'None',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                    ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: LineCapStyle.arrow,
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  LucideIcons.arrowLeft,
-                                                  size: 14,
-                                                ),
-                                                SizedBox(width: 4),
-                                                Expanded(
-                                                  child: Text(
-                                                    'Arrow',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                    ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: LineCapStyle.circle,
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  LucideIcons.circle,
-                                                  size: 14,
-                                                ),
-                                                SizedBox(width: 4),
-                                                Expanded(
-                                                  child: Text(
-                                                    'Circle',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                    ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: LineCapStyle.square,
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  LucideIcons.square,
-                                                  size: 14,
-                                                ),
-                                                SizedBox(width: 4),
-                                                Expanded(
-                                                  child: Text(
-                                                    'Square',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                    ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                        onChanged: (val) {
-                                          if (val != null) {
-                                            onShapeChanged(
-                                              selectedShape!.copyWith(
-                                                startCap: val,
+                                        child: Text(
+                                          selectedShape!.strokeType ==
+                                                  PaintFillType.solid
+                                              ? _colorToHex(
+                                                  selectedShape!.strokeColor,
+                                                )
+                                              : (selectedShape!.strokeType ==
+                                                        PaintFillType
+                                                            .linearGradient
+                                                    ? 'Linear'
+                                                    : 'Radial'),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                                fontFamily:
+                                                    selectedShape!.strokeType ==
+                                                        PaintFillType.solid
+                                                    ? 'monospace'
+                                                    : null,
+                                                fontWeight: FontWeight.bold,
+                                                color: colorScheme.onSurface,
                                               ),
-                                            );
-                                          }
-                                        },
+                                        ),
                                       ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${selectedShape!.strokeWidth.round()} px',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              const SizedBox(height: 8),
+                              // Stroke Width Slider
+                              Row(
                                 children: [
-                                  Text(
-                                    'End Point',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: colorScheme.onSurfaceVariant,
+                                  _ScrubbableLabel(
+                                    label: 'Width',
+                                    value: selectedShape!.strokeWidth.clamp(
+                                      1.0,
+                                      30.0,
                                     ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Container(
-                                    height: 36,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color:
-                                          colorScheme.surfaceContainerHighest,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<LineCapStyle>(
-                                        value: selectedShape!.endCap,
-                                        isExpanded: true,
-                                        isDense: true,
-                                        icon: const Icon(
-                                          LucideIcons.chevronDown,
-                                          size: 14,
+                                    min: 1.0,
+                                    max: 30.0,
+                                    onChanged: (val) {
+                                      onShapeChanged(
+                                        selectedShape!.copyWith(
+                                          strokeWidth: val.clamp(1.0, 30.0),
                                         ),
-                                        items: const [
-                                          DropdownMenuItem(
-                                            value: LineCapStyle.none,
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  LucideIcons.minus,
-                                                  size: 14,
-                                                ),
-                                                SizedBox(width: 4),
-                                                Expanded(
-                                                  child: Text(
-                                                    'None',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                    ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: LineCapStyle.arrow,
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  LucideIcons.arrowRight,
-                                                  size: 14,
-                                                ),
-                                                SizedBox(width: 4),
-                                                Expanded(
-                                                  child: Text(
-                                                    'Arrow',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                    ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: LineCapStyle.circle,
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  LucideIcons.circle,
-                                                  size: 14,
-                                                ),
-                                                SizedBox(width: 4),
-                                                Expanded(
-                                                  child: Text(
-                                                    'Circle',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                    ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: LineCapStyle.square,
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  LucideIcons.square,
-                                                  size: 14,
-                                                ),
-                                                SizedBox(width: 4),
-                                                Expanded(
-                                                  child: Text(
-                                                    'Square',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                    ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                        onChanged: (val) {
-                                          if (val != null) {
-                                            onShapeChanged(
-                                              selectedShape!.copyWith(
-                                                endCap: val,
-                                              ),
-                                            );
-                                          }
-                                        },
-                                      ),
+                                      );
+                                    },
+                                    onEditingComplete: () {
+                                      (onShapeChangeEnd ?? onShapeChanged)(
+                                        selectedShape!,
+                                      );
+                                    },
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    '${selectedShape!.strokeWidth.round()} px',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Text(
-                              'CURVE / BEND',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.8,
+                              const SizedBox(height: 4),
+                              NixSlider(
+                                value: selectedShape!.strokeWidth,
+                                min: 1.0,
+                                max: 30.0,
+                                onChangeStart: (_) => FocusManager
+                                    .instance
+                                    .primaryFocus
+                                    ?.unfocus(),
+                                onChanged: (val) {
+                                  onShapeChanged(
+                                    selectedShape!.copyWith(strokeWidth: val),
+                                  );
+                                },
+                                onChangeEnd: (val) {
+                                  (onShapeChangeEnd ?? onShapeChanged)(
+                                    selectedShape!.copyWith(strokeWidth: val),
+                                  );
+                                },
                               ),
-                            ),
-                            const Spacer(),
-                            Switch(
-                              value: selectedShape!.isCurved,
-                              activeTrackColor: colorScheme.primary,
-                              onChanged: (val) {
-                                FocusManager.instance.primaryFocus?.unfocus();
-                                final updated = selectedShape!.copyWith(
-                                  isCurved: val,
-                                  curvature:
-                                      val && selectedShape!.curvature == 0.0
-                                      ? 30.0
-                                      : selectedShape!.curvature,
-                                );
-                                onShapeChanged(updated);
-                                onShapeChangeEnd?.call(updated);
-                              },
-                            ),
-                          ],
-                        ),
-                        if (selectedShape!.isCurved ||
-                            selectedShape!.curvature != 0.0) ...[
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              const Icon(LucideIcons.spline, size: 16),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                              const SizedBox(height: 8),
+                              // Stroke Opacity Slider
+                              Row(
+                                children: [
+                                  _ScrubbableLabel(
+                                    label: 'Opacity',
+                                    value: (selectedShape!.strokeOpacity * 100)
+                                        .clamp(0.0, 100.0),
+                                    min: 0.0,
+                                    max: 100.0,
+                                    onChanged: (val) {
+                                      onShapeChanged(
+                                        selectedShape!.copyWith(
+                                          strokeOpacity: (val / 100.0).clamp(
+                                            0.0,
+                                            1.0,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    onEditingComplete: () {
+                                      (onShapeChangeEnd ?? onShapeChanged)(
+                                        selectedShape!,
+                                      );
+                                    },
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    '${(selectedShape!.strokeOpacity * 100).round()}%',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              NixSlider(
+                                value: selectedShape!.strokeOpacity,
+                                min: 0.0,
+                                max: 1.0,
+                                onChangeStart: (_) => FocusManager
+                                    .instance
+                                    .primaryFocus
+                                    ?.unfocus(),
+                                onChanged: (val) {
+                                  onShapeChanged(
+                                    selectedShape!.copyWith(strokeOpacity: val),
+                                  );
+                                },
+                                onChangeEnd: (val) {
+                                  (onShapeChangeEnd ?? onShapeChanged)(
+                                    selectedShape!.copyWith(strokeOpacity: val),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 10),
+                              // Stroke Alignment: Inside, Center, Outside
+                              Text(
+                                'ALIGNMENT',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              _buildToggleGroup(
+                                selectedIndex:
+                                    switch (selectedShape!.strokeAlign) {
+                                      StrokeAlign.inside => 0,
+                                      StrokeAlign.center => 1,
+                                      StrokeAlign.outside => 2,
+                                    },
+                                onChanged: (index) {
+                                  FocusManager.instance.primaryFocus?.unfocus();
+                                  const aligns = [
+                                    StrokeAlign.inside,
+                                    StrokeAlign.center,
+                                    StrokeAlign.outside,
+                                  ];
+                                  final updated = selectedShape!.copyWith(
+                                    strokeAlign: aligns[index],
+                                  );
+                                  onShapeChanged(updated);
+                                  onShapeChangeEnd?.call(updated);
+                                },
+                                actions: [
+                                  M3EToggleButtonGroupAction(
+                                    label: Text(
+                                      'Inside',
+                                      style: theme.textTheme.labelSmall,
+                                    ),
+                                    tooltip: 'Inside Stroke',
+                                  ),
+                                  M3EToggleButtonGroupAction(
+                                    label: Text(
+                                      'Center',
+                                      style: theme.textTheme.labelSmall,
+                                    ),
+                                    tooltip: 'Center Stroke',
+                                  ),
+                                  M3EToggleButtonGroupAction(
+                                    label: Text(
+                                      'Outside',
+                                      style: theme.textTheme.labelSmall,
+                                    ),
+                                    tooltip: 'Outside Stroke',
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              // Stroke Style: Solid, Dashed, Dotted
+                              Text(
+                                'STYLE',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              _buildToggleGroup(
+                                selectedIndex:
+                                    switch (selectedShape!.strokeStyle) {
+                                      StrokeStyle.solid => 0,
+                                      StrokeStyle.dashed => 1,
+                                      StrokeStyle.dotted => 2,
+                                    },
+                                onChanged: (index) {
+                                  FocusManager.instance.primaryFocus?.unfocus();
+                                  final styles = [
+                                    StrokeStyle.solid,
+                                    StrokeStyle.dashed,
+                                    StrokeStyle.dotted,
+                                  ];
+                                  final updated = selectedShape!.copyWith(
+                                    strokeStyle: styles[index],
+                                  );
+                                  onShapeChanged(updated);
+                                  onShapeChangeEnd?.call(updated);
+                                },
+                                actions: [
+                                  M3EToggleButtonGroupAction(
+                                    label: Text(
+                                      'Solid',
+                                      style: theme.textTheme.labelSmall,
+                                    ),
+                                    tooltip: 'Solid Style',
+                                  ),
+                                  M3EToggleButtonGroupAction(
+                                    label: Text(
+                                      'Dashed',
+                                      style: theme.textTheme.labelSmall,
+                                    ),
+                                    tooltip: 'Dashed Style',
+                                  ),
+                                  M3EToggleButtonGroupAction(
+                                    label: Text(
+                                      'Dotted',
+                                      style: theme.textTheme.labelSmall,
+                                    ),
+                                    tooltip: 'Dotted Style',
+                                  ),
+                                ],
+                              ),
+                              if (selectedShape!.strokeStyle ==
+                                  StrokeStyle.dashed) ...[
+                                const SizedBox(height: 8),
+                                Row(
                                   children: [
                                     Text(
-                                      'Bend Offset: ${selectedShape!.curvature.round()} px',
+                                      'Dash Length',
+                                      style: theme.textTheme.labelSmall
+                                          ?.copyWith(
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      '${selectedShape!.strokeDashLength.round()} px',
                                       style: theme.textTheme.labelSmall
                                           ?.copyWith(
                                             color: colorScheme.onSurfaceVariant,
                                             fontWeight: FontWeight.bold,
                                           ),
                                     ),
-                                    NixSlider(
-                                      value: selectedShape!.curvature,
-                                      min: -150.0,
-                                      max: 150.0,
-                                      onChangeStart: (_) => FocusManager
-                                          .instance
-                                          .primaryFocus
-                                          ?.unfocus(),
-                                      onChanged: (val) {
-                                        onShapeChanged(
-                                          selectedShape!.copyWith(
-                                            curvature: val,
-                                            isCurved: val != 0.0,
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                NixSlider(
+                                  value: selectedShape!.strokeDashLength,
+                                  min: 1.0,
+                                  max: 40.0,
+                                  onChangeStart: (_) => FocusManager
+                                      .instance
+                                      .primaryFocus
+                                      ?.unfocus(),
+                                  onChanged: (val) {
+                                    onShapeChanged(
+                                      selectedShape!.copyWith(
+                                        strokeDashLength: val,
+                                      ),
+                                    );
+                                  },
+                                  onChangeEnd: (val) {
+                                    (onShapeChangeEnd ?? onShapeChanged)(
+                                      selectedShape!.copyWith(
+                                        strokeDashLength: val,
+                                      ),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Dash Gap',
+                                      style: theme.textTheme.labelSmall
+                                          ?.copyWith(
+                                            color: colorScheme.onSurfaceVariant,
                                           ),
-                                        );
-                                      },
-                                      onChangeEnd: (val) {
-                                        (onShapeChangeEnd ?? onShapeChanged)(
-                                          selectedShape!.copyWith(
-                                            curvature: val,
-                                            isCurved: val != 0.0,
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      '${selectedShape!.strokeDashGap.round()} px',
+                                      style: theme.textTheme.labelSmall
+                                          ?.copyWith(
+                                            color: colorScheme.onSurfaceVariant,
+                                            fontWeight: FontWeight.bold,
                                           ),
-                                        );
-                                      },
                                     ),
                                   ],
                                 ),
-                              ),
+                                const SizedBox(height: 4),
+                                NixSlider(
+                                  value: selectedShape!.strokeDashGap,
+                                  min: 1.0,
+                                  max: 40.0,
+                                  onChangeStart: (_) => FocusManager
+                                      .instance
+                                      .primaryFocus
+                                      ?.unfocus(),
+                                  onChanged: (val) {
+                                    onShapeChanged(
+                                      selectedShape!.copyWith(
+                                        strokeDashGap: val,
+                                      ),
+                                    );
+                                  },
+                                  onChangeEnd: (val) {
+                                    (onShapeChangeEnd ?? onShapeChanged)(
+                                      selectedShape!.copyWith(
+                                        strokeDashGap: val,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
                             ],
-                          ),
-                        ],
-                      ],
-                    ],
-                  ),
-                ),
+
+                            if (selectedShape!.type == ShapeType.line) ...[
+                              const SizedBox(height: 12),
+                              Text(
+                                'CAP STYLE',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              _buildToggleGroup(
+                                selectedIndex:
+                                    switch (selectedShape!.strokeCap) {
+                                      StrokeCap.butt => 0,
+                                      StrokeCap.round => 1,
+                                      StrokeCap.square => 2,
+                                    },
+                                onChanged: (index) {
+                                  final caps = [
+                                    StrokeCap.butt,
+                                    StrokeCap.round,
+                                    StrokeCap.square,
+                                  ];
+                                  onShapeChanged(
+                                    selectedShape!.copyWith(
+                                      strokeCap: caps[index],
+                                    ),
+                                  );
+                                },
+                                actions: [
+                                  M3EToggleButtonGroupAction(
+                                    icon: const Icon(
+                                      LucideIcons.minus,
+                                      size: 14,
+                                    ),
+                                    label: Text(
+                                      'Flat',
+                                      style: theme.textTheme.labelSmall,
+                                    ),
+                                    tooltip: 'Butt / Flat Cap',
+                                  ),
+                                  M3EToggleButtonGroupAction(
+                                    icon: const Icon(
+                                      LucideIcons.circle,
+                                      size: 12,
+                                    ),
+                                    label: Text(
+                                      'Round',
+                                      style: theme.textTheme.labelSmall,
+                                    ),
+                                    tooltip: 'Round Cap',
+                                  ),
+                                  M3EToggleButtonGroupAction(
+                                    icon: const Icon(
+                                      LucideIcons.square,
+                                      size: 12,
+                                    ),
+                                    label: Text(
+                                      'Square',
+                                      style: theme.textTheme.labelSmall,
+                                    ),
+                                    tooltip: 'Square Cap',
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'START & END POINTS',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Start Point',
+                                          style: theme.textTheme.labelSmall
+                                              ?.copyWith(
+                                                color: colorScheme
+                                                    .onSurfaceVariant,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Container(
+                                          height: 36,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: colorScheme
+                                                .surfaceContainerHighest,
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                          child: DropdownButtonHideUnderline(
+                                            child: DropdownButton<LineCapStyle>(
+                                              value: selectedShape!.startCap,
+                                              isExpanded: true,
+                                              isDense: true,
+                                              icon: const Icon(
+                                                LucideIcons.chevronDown,
+                                                size: 14,
+                                              ),
+                                              items: [
+                                                DropdownMenuItem(
+                                                  value: LineCapStyle.none,
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        LucideIcons.minus,
+                                                        size: 14,
+                                                      ),
+                                                      SizedBox(width: 4),
+                                                      Expanded(
+                                                        child: Text(
+                                                          'None',
+                                                          style: theme
+                                                              .textTheme
+                                                              .bodySmall,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                DropdownMenuItem(
+                                                  value: LineCapStyle.arrow,
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        LucideIcons.arrowLeft,
+                                                        size: 14,
+                                                      ),
+                                                      SizedBox(width: 4),
+                                                      Expanded(
+                                                        child: Text(
+                                                          'Arrow',
+                                                          style: theme
+                                                              .textTheme
+                                                              .bodySmall,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                DropdownMenuItem(
+                                                  value: LineCapStyle.circle,
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        LucideIcons.circle,
+                                                        size: 14,
+                                                      ),
+                                                      SizedBox(width: 4),
+                                                      Expanded(
+                                                        child: Text(
+                                                          'Circle',
+                                                          style: theme
+                                                              .textTheme
+                                                              .bodySmall,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                DropdownMenuItem(
+                                                  value: LineCapStyle.square,
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        LucideIcons.square,
+                                                        size: 14,
+                                                      ),
+                                                      SizedBox(width: 4),
+                                                      Expanded(
+                                                        child: Text(
+                                                          'Square',
+                                                          style: theme
+                                                              .textTheme
+                                                              .bodySmall,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                              onChanged: (val) {
+                                                if (val != null) {
+                                                  onShapeChanged(
+                                                    selectedShape!.copyWith(
+                                                      startCap: val,
+                                                    ),
+                                                  );
+                                                }
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'End Point',
+                                          style: theme.textTheme.labelSmall
+                                              ?.copyWith(
+                                                color: colorScheme
+                                                    .onSurfaceVariant,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Container(
+                                          height: 36,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: colorScheme
+                                                .surfaceContainerHighest,
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                          child: DropdownButtonHideUnderline(
+                                            child: DropdownButton<LineCapStyle>(
+                                              value: selectedShape!.endCap,
+                                              isExpanded: true,
+                                              isDense: true,
+                                              icon: const Icon(
+                                                LucideIcons.chevronDown,
+                                                size: 14,
+                                              ),
+                                              items: [
+                                                DropdownMenuItem(
+                                                  value: LineCapStyle.none,
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        LucideIcons.minus,
+                                                        size: 14,
+                                                      ),
+                                                      SizedBox(width: 4),
+                                                      Expanded(
+                                                        child: Text(
+                                                          'None',
+                                                          style: theme
+                                                              .textTheme
+                                                              .bodySmall,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                DropdownMenuItem(
+                                                  value: LineCapStyle.arrow,
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        LucideIcons.arrowRight,
+                                                        size: 14,
+                                                      ),
+                                                      SizedBox(width: 4),
+                                                      Expanded(
+                                                        child: Text(
+                                                          'Arrow',
+                                                          style: theme
+                                                              .textTheme
+                                                              .bodySmall,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                DropdownMenuItem(
+                                                  value: LineCapStyle.circle,
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        LucideIcons.circle,
+                                                        size: 14,
+                                                      ),
+                                                      SizedBox(width: 4),
+                                                      Expanded(
+                                                        child: Text(
+                                                          'Circle',
+                                                          style: theme
+                                                              .textTheme
+                                                              .bodySmall,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                DropdownMenuItem(
+                                                  value: LineCapStyle.square,
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        LucideIcons.square,
+                                                        size: 14,
+                                                      ),
+                                                      SizedBox(width: 4),
+                                                      Expanded(
+                                                        child: Text(
+                                                          'Square',
+                                                          style: theme
+                                                              .textTheme
+                                                              .bodySmall,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                              onChanged: (val) {
+                                                if (val != null) {
+                                                  onShapeChanged(
+                                                    selectedShape!.copyWith(
+                                                      endCap: val,
+                                                    ),
+                                                  );
+                                                }
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Text(
+                                    'CURVE / BEND',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.8,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Switch(
+                                    value: selectedShape!.isCurved,
+                                    activeTrackColor: colorScheme.primary,
+                                    onChanged: (val) {
+                                      FocusManager.instance.primaryFocus
+                                          ?.unfocus();
+                                      final updated = selectedShape!.copyWith(
+                                        isCurved: val,
+                                        curvature:
+                                            val &&
+                                                selectedShape!.curvature == 0.0
+                                            ? 30.0
+                                            : selectedShape!.curvature,
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                  ),
+                                ],
+                              ),
+                              if (selectedShape!.isCurved ||
+                                  selectedShape!.curvature != 0.0) ...[
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    const Icon(LucideIcons.spline, size: 16),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Bend Offset: ${selectedShape!.curvature.round()} px',
+                                            style: theme.textTheme.labelSmall
+                                                ?.copyWith(
+                                                  color: colorScheme
+                                                      .onSurfaceVariant,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                          ),
+                                          NixSlider(
+                                            value: selectedShape!.curvature,
+                                            min: -150.0,
+                                            max: 150.0,
+                                            onChangeStart: (_) => FocusManager
+                                                .instance
+                                                .primaryFocus
+                                                ?.unfocus(),
+                                            onChanged: (val) {
+                                              onShapeChanged(
+                                                selectedShape!.copyWith(
+                                                  curvature: val,
+                                                  isCurved: val != 0.0,
+                                                ),
+                                              );
+                                            },
+                                            onChangeEnd: (val) {
+                                              (onShapeChangeEnd ??
+                                                  onShapeChanged)(
+                                                selectedShape!.copyWith(
+                                                  curvature: val,
+                                                  isCurved: val != 0.0,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ],
+                        ),
+                      ),
 
                     // Text properties (If text shape selected)
                     if (selectedShape!.type == ShapeType.text)
@@ -1588,7 +2158,9 @@ class PropertiesSidebar extends StatelessWidget {
                             ),
                             const SizedBox(height: 8),
                             _TextContentInputField(
-                              key: ValueKey('text-content-${selectedShape!.id}'),
+                              key: ValueKey(
+                                'text-content-${selectedShape!.id}',
+                              ),
                               textContent: selectedShape!.textContent,
                               onChanged: (val) {
                                 onShapeChanged(
@@ -1596,544 +2168,564 @@ class PropertiesSidebar extends StatelessWidget {
                                 );
                               },
                               onCommit: () {
-                                (onShapeChangeEnd ?? onShapeChanged)(selectedShape!);
+                                (onShapeChangeEnd ?? onShapeChanged)(
+                                  selectedShape!,
+                                );
                               },
                             ),
-                      const SizedBox(height: 12),
-                      const SizedBox(height: 14),
-                      // Typography Header
-                      Text('TYPOGRAPHY', style: _getSectionHeaderStyle(theme)),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 3,
-                            child: _FontDropdown(
-                              selectedShape: selectedShape!,
-                              onShapeChanged: onShapeChanged,
-                              onShapeChangeEnd: onShapeChangeEnd,
+                            const SizedBox(height: 12),
+                            const SizedBox(height: 14),
+                            // Typography Header
+                            Text(
+                              'TYPOGRAPHY',
+                              style: _getSectionHeaderStyle(theme),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            flex: 2,
-                            child: _FontWeightDropdown(
-                              selectedShape: selectedShape!,
-                              onShapeChanged: onShapeChanged,
-                              onShapeChangeEnd: onShapeChangeEnd,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-
-                      // Font Styles (Bold, Italic, Underline, Strikethrough)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Tooltip(
-                              message: 'Bold',
-                              child: M3EButton(
-                                onPressed: () {
-                                  FocusManager.instance.primaryFocus?.unfocus();
-                                  final isNowBold = !selectedShape!.isBold;
-                                  final updated = selectedShape!.copyWith(
-                                    isBold: isNowBold,
-                                    fontWeight: isNowBold
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                  );
-                                  onShapeChanged(updated);
-                                  onShapeChangeEnd?.call(updated);
-                                },
-                                style: selectedShape!.isBold
-                                    ? M3EButtonStyle.filled
-                                    : M3EButtonStyle.tonal,
-                                size: M3EButtonSize.sm,
-                                child: const Icon(RemixIcons.bold, size: 16),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Tooltip(
-                              message: 'Italic',
-                              child: M3EButton(
-                                onPressed: () {
-                                  FocusManager.instance.primaryFocus?.unfocus();
-                                  final updated = selectedShape!.copyWith(
-                                    isItalic: !selectedShape!.isItalic,
-                                  );
-                                  onShapeChanged(updated);
-                                  onShapeChangeEnd?.call(updated);
-                                },
-                                style: selectedShape!.isItalic
-                                    ? M3EButtonStyle.filled
-                                    : M3EButtonStyle.tonal,
-                                size: M3EButtonSize.sm,
-                                child: const Icon(RemixIcons.italic, size: 16),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Tooltip(
-                              message: 'Underline',
-                              child: M3EButton(
-                                onPressed: () {
-                                  FocusManager.instance.primaryFocus?.unfocus();
-                                  final updated = selectedShape!.copyWith(
-                                    isUnderline: !selectedShape!.isUnderline,
-                                  );
-                                  onShapeChanged(updated);
-                                  onShapeChangeEnd?.call(updated);
-                                },
-                                style: selectedShape!.isUnderline
-                                    ? M3EButtonStyle.filled
-                                    : M3EButtonStyle.tonal,
-                                size: M3EButtonSize.sm,
-                                child: const Icon(
-                                  RemixIcons.underline,
-                                  size: 16,
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: _FontDropdown(
+                                    selectedShape: selectedShape!,
+                                    onShapeChanged: onShapeChanged,
+                                    onShapeChangeEnd: onShapeChangeEnd,
+                                  ),
                                 ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Tooltip(
-                              message: 'Strikethrough',
-                              child: M3EButton(
-                                onPressed: () {
-                                  FocusManager.instance.primaryFocus?.unfocus();
-                                  final updated = selectedShape!.copyWith(
-                                    isStrikethrough:
-                                        !selectedShape!.isStrikethrough,
-                                  );
-                                  onShapeChanged(updated);
-                                  onShapeChangeEnd?.call(updated);
-                                },
-                                style: selectedShape!.isStrikethrough
-                                    ? M3EButtonStyle.filled
-                                    : M3EButtonStyle.tonal,
-                                size: M3EButtonSize.sm,
-                                child: const Icon(
-                                  RemixIcons.strikethrough,
-                                  size: 16,
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  flex: 2,
+                                  child: _FontWeightDropdown(
+                                    selectedShape: selectedShape!,
+                                    onShapeChanged: onShapeChanged,
+                                    onShapeChangeEnd: onShapeChangeEnd,
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
+                            const SizedBox(height: 10),
 
-                      // Horizontal Text Alignment
-                      Text(
-                        'TEXT ALIGNMENT',
-                        style: _getSectionHeaderStyle(theme),
-                      ),
-                      const SizedBox(height: 8),
-                      _buildToggleGroup(
-                        selectedIndex: switch (selectedShape!.textAlign) {
-                          TextAlign.left => 0,
-                          TextAlign.center => 1,
-                          TextAlign.right => 2,
-                          TextAlign.justify => 3,
-                          _ => 0,
-                        },
-                        onChanged: (index) {
-                          FocusManager.instance.primaryFocus?.unfocus();
-                          const aligns = [
-                            TextAlign.left,
-                            TextAlign.center,
-                            TextAlign.right,
-                            TextAlign.justify,
-                          ];
-                          final updated = selectedShape!.copyWith(
-                            textAlign: aligns[index],
-                          );
-                          onShapeChanged(updated);
-                          onShapeChangeEnd?.call(updated);
-                        },
-                        actions: const [
-                          M3EToggleButtonGroupAction(
-                            icon: Icon(RemixIcons.align_left, size: 16),
-                            tooltip: 'Text Align Left',
-                          ),
-                          M3EToggleButtonGroupAction(
-                            icon: Icon(RemixIcons.align_center, size: 16),
-                            tooltip: 'Text Align Center',
-                          ),
-                          M3EToggleButtonGroupAction(
-                            icon: Icon(RemixIcons.align_right, size: 16),
-                            tooltip: 'Text Align Right',
-                          ),
-                          M3EToggleButtonGroupAction(
-                            icon: Icon(RemixIcons.align_justify, size: 16),
-                            tooltip: 'Text Justify',
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
+                            // Font Styles (Bold, Italic, Underline, Strikethrough)
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Tooltip(
+                                    message: 'Bold',
+                                    child: M3EButton(
+                                      onPressed: () {
+                                        FocusManager.instance.primaryFocus
+                                            ?.unfocus();
+                                        final isNowBold =
+                                            !selectedShape!.isBold;
+                                        final updated = selectedShape!.copyWith(
+                                          isBold: isNowBold,
+                                          fontWeight: isNowBold
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
+                                        );
+                                        onShapeChanged(updated);
+                                        onShapeChangeEnd?.call(updated);
+                                      },
+                                      style: selectedShape!.isBold
+                                          ? M3EButtonStyle.filled
+                                          : M3EButtonStyle.tonal,
+                                      size: M3EButtonSize.sm,
+                                      child: const Icon(
+                                        RemixIcons.bold,
+                                        size: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Tooltip(
+                                    message: 'Italic',
+                                    child: M3EButton(
+                                      onPressed: () {
+                                        FocusManager.instance.primaryFocus
+                                            ?.unfocus();
+                                        final updated = selectedShape!.copyWith(
+                                          isItalic: !selectedShape!.isItalic,
+                                        );
+                                        onShapeChanged(updated);
+                                        onShapeChangeEnd?.call(updated);
+                                      },
+                                      style: selectedShape!.isItalic
+                                          ? M3EButtonStyle.filled
+                                          : M3EButtonStyle.tonal,
+                                      size: M3EButtonSize.sm,
+                                      child: const Icon(
+                                        RemixIcons.italic,
+                                        size: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Tooltip(
+                                    message: 'Underline',
+                                    child: M3EButton(
+                                      onPressed: () {
+                                        FocusManager.instance.primaryFocus
+                                            ?.unfocus();
+                                        final updated = selectedShape!.copyWith(
+                                          isUnderline:
+                                              !selectedShape!.isUnderline,
+                                        );
+                                        onShapeChanged(updated);
+                                        onShapeChangeEnd?.call(updated);
+                                      },
+                                      style: selectedShape!.isUnderline
+                                          ? M3EButtonStyle.filled
+                                          : M3EButtonStyle.tonal,
+                                      size: M3EButtonSize.sm,
+                                      child: const Icon(
+                                        RemixIcons.underline,
+                                        size: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Tooltip(
+                                    message: 'Strikethrough',
+                                    child: M3EButton(
+                                      onPressed: () {
+                                        FocusManager.instance.primaryFocus
+                                            ?.unfocus();
+                                        final updated = selectedShape!.copyWith(
+                                          isStrikethrough:
+                                              !selectedShape!.isStrikethrough,
+                                        );
+                                        onShapeChanged(updated);
+                                        onShapeChangeEnd?.call(updated);
+                                      },
+                                      style: selectedShape!.isStrikethrough
+                                          ? M3EButtonStyle.filled
+                                          : M3EButtonStyle.tonal,
+                                      size: M3EButtonSize.sm,
+                                      child: const Icon(
+                                        RemixIcons.strikethrough,
+                                        size: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
 
-                      // Vertical Text Alignment
-                      Text(
-                        'VERTICAL ALIGNMENT',
-                        style: _getSectionHeaderStyle(theme),
-                      ),
-                      const SizedBox(height: 8),
-                      _buildToggleGroup(
-                        selectedIndex:
-                            switch (selectedShape!.textVerticalAlign) {
-                              TextVerticalAlign.top => 0,
-                              TextVerticalAlign.center => 1,
-                              TextVerticalAlign.bottom => 2,
-                            },
-                        onChanged: (index) {
-                          FocusManager.instance.primaryFocus?.unfocus();
-                          const aligns = [
-                            TextVerticalAlign.top,
-                            TextVerticalAlign.center,
-                            TextVerticalAlign.bottom,
-                          ];
-                          final updated = selectedShape!.copyWith(
-                            textVerticalAlign: aligns[index],
-                          );
-                          onShapeChanged(updated);
-                          onShapeChangeEnd?.call(updated);
-                        },
-                        actions: const [
-                          M3EToggleButtonGroupAction(
-                            icon: Icon(RemixIcons.align_top, size: 16),
-                            tooltip: 'Text Align Top',
-                          ),
-                          M3EToggleButtonGroupAction(
-                            icon: Icon(RemixIcons.align_vertically, size: 16),
-                            tooltip: 'Text Align Middle',
-                          ),
-                          M3EToggleButtonGroupAction(
-                            icon: Icon(RemixIcons.align_bottom, size: 16),
-                            tooltip: 'Text Align Bottom',
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Text Case Transformation
-                      Text('TEXT CASE', style: _getSectionHeaderStyle(theme)),
-                      const SizedBox(height: 8),
-                      _buildToggleGroup(
-                        selectedIndex: switch (selectedShape!.textCase) {
-                          TextCase.original => 0,
-                          TextCase.uppercase => 1,
-                          TextCase.lowercase => 2,
-                          TextCase.titleCase => 3,
-                        },
-                        onChanged: (index) {
-                          FocusManager.instance.primaryFocus?.unfocus();
-                          const cases = [
-                            TextCase.original,
-                            TextCase.uppercase,
-                            TextCase.lowercase,
-                            TextCase.titleCase,
-                          ];
-                          final updated = selectedShape!.copyWith(
-                            textCase: cases[index],
-                          );
-                          onShapeChanged(updated);
-                          onShapeChangeEnd?.call(updated);
-                        },
-                        actions: const [
-                          M3EToggleButtonGroupAction(
-                            label: Text(
-                              'Aa',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            // Horizontal Text Alignment
+                            Text(
+                              'TEXT ALIGNMENT',
+                              style: _getSectionHeaderStyle(theme),
                             ),
-                            tooltip: 'As Typed',
-                          ),
-                          M3EToggleButtonGroupAction(
-                            label: Text(
-                              'AA',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            tooltip: 'UPPERCASE',
-                          ),
-                          M3EToggleButtonGroupAction(
-                            label: Text(
-                              'aa',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            tooltip: 'lowercase',
-                          ),
-                          M3EToggleButtonGroupAction(
-                            label: Text(
-                              'Ab',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            tooltip: 'Title Case',
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Font Size
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Font Size: ${selectedShape!.fontSize.round()} px',
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          SizedBox(
-                            width: 64,
-                            child: _buildNumberField(
-                              context,
-                              'px',
-                              selectedShape!.fontSize,
-                              (val) {
+                            const SizedBox(height: 8),
+                            _buildToggleGroup(
+                              selectedIndex: switch (selectedShape!.textAlign) {
+                                TextAlign.left => 0,
+                                TextAlign.center => 1,
+                                TextAlign.right => 2,
+                                TextAlign.justify => 3,
+                                _ => 0,
+                              },
+                              onChanged: (index) {
+                                FocusManager.instance.primaryFocus?.unfocus();
+                                const aligns = [
+                                  TextAlign.left,
+                                  TextAlign.center,
+                                  TextAlign.right,
+                                  TextAlign.justify,
+                                ];
                                 final updated = selectedShape!.copyWith(
-                                  fontSize: val.clamp(8, 200),
+                                  textAlign: aligns[index],
                                 );
                                 onShapeChanged(updated);
                                 onShapeChangeEnd?.call(updated);
                               },
+                              actions: const [
+                                M3EToggleButtonGroupAction(
+                                  icon: Icon(RemixIcons.align_left, size: 16),
+                                  tooltip: 'Text Align Left',
+                                ),
+                                M3EToggleButtonGroupAction(
+                                  icon: Icon(RemixIcons.align_center, size: 16),
+                                  tooltip: 'Text Align Center',
+                                ),
+                                M3EToggleButtonGroupAction(
+                                  icon: Icon(RemixIcons.align_right, size: 16),
+                                  tooltip: 'Text Align Right',
+                                ),
+                                M3EToggleButtonGroupAction(
+                                  icon: Icon(
+                                    RemixIcons.align_justify,
+                                    size: 16,
+                                  ),
+                                  tooltip: 'Text Justify',
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      NixSlider(
-                        value: selectedShape!.fontSize.clamp(8.0, 144.0),
-                        min: 8.0,
-                        max: 144.0,
-                        onChangeStart: (_) =>
-                            FocusManager.instance.primaryFocus?.unfocus(),
-                        onChanged: (val) {
-                          onShapeChanged(
-                            selectedShape!.copyWith(fontSize: val),
-                          );
-                        },
-                        onChangeEnd: (val) {
-                          (onShapeChangeEnd ?? onShapeChanged)(
-                            selectedShape!.copyWith(fontSize: val),
-                          );
-                        },
-                      ),
+                            const SizedBox(height: 14),
 
-                      const SizedBox(height: 12),
-                      // Letter Spacing (Tracking)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Letter Spacing: ${selectedShape!.letterSpacing.toStringAsFixed(1)}',
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            // Vertical Text Alignment
+                            Text(
+                              'VERTICAL ALIGNMENT',
+                              style: _getSectionHeaderStyle(theme),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          SizedBox(
-                            width: 64,
-                            child: _buildNumberField(
-                              context,
-                              'sp',
-                              selectedShape!.letterSpacing,
-                              (val) {
+                            const SizedBox(height: 8),
+                            _buildToggleGroup(
+                              selectedIndex:
+                                  switch (selectedShape!.textVerticalAlign) {
+                                    TextVerticalAlign.top => 0,
+                                    TextVerticalAlign.center => 1,
+                                    TextVerticalAlign.bottom => 2,
+                                  },
+                              onChanged: (index) {
+                                FocusManager.instance.primaryFocus?.unfocus();
+                                const aligns = [
+                                  TextVerticalAlign.top,
+                                  TextVerticalAlign.center,
+                                  TextVerticalAlign.bottom,
+                                ];
                                 final updated = selectedShape!.copyWith(
-                                  letterSpacing: val.clamp(-4, 30),
+                                  textVerticalAlign: aligns[index],
                                 );
                                 onShapeChanged(updated);
                                 onShapeChangeEnd?.call(updated);
                               },
+                              actions: const [
+                                M3EToggleButtonGroupAction(
+                                  icon: Icon(RemixIcons.align_top, size: 16),
+                                  tooltip: 'Text Align Top',
+                                ),
+                                M3EToggleButtonGroupAction(
+                                  icon: Icon(
+                                    RemixIcons.align_vertically,
+                                    size: 16,
+                                  ),
+                                  tooltip: 'Text Align Middle',
+                                ),
+                                M3EToggleButtonGroupAction(
+                                  icon: Icon(RemixIcons.align_bottom, size: 16),
+                                  tooltip: 'Text Align Bottom',
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      NixSlider(
-                        value: selectedShape!.letterSpacing.clamp(-2.0, 20.0),
-                        min: -2.0,
-                        max: 20.0,
-                        onChangeStart: (_) =>
-                            FocusManager.instance.primaryFocus?.unfocus(),
-                        onChanged: (val) {
-                          onShapeChanged(
-                            selectedShape!.copyWith(letterSpacing: val),
-                          );
-                        },
-                        onChangeEnd: (val) {
-                          (onShapeChangeEnd ?? onShapeChanged)(
-                            selectedShape!.copyWith(letterSpacing: val),
-                          );
-                        },
-                      ),
+                            const SizedBox(height: 14),
 
-                      const SizedBox(height: 12),
-                      // Line Height (Leading)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Line Height: ${selectedShape!.lineHeight.toStringAsFixed(2)}x',
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            // Text Case Transformation
+                            Text(
+                              'TEXT CASE',
+                              style: _getSectionHeaderStyle(theme),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          SizedBox(
-                            width: 64,
-                            child: _buildNumberField(
-                              context,
-                              'lh',
-                              selectedShape!.lineHeight,
-                              (val) {
+                            const SizedBox(height: 8),
+                            _buildToggleGroup(
+                              selectedIndex: switch (selectedShape!.textCase) {
+                                TextCase.original => 0,
+                                TextCase.uppercase => 1,
+                                TextCase.lowercase => 2,
+                                TextCase.titleCase => 3,
+                              },
+                              onChanged: (index) {
+                                FocusManager.instance.primaryFocus?.unfocus();
+                                const cases = [
+                                  TextCase.original,
+                                  TextCase.uppercase,
+                                  TextCase.lowercase,
+                                  TextCase.titleCase,
+                                ];
                                 final updated = selectedShape!.copyWith(
-                                  lineHeight: val.clamp(0.5, 3.5),
+                                  textCase: cases[index],
                                 );
                                 onShapeChanged(updated);
                                 onShapeChangeEnd?.call(updated);
                               },
+                              actions: [
+                                M3EToggleButtonGroupAction(
+                                  label: Text(
+                                    'Aa',
+                                    style: theme.textTheme.labelMedium
+                                        ?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
+                                  tooltip: 'As Typed',
+                                ),
+                                M3EToggleButtonGroupAction(
+                                  label: Text(
+                                    'AA',
+                                    style: theme.textTheme.labelMedium
+                                        ?.copyWith(fontWeight: FontWeight.w900),
+                                  ),
+                                  tooltip: 'UPPERCASE',
+                                ),
+                                M3EToggleButtonGroupAction(
+                                  label: Text(
+                                    'aa',
+                                    style: theme.textTheme.labelMedium
+                                        ?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
+                                  tooltip: 'lowercase',
+                                ),
+                                M3EToggleButtonGroupAction(
+                                  label: Text(
+                                    'Ab',
+                                    style: theme.textTheme.labelMedium
+                                        ?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
+                                  tooltip: 'Title Case',
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      NixSlider(
-                        value: selectedShape!.lineHeight.clamp(0.8, 3.0),
-                        min: 0.8,
-                        max: 3.0,
-                        onChangeStart: (_) =>
-                            FocusManager.instance.primaryFocus?.unfocus(),
-                        onChanged: (val) {
-                          onShapeChanged(
-                            selectedShape!.copyWith(lineHeight: val),
-                          );
-                        },
-                        onChangeEnd: (val) {
-                          (onShapeChangeEnd ?? onShapeChanged)(
-                            selectedShape!.copyWith(lineHeight: val),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
+                            const SizedBox(height: 14),
 
-                // Section: Export Selection (Figma-Exact Inspector Section)
-                _buildSectionCard(
-                  context,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            'EXPORT',
-                            style: _getSectionHeaderStyle(theme),
-                          ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
+                            // Font Size
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'Font Size: ${selectedShape!.fontSize.round()} px',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  width: 64,
+                                  child: _buildNumberField(
+                                    context,
+                                    'px',
+                                    selectedShape!.fontSize,
+                                    (val) {
+                                      final updated = selectedShape!.copyWith(
+                                        fontSize: val.clamp(8, 200),
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                  ),
+                                ),
+                              ],
                             ),
-                            decoration: BoxDecoration(
-                              color: colorScheme.surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(6),
+                            const SizedBox(height: 6),
+                            NixSlider(
+                              value: selectedShape!.fontSize.clamp(8.0, 144.0),
+                              min: 8.0,
+                              max: 144.0,
+                              onChangeStart: (_) =>
+                                  FocusManager.instance.primaryFocus?.unfocus(),
+                              onChanged: (val) {
+                                onShapeChanged(
+                                  selectedShape!.copyWith(fontSize: val),
+                                );
+                              },
+                              onChangeEnd: (val) {
+                                (onShapeChangeEnd ?? onShapeChanged)(
+                                  selectedShape!.copyWith(fontSize: val),
+                                );
+                              },
                             ),
-                            child: Text(
-                              'SVG',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.primary,
+
+                            const SizedBox(height: 12),
+                            // Letter Spacing (Tracking)
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'Letter Spacing: ${selectedShape!.letterSpacing.toStringAsFixed(1)}',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  width: 64,
+                                  child: _buildNumberField(
+                                    context,
+                                    'sp',
+                                    selectedShape!.letterSpacing,
+                                    (val) {
+                                      final updated = selectedShape!.copyWith(
+                                        letterSpacing: val.clamp(-4, 30),
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            NixSlider(
+                              value: selectedShape!.letterSpacing.clamp(
+                                -2.0,
+                                20.0,
                               ),
+                              min: -2.0,
+                              max: 20.0,
+                              onChangeStart: (_) =>
+                                  FocusManager.instance.primaryFocus?.unfocus(),
+                              onChanged: (val) {
+                                onShapeChanged(
+                                  selectedShape!.copyWith(letterSpacing: val),
+                                );
+                              },
+                              onChangeEnd: (val) {
+                                (onShapeChangeEnd ?? onShapeChanged)(
+                                  selectedShape!.copyWith(letterSpacing: val),
+                                );
+                              },
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Icon(
-                            _getShapeIcon(selectedShape!.type),
-                            size: 14,
-                            color: colorScheme.primary,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              selectedShape!.name,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: colorScheme.onSurface,
-                              ),
+
+                            const SizedBox(height: 12),
+                            // Line Height (Leading)
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'Line Height: ${selectedShape!.lineHeight.toStringAsFixed(2)}x',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  width: 64,
+                                  child: _buildNumberField(
+                                    context,
+                                    'lh',
+                                    selectedShape!.lineHeight,
+                                    (val) {
+                                      final updated = selectedShape!.copyWith(
+                                        lineHeight: val.clamp(0.5, 3.5),
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          Text(
-                            '${selectedShape!.rect.width.round()} × ${selectedShape!.rect.height.round()} px',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              fontFamily: 'monospace',
-                              color: colorScheme.onSurfaceVariant,
+                            const SizedBox(height: 6),
+                            NixSlider(
+                              value: selectedShape!.lineHeight.clamp(0.8, 3.0),
+                              min: 0.8,
+                              max: 3.0,
+                              onChangeStart: (_) =>
+                                  FocusManager.instance.primaryFocus?.unfocus(),
+                              onChanged: (val) {
+                                onShapeChanged(
+                                  selectedShape!.copyWith(lineHeight: val),
+                                );
+                              },
+                              onChangeEnd: (val) {
+                                (onShapeChangeEnd ?? onShapeChanged)(
+                                  selectedShape!.copyWith(lineHeight: val),
+                                );
+                              },
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        child: M3EButton.icon(
-                          onPressed: onExportSvg,
-                          style: M3EButtonStyle.tonal,
-                          size: M3EButtonSize.sm,
-                          icon: Icon(
-                            RemixIcons.download_2_line,
-                            size: 14,
-                            color: colorScheme.primary,
-                          ),
-                          label: Text(
-                            'Export SVG (${selectedShape!.name})',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.primary,
-                            ),
-                          ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+
+                    // Section: Export Selection (Figma-Exact Inspector Section)
+                    _buildSectionCard(
+                      context,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'EXPORT',
+                                style: _getSectionHeaderStyle(theme),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'SVG',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: colorScheme.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Icon(
+                                _getShapeIcon(selectedShape!.type),
+                                size: 14,
+                                color: colorScheme.primary,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  selectedShape!.name,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '${selectedShape!.rect.width.round()} × ${selectedShape!.rect.height.round()} px',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  fontFamily: 'monospace',
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: M3EButton.icon(
+                              onPressed: onExportSvg,
+                              style: M3EButtonStyle.tonal,
+                              size: M3EButtonSize.sm,
+                              icon: Icon(
+                                RemixIcons.download_2_line,
+                                size: 14,
+                                color: colorScheme.primary,
+                              ),
+                              label: Text(
+                                'Export SVG (${selectedShape!.name})',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.primary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
         ),
       ),
     );
@@ -2142,21 +2734,21 @@ class PropertiesSidebar extends StatelessWidget {
   Widget _buildSectionCard(
     BuildContext context, {
     required Widget child,
-    EdgeInsetsGeometry padding = const EdgeInsets.all(12),
+    EdgeInsetsGeometry padding = const EdgeInsets.symmetric(
+      horizontal: 8,
+      vertical: 6,
+    ),
   }) {
     final colorScheme = Theme.of(context).colorScheme;
     return Card(
       elevation: 0,
       color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(12)),
+        borderRadius: BorderRadius.all(Radius.circular(8)),
         side: BorderSide.none,
       ),
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Padding(
-        padding: padding,
-        child: child,
-      ),
+      margin: const EdgeInsets.only(bottom: 6),
+      child: Padding(padding: padding, child: child),
     );
   }
 
@@ -2166,22 +2758,21 @@ class PropertiesSidebar extends StatelessWidget {
           fontWeight: FontWeight.w900,
           letterSpacing: 1.2,
         ) ??
-        TextStyle(
-          color: theme.colorScheme.primary,
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 1.2,
-        );
+        const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.2);
   }
 
   Widget _buildToggleGroup({
     required int selectedIndex,
     required ValueChanged<int> onChanged,
     required List<M3EToggleButtonGroupAction> actions,
-    M3EButtonStyle style = M3EButtonStyle.tonal,
+    M3EButtonStyle style = M3EButtonStyle.filled,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final theme = Theme.of(context);
+        final colorScheme = theme.colorScheme;
+        final isDark = theme.brightness == Brightness.dark;
+
         final count = actions.length;
         final totalGaps = (count - 1) * 2.0;
         final itemWidth = ((constraints.maxWidth - totalGaps) / count)
@@ -2192,21 +2783,113 @@ class PropertiesSidebar extends StatelessWidget {
           width: itemWidth,
         );
 
+        final groupDecoration = M3EToggleButtonDecoration(
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return colorScheme.primary;
+            }
+            if (states.contains(WidgetState.hovered)) {
+              return isDark
+                  ? colorScheme.surfaceContainerHighest
+                  : colorScheme.surfaceContainer;
+            }
+            return isDark
+                ? colorScheme.surfaceContainerHigh
+                : colorScheme.surfaceContainerLow;
+          }),
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return colorScheme.onPrimary;
+            }
+            return colorScheme.onSurfaceVariant;
+          }),
+          side: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return BorderSide(color: colorScheme.primary, width: 1);
+            }
+            return BorderSide(
+              color: colorScheme.outlineVariant.withValues(
+                alpha: isDark ? 0.4 : 0.25,
+              ),
+              width: 1,
+            );
+          }),
+        );
+
+        final mappedActions = actions.asMap().entries.map((entry) {
+          final action = entry.value;
+
+          Widget? uncheckedLabel = action.label;
+          Widget? checkedLabel = action.checkedLabel;
+          if (uncheckedLabel is Text) {
+            final textStr = uncheckedLabel.data ?? '';
+            final originalStyle = uncheckedLabel.style ??
+                theme.textTheme.labelSmall ??
+                const TextStyle();
+            uncheckedLabel = Text(
+              textStr,
+              style: originalStyle.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            );
+            checkedLabel ??= Text(
+              textStr,
+              style: originalStyle.copyWith(
+                color: colorScheme.onPrimary,
+                fontWeight: FontWeight.bold,
+              ),
+            );
+          }
+
+          Widget? uncheckedIcon = action.icon;
+          Widget? checkedIcon = action.checkedIcon;
+          if (uncheckedIcon is Icon) {
+            checkedIcon ??= Icon(
+              uncheckedIcon.icon,
+              size: uncheckedIcon.size ?? 16,
+              color: colorScheme.onPrimary,
+            );
+            uncheckedIcon = Icon(
+              uncheckedIcon.icon,
+              size: uncheckedIcon.size ?? 16,
+              color: colorScheme.onSurfaceVariant,
+            );
+          }
+
+          return M3EToggleButtonGroupAction(
+            icon: uncheckedIcon,
+            checkedIcon: checkedIcon,
+            label: uncheckedLabel,
+            checkedLabel: checkedLabel,
+            checked: action.checked,
+            enabled: action.enabled,
+            decoration: action.decoration ?? groupDecoration,
+            width: action.width,
+            focusNode: action.focusNode,
+            autofocus: action.autofocus,
+            onFocusChange: action.onFocusChange,
+            semanticLabel: action.semanticLabel,
+            tooltip: action.tooltip,
+            enableFeedback: action.enableFeedback,
+          );
+        }).toList();
+
         return M3EToggleButtonGroup(
           type: M3EButtonGroupType.connected,
-
           style: style,
           size: size,
           shape: M3EButtonShape.round,
           density: M3EButtonGroupDensity.compact,
           overflow: M3EButtonGroupOverflow.none,
           selectedIndex: selectedIndex,
+          decoration: groupDecoration,
           onSelectedIndexChanged: (idx) {
             if (idx != null) {
               onChanged(idx);
             }
           },
-          actions: actions,
+          actions: mappedActions,
         );
       },
     );
@@ -2218,6 +2901,10 @@ class PropertiesSidebar extends StatelessWidget {
     double value,
     ValueChanged<double> onChanged, {
     VoidCallback? onEditingComplete,
+    double? min,
+    double? max,
+    double? step,
+    bool? isInteger,
   }) {
     return _NumberInputField(
       key: ValueKey('$label-${selectedShape?.id}'),
@@ -2225,6 +2912,10 @@ class PropertiesSidebar extends StatelessWidget {
       value: value,
       onChanged: onChanged,
       onEditingComplete: onEditingComplete,
+      min: min,
+      max: max,
+      step: step,
+      isInteger: isInteger,
     );
   }
 
@@ -2274,7 +2965,7 @@ class PropertiesSidebar extends StatelessWidget {
 
     return ListView(
       key: const ValueKey('properties-sidebar-canvas-inspector'),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       children: [
         // Header M3 & Quick Actions
         _buildSectionCard(
@@ -2363,7 +3054,10 @@ class PropertiesSidebar extends StatelessWidget {
                   outerRadius: 10.0,
                   innerRadius: 4.0,
                   gap: 2.0,
-                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 2,
+                    vertical: 6,
+                  ),
                   color: colorScheme.surfaceContainerHigh,
                   hoverColor: colorScheme.surfaceContainerHighest,
                   pressedRadius: 8.0,
@@ -2387,8 +3081,7 @@ class PropertiesSidebar extends StatelessWidget {
                           child: Text(
                             'Select (V)',
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 11,
+                            style: theme.textTheme.labelSmall?.copyWith(
                               fontWeight: !isPanMode
                                   ? FontWeight.bold
                                   : FontWeight.normal,
@@ -2418,8 +3111,7 @@ class PropertiesSidebar extends StatelessWidget {
                           child: Text(
                             'Move (H)',
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 11,
+                            style: theme.textTheme.labelSmall?.copyWith(
                               fontWeight: isPanMode
                                   ? FontWeight.bold
                                   : FontWeight.normal,
@@ -2455,7 +3147,7 @@ class PropertiesSidebar extends StatelessWidget {
                             child: Text(
                               'Center',
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 12),
+                              style: theme.textTheme.labelMedium,
                             ),
                           ),
                         ],
@@ -2479,7 +3171,7 @@ class PropertiesSidebar extends StatelessWidget {
                             child: Text(
                               'Fit',
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 12),
+                              style: theme.textTheme.labelMedium,
                             ),
                           ),
                         ],
@@ -2588,7 +3280,10 @@ class PropertiesSidebar extends StatelessWidget {
                   outerRadius: 10.0,
                   innerRadius: 4.0,
                   gap: 2.0,
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 6,
+                  ),
                   color: colorScheme.surfaceContainerHigh,
                   hoverColor: colorScheme.surfaceContainerHighest,
                 ),
@@ -2596,8 +3291,7 @@ class PropertiesSidebar extends StatelessWidget {
                   Center(
                     child: Text(
                       '50%',
-                      style: TextStyle(
-                        fontSize: 11,
+                      style: theme.textTheme.labelSmall?.copyWith(
                         fontWeight: (zoomScale - 0.5).abs() < 0.05
                             ? FontWeight.bold
                             : FontWeight.normal,
@@ -2610,8 +3304,7 @@ class PropertiesSidebar extends StatelessWidget {
                   Center(
                     child: Text(
                       '100%',
-                      style: TextStyle(
-                        fontSize: 11,
+                      style: theme.textTheme.labelSmall?.copyWith(
                         fontWeight: (zoomScale - 1.0).abs() < 0.05
                             ? FontWeight.bold
                             : FontWeight.normal,
@@ -2624,8 +3317,7 @@ class PropertiesSidebar extends StatelessWidget {
                   Center(
                     child: Text(
                       '200%',
-                      style: TextStyle(
-                        fontSize: 11,
+                      style: theme.textTheme.labelSmall?.copyWith(
                         fontWeight: (zoomScale - 2.0).abs() < 0.05
                             ? FontWeight.bold
                             : FontWeight.normal,
@@ -2638,8 +3330,7 @@ class PropertiesSidebar extends StatelessWidget {
                   Center(
                     child: Text(
                       'Fit',
-                      style: TextStyle(
-                        fontSize: 11,
+                      style: theme.textTheme.labelSmall?.copyWith(
                         fontWeight: FontWeight.normal,
                         color: colorScheme.onSurfaceVariant,
                       ),
@@ -2691,7 +3382,10 @@ class PropertiesSidebar extends StatelessWidget {
 
               // Color Chip + Hex Field + Opacity
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: colorScheme.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(12),
@@ -2745,7 +3439,10 @@ class PropertiesSidebar extends StatelessWidget {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(6),
@@ -2784,7 +3481,9 @@ class PropertiesSidebar extends StatelessWidget {
                         border: Border.all(
                           color: isSelected
                               ? colorScheme.primary
-                              : colorScheme.outlineVariant.withValues(alpha: 0.4),
+                              : colorScheme.outlineVariant.withValues(
+                                  alpha: 0.4,
+                                ),
                           width: isSelected ? 2.5 : 1.0,
                         ),
                         boxShadow: null,
@@ -2849,21 +3548,21 @@ class PropertiesSidebar extends StatelessWidget {
                     final spacings = [10.0, 20.0, 40.0, 80.0];
                     onGridSpacingChanged?.call(spacings[idx]);
                   },
-                  actions: const [
+                  actions: [
                     M3EToggleButtonGroupAction(
-                      label: Text('10', style: TextStyle(fontSize: 11)),
+                      label: Text('10', style: theme.textTheme.labelSmall),
                       tooltip: '10px Grid',
                     ),
                     M3EToggleButtonGroupAction(
-                      label: Text('20', style: TextStyle(fontSize: 11)),
+                      label: Text('20', style: theme.textTheme.labelSmall),
                       tooltip: '20px Grid',
                     ),
                     M3EToggleButtonGroupAction(
-                      label: Text('40', style: TextStyle(fontSize: 11)),
+                      label: Text('40', style: theme.textTheme.labelSmall),
                       tooltip: '40px Grid',
                     ),
                     M3EToggleButtonGroupAction(
-                      label: Text('80', style: TextStyle(fontSize: 11)),
+                      label: Text('80', style: theme.textTheme.labelSmall),
                       tooltip: '80px Grid',
                     ),
                   ],
@@ -2885,24 +3584,34 @@ class PropertiesSidebar extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _NumberInputField(
-                      key: ValueKey('canvas-w-${canvasSize?.width ?? 3200}'),
+                      key: const ValueKey('canvas-w'),
                       label: 'W',
                       value: canvasSize?.width ?? 3200,
+                      min: 100.0,
+                      max: 10000.0,
+                      isInteger: true,
                       onChanged: (newW) {
                         final curH = canvasSize?.height ?? 2400.0;
-                        onCanvasSizeChanged?.call(Size(newW.clamp(100.0, 10000.0), curH));
+                        onCanvasSizeChanged?.call(
+                          Size(newW.clamp(100.0, 10000.0), curH),
+                        );
                       },
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: _NumberInputField(
-                      key: ValueKey('canvas-h-${canvasSize?.height ?? 2400}'),
+                      key: const ValueKey('canvas-h'),
                       label: 'H',
                       value: canvasSize?.height ?? 2400,
+                      min: 100.0,
+                      max: 10000.0,
+                      isInteger: true,
                       onChanged: (newH) {
                         final curW = canvasSize?.width ?? 3200.0;
-                        onCanvasSizeChanged?.call(Size(curW, newH.clamp(100.0, 10000.0)));
+                        onCanvasSizeChanged?.call(
+                          Size(curW, newH.clamp(100.0, 10000.0)),
+                        );
                       },
                     ),
                   ),
@@ -2957,10 +3666,7 @@ class PropertiesSidebar extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Text(
-                    'EXPORT CANVAS',
-                    style: _getSectionHeaderStyle(theme),
-                  ),
+                  Text('EXPORT CANVAS', style: _getSectionHeaderStyle(theme)),
                   const Spacer(),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -3022,8 +3728,7 @@ class PropertiesSidebar extends StatelessWidget {
                   ),
                   label: Text(
                     'Export Canvas SVG',
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: theme.textTheme.labelMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: colorScheme.primary,
                     ),
@@ -3066,8 +3771,7 @@ class PropertiesSidebar extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: TextStyle(
-            fontSize: 10,
+          style: theme.textTheme.labelSmall?.copyWith(
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             color: isSelected
                 ? colorScheme.primary
@@ -3237,7 +3941,7 @@ class _FontDropdown extends StatelessWidget {
           enableSearch: true,
           enableFilter: true,
           requestFocusOnTap: false,
-          textStyle: const TextStyle(fontSize: 13),
+          textStyle: Theme.of(context).textTheme.bodyMedium,
           inputDecorationTheme: InputDecorationTheme(
             isDense: true,
             filled: true,
@@ -3296,7 +4000,7 @@ class _FontWeightDropdown extends StatelessWidget {
           width: constraints.maxWidth,
           initialSelection: selectedShape.fontWeight,
           requestFocusOnTap: false,
-          textStyle: const TextStyle(fontSize: 13),
+          textStyle: Theme.of(context).textTheme.bodyMedium,
           inputDecorationTheme: InputDecorationTheme(
             isDense: true,
             filled: true,
@@ -3334,14 +4038,19 @@ class _FontWeightDropdown extends StatelessWidget {
   }
 }
 
-/// Production-grade Material 3 Expressive Number Input Field.
-/// Handles instant blur commit, Enter submission with auto-unfocus,
-/// Up/Down arrow nudge (holding Shift = 10x), Escape cancel, and text selection on focus.
+/// Production-grade Material 3 Expressive Number Input Field with Figma-like Scrubbing.
+/// Supports clicking to edit, Up/Down arrow nudge (Shift for 10x), Escape cancel,
+/// and pressing & holding/dragging horizontally on the label ('left is less, right is more')
+/// with Shift (10x fast scrub), Alt (0.1x fine scrub), and haptic tick feedback.
 class _NumberInputField extends StatefulWidget {
   final String label;
   final double value;
   final ValueChanged<double> onChanged;
   final VoidCallback? onEditingComplete;
+  final double? min;
+  final double? max;
+  final double? step;
+  final bool? isInteger;
 
   const _NumberInputField({
     super.key,
@@ -3349,6 +4058,10 @@ class _NumberInputField extends StatefulWidget {
     required this.value,
     required this.onChanged,
     this.onEditingComplete,
+    this.min,
+    this.max,
+    this.step,
+    this.isInteger,
   });
 
   @override
@@ -3358,11 +4071,77 @@ class _NumberInputField extends StatefulWidget {
 class _NumberInputFieldState extends State<_NumberInputField> {
   late TextEditingController _controller;
   late FocusNode _focusNode;
+  bool _isScrubbing = false;
+  bool _isHovered = false;
+  double _scrubBaseValue = 0.0;
+  double _scrubAccumulatedDelta = 0.0;
+  int _lastHapticTick = 0;
+
+  double get _effectiveMin {
+    if (widget.min != null) return widget.min!;
+    if (widget.label == 'PTS') return 3.0;
+    if (widget.label == '%') return 5.0;
+    if (widget.label == 'W' || widget.label == 'H') return 1.0;
+    if (widget.label == 'R' ||
+        widget.label == 'TL' ||
+        widget.label == 'TR' ||
+        widget.label == 'BL' ||
+        widget.label == 'BR') {
+      return 0.0;
+    }
+    if (widget.label == 'px') return 8.0;
+    if (widget.label == 'sp') return -4.0;
+    if (widget.label == 'lh') return 0.5;
+    return -99999.0;
+  }
+
+  double get _effectiveMax {
+    if (widget.max != null) return widget.max!;
+    if (widget.label == 'PTS') return 60.0;
+    if (widget.label == '%') return 95.0;
+    if (widget.label == 'R' ||
+        widget.label == 'TL' ||
+        widget.label == 'TR' ||
+        widget.label == 'BL' ||
+        widget.label == 'BR') {
+      return 500.0;
+    }
+    if (widget.label == 'px') return 200.0;
+    if (widget.label == 'sp') return 30.0;
+    if (widget.label == 'lh') return 3.5;
+    return 99999.0;
+  }
+
+  double get _dragSensitivity {
+    if (widget.step != null) return widget.step!;
+    if (widget.label == 'PTS') return 0.4;
+    if (widget.label == '%') return 0.5;
+    if (widget.label == 'lh') return 0.01;
+    if (widget.label == 'sp') return 0.1;
+    return 1.0;
+  }
+
+  String _formatValue(double val) {
+    if (widget.label == 'lh') {
+      return val.toStringAsFixed(2);
+    }
+    if (widget.label == 'sp') {
+      return (val == val.roundToDouble())
+          ? val.round().toString()
+          : val.toStringAsFixed(1);
+    }
+    if (widget.isInteger == false) {
+      return (val == val.roundToDouble())
+          ? val.round().toString()
+          : val.toStringAsFixed(1);
+    }
+    return val.round().toString();
+  }
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.value.round().toString());
+    _controller = TextEditingController(text: _formatValue(widget.value));
     _focusNode = FocusNode();
     _focusNode.addListener(_handleFocusChange);
   }
@@ -3381,9 +4160,11 @@ class _NumberInputFieldState extends State<_NumberInputField> {
   void _commit() {
     final double? parsed = double.tryParse(_controller.text.trim());
     if (parsed != null && parsed != widget.value) {
-      widget.onChanged(parsed);
+      final clamped = parsed.clamp(_effectiveMin, _effectiveMax);
+      widget.onChanged(clamped);
+      _controller.text = _formatValue(clamped);
     } else {
-      _controller.text = widget.value.round().toString();
+      _controller.text = _formatValue(widget.value);
     }
     widget.onEditingComplete?.call();
   }
@@ -3391,10 +4172,10 @@ class _NumberInputFieldState extends State<_NumberInputField> {
   @override
   void didUpdateWidget(covariant _NumberInputField oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!_focusNode.hasFocus) {
+    if (!_focusNode.hasFocus && !_isScrubbing) {
       final currentParsed = double.tryParse(_controller.text.trim());
-      if (currentParsed?.round() != widget.value.round()) {
-        _controller.text = widget.value.round().toString();
+      if (currentParsed != widget.value) {
+        _controller.text = _formatValue(widget.value);
       }
     }
   }
@@ -3407,33 +4188,155 @@ class _NumberInputFieldState extends State<_NumberInputField> {
     super.dispose();
   }
 
+  void _handleDragStart(DragStartDetails details) {
+    _focusNode.unfocus();
+    setState(() {
+      _isScrubbing = true;
+    });
+    _scrubBaseValue = double.tryParse(_controller.text.trim()) ?? widget.value;
+    _scrubAccumulatedDelta = 0.0;
+    _lastHapticTick = _scrubBaseValue.round();
+  }
+
+  void _handleDragUpdate(DragUpdateDetails details) {
+    final dx = details.primaryDelta ?? details.delta.dx;
+    if (dx == 0) return;
+
+    final isShift = HardwareKeyboard.instance.isShiftPressed;
+    final isAlt = HardwareKeyboard.instance.isAltPressed;
+    final multiplier = isShift ? 10.0 : (isAlt ? 0.1 : 1.0);
+
+    _scrubAccumulatedDelta += dx * _dragSensitivity * multiplier;
+
+    final rawValue = _scrubBaseValue + _scrubAccumulatedDelta;
+    final clamped = rawValue.clamp(_effectiveMin, _effectiveMax);
+
+    final double nextValue;
+    if (widget.label == '°') {
+      nextValue = ((clamped % 360) + 360) % 360;
+    } else if (widget.label == 'lh') {
+      nextValue = (clamped * 100).round() / 100.0;
+    } else if (widget.isInteger ??
+        (widget.label == 'PTS' ||
+            widget.label == '%' ||
+            widget.label == 'R' ||
+            widget.label == 'TL' ||
+            widget.label == 'TR' ||
+            widget.label == 'BL' ||
+            widget.label == 'BR' ||
+            !isAlt)) {
+      nextValue = clamped.roundToDouble();
+    } else {
+      nextValue = (clamped * 10).round() / 10.0;
+    }
+
+    final formatted = _formatValue(nextValue);
+    if (_controller.text != formatted) {
+      _controller.text = formatted;
+    }
+
+    final currentInt = nextValue.round();
+    if (currentInt != _lastHapticTick) {
+      _lastHapticTick = currentInt;
+      HapticFeedback.selectionClick();
+    }
+
+    if (nextValue != widget.value) {
+      widget.onChanged(nextValue);
+    }
+  }
+
+  void _handleDragEnd(DragEndDetails details) {
+    setState(() {
+      _isScrubbing = false;
+    });
+    widget.onEditingComplete?.call();
+  }
+
+  void _handleDragCancel() {
+    setState(() {
+      _isScrubbing = false;
+    });
+    widget.onEditingComplete?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3.5),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: _focusNode.hasFocus
+          color: _isScrubbing
               ? colorScheme.primary
-              : colorScheme.outlineVariant.withValues(alpha: 0.4),
-          width: _focusNode.hasFocus ? 1.5 : 1.0,
+              : (_focusNode.hasFocus
+                    ? colorScheme.primary
+                    : colorScheme.outlineVariant.withValues(alpha: 0.4)),
+          width: (_focusNode.hasFocus || _isScrubbing) ? 1.5 : 1.0,
         ),
       ),
       child: Row(
         children: [
-          Flexible(
-            child: Text(
-              widget.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: colorScheme.primary,
-                fontWeight: FontWeight.bold,
-                fontSize: 11,
+          Tooltip(
+            message:
+                'Drag left/right to adjust (${widget.label})\nShift for 10x, Alt for 0.1x',
+            waitDuration: const Duration(milliseconds: 650),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.resizeLeftRight,
+              onEnter: (_) => setState(() => _isHovered = true),
+              onExit: (_) => setState(() => _isHovered = false),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  _focusNode.requestFocus();
+                  _controller.selection = TextSelection(
+                    baseOffset: 0,
+                    extentOffset: _controller.text.length,
+                  );
+                },
+                onHorizontalDragStart: _handleDragStart,
+                onHorizontalDragUpdate: _handleDragUpdate,
+                onHorizontalDragEnd: _handleDragEnd,
+                onHorizontalDragCancel: _handleDragCancel,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 140),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _isScrubbing
+                        ? colorScheme.primary.withValues(alpha: 0.22)
+                        : (_isHovered
+                              ? colorScheme.primary.withValues(alpha: 0.10)
+                              : Colors.transparent),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: _isScrubbing
+                          ? colorScheme.primary.withValues(alpha: 0.5)
+                          : (_isHovered
+                                ? colorScheme.primary.withValues(alpha: 0.25)
+                                : Colors.transparent),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    widget.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: _isScrubbing
+                          ? colorScheme.primary
+                          : (_isHovered
+                                ? colorScheme.primary
+                                : colorScheme.primary.withValues(alpha: 0.85)),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
@@ -3449,8 +4352,11 @@ class _NumberInputFieldState extends State<_NumberInputField> {
                     final step = HardwareKeyboard.instance.isShiftPressed
                         ? 10.0
                         : 1.0;
-                    final next = cur + step;
-                    _controller.text = next.round().toString();
+                    final next = (cur + step).clamp(
+                      _effectiveMin,
+                      _effectiveMax,
+                    );
+                    _controller.text = _formatValue(next);
                     _controller.selection = TextSelection(
                       baseOffset: 0,
                       extentOffset: _controller.text.length,
@@ -3465,8 +4371,11 @@ class _NumberInputFieldState extends State<_NumberInputField> {
                     final step = HardwareKeyboard.instance.isShiftPressed
                         ? 10.0
                         : 1.0;
-                    final next = cur - step;
-                    _controller.text = next.round().toString();
+                    final next = (cur - step).clamp(
+                      _effectiveMin,
+                      _effectiveMax,
+                    );
+                    _controller.text = _formatValue(next);
                     _controller.selection = TextSelection(
                       baseOffset: 0,
                       extentOffset: _controller.text.length,
@@ -3475,7 +4384,7 @@ class _NumberInputFieldState extends State<_NumberInputField> {
                     widget.onEditingComplete?.call();
                     return KeyEventResult.handled;
                   } else if (event.logicalKey == LogicalKeyboardKey.escape) {
-                    _controller.text = widget.value.round().toString();
+                    _controller.text = _formatValue(widget.value);
                     _focusNode.unfocus();
                     return KeyEventResult.handled;
                   }
@@ -3504,6 +4413,136 @@ class _NumberInputFieldState extends State<_NumberInputField> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Standalone scrubbable label for property sliders (e.g. Ratio, Width, Opacity).
+/// Dragging left decreases the value, dragging right increases the value.
+class _ScrubbableLabel extends StatefulWidget {
+  final String label;
+  final double value;
+  final ValueChanged<double> onChanged;
+  final VoidCallback? onEditingComplete;
+  final double min;
+  final double max;
+
+  const _ScrubbableLabel({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+    this.onEditingComplete,
+    this.min = 0.0,
+    this.max = 100.0,
+  });
+
+  @override
+  State<_ScrubbableLabel> createState() => _ScrubbableLabelState();
+}
+
+class _ScrubbableLabelState extends State<_ScrubbableLabel> {
+  bool _isHovered = false;
+  bool _isScrubbing = false;
+  double _scrubBaseValue = 0.0;
+  double _scrubAccumulatedDelta = 0.0;
+  int _lastHapticTick = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final defaultStyle = theme.textTheme.labelSmall?.copyWith(
+      color: colorScheme.onSurfaceVariant,
+      fontWeight: FontWeight.w600,
+    );
+
+    return Tooltip(
+      message: 'Drag left/right to adjust (${widget.label})',
+      waitDuration: const Duration(milliseconds: 650),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.resizeLeftRight,
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragStart: (details) {
+            FocusManager.instance.primaryFocus?.unfocus();
+            setState(() {
+              _isScrubbing = true;
+            });
+            _scrubBaseValue = widget.value;
+            _scrubAccumulatedDelta = 0.0;
+            _lastHapticTick = _scrubBaseValue.round();
+          },
+          onHorizontalDragUpdate: (details) {
+            final dx = details.primaryDelta ?? details.delta.dx;
+            if (dx == 0) return;
+            final isShift = HardwareKeyboard.instance.isShiftPressed;
+            final isAlt = HardwareKeyboard.instance.isAltPressed;
+            final multiplier = isShift ? 10.0 : (isAlt ? 0.1 : 1.0);
+
+            _scrubAccumulatedDelta += dx * 0.5 * multiplier;
+            final rawValue = _scrubBaseValue + _scrubAccumulatedDelta;
+            final clamped = rawValue.clamp(widget.min, widget.max);
+            final nextValue = (isAlt
+                ? (clamped * 10).round() / 10.0
+                : clamped.roundToDouble());
+
+            final currentInt = nextValue.round();
+            if (currentInt != _lastHapticTick) {
+              _lastHapticTick = currentInt;
+              HapticFeedback.selectionClick();
+            }
+
+            if (nextValue != widget.value) {
+              widget.onChanged(nextValue);
+            }
+          },
+          onHorizontalDragEnd: (details) {
+            setState(() {
+              _isScrubbing = false;
+            });
+            widget.onEditingComplete?.call();
+          },
+          onHorizontalDragCancel: () {
+            setState(() {
+              _isScrubbing = false;
+            });
+            widget.onEditingComplete?.call();
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+            decoration: BoxDecoration(
+              color: _isScrubbing
+                  ? colorScheme.primary.withValues(alpha: 0.22)
+                  : (_isHovered
+                        ? colorScheme.primary.withValues(alpha: 0.10)
+                        : Colors.transparent),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: _isScrubbing
+                    ? colorScheme.primary.withValues(alpha: 0.6)
+                    : (_isHovered
+                          ? colorScheme.primary.withValues(alpha: 0.25)
+                          : Colors.transparent),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              widget.label,
+              style: defaultStyle?.copyWith(
+                color: _isScrubbing
+                    ? colorScheme.primary
+                    : (_isHovered ? colorScheme.primary : null),
+                fontWeight: (_isScrubbing || _isHovered)
+                    ? FontWeight.bold
+                    : null,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -3602,4 +4641,3 @@ class _TextContentInputFieldState extends State<_TextContentInputField> {
     );
   }
 }
-

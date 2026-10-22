@@ -17,9 +17,11 @@ import 'package:nixsvg/providers/app_settings_provider.dart';
 import 'package:nixsvg/providers/project_provider.dart';
 import 'package:nixsvg/providers/workspace_settings_provider.dart';
 import 'package:nixsvg/theme/components/responsive_layout_tokens.dart';
+import 'package:nixsvg/services/svg_export_service.dart';
 import 'package:nixsvg/ui/canvas/interactive_canvas.dart';
 import 'package:nixsvg/ui/widgets/sidebar_resize_handle.dart';
 import 'package:nixsvg/widgets/color_picker_dialog.dart';
+import 'package:nixsvg/widgets/context_menu/figma_context_menu.dart';
 import 'package:nixsvg/widgets/export_dialog.dart';
 import 'package:nixsvg/widgets/floating_tool_bar.dart';
 import 'package:nixsvg/widgets/layers_sidebar.dart';
@@ -275,6 +277,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         shapes = previous;
         selectedShapeIds.clear();
       });
+      _persistCurrentProject();
     }
   }
 
@@ -286,6 +289,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         shapes = next;
         selectedShapeIds.clear();
       });
+      _persistCurrentProject();
     }
   }
 
@@ -347,6 +351,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   void _onPointerDown(PointerDownEvent event) {
     FocusManager.instance.primaryFocus?.unfocus();
     _workspaceFocusNode.requestFocus();
+    if ((event.buttons & kSecondaryMouseButton) != 0) {
+      return;
+    }
     final isMiddleButton = (event.buttons & kMiddleMouseButton) != 0;
     final isPan =
         _isSpacePressed ||
@@ -514,15 +521,35 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
         setState(() {
           if (isShiftPressed) {
-            if (selectedShapeIds.contains(matchedShape.id)) {
-              selectedShapeIds.remove(matchedShape.id);
+            final groupMembers = (matchedShape.groupId != null)
+                ? shapes
+                    .where((s) => s.groupId == matchedShape.groupId)
+                    .map((s) => s.id)
+                    .toSet()
+                : {matchedShape.id};
+            final allSelected = groupMembers.every(
+              (id) => selectedShapeIds.contains(id),
+            );
+            if (allSelected) {
+              selectedShapeIds.removeAll(groupMembers);
             } else {
-              selectedShapeIds.add(matchedShape.id);
+              selectedShapeIds.addAll(groupMembers);
             }
           } else {
-            if (!selectedShapeIds.contains(matchedShape.id)) {
-              selectedShapeIds.clear();
-              selectedShapeIds.add(matchedShape.id);
+            if (matchedShape.groupId != null) {
+              final groupMembers = shapes
+                  .where((s) => s.groupId == matchedShape.groupId)
+                  .map((s) => s.id)
+                  .toSet();
+              if (!selectedShapeIds.containsAll(groupMembers)) {
+                selectedShapeIds.clear();
+                selectedShapeIds.addAll(groupMembers);
+              }
+            } else {
+              if (!selectedShapeIds.contains(matchedShape.id)) {
+                selectedShapeIds.clear();
+                selectedShapeIds.add(matchedShape.id);
+              }
             }
           }
 
@@ -646,9 +673,14 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
           switch (activeResizeHandle) {
             case ResizeHandle.radiusTopLeft:
-              final dx = testPos.dx - rect.left;
-              final dy = testPos.dy - rect.top;
-              dragDistance = (dx + dy) / 2;
+              if (target.type == ShapeType.star) {
+                final dy = testPos.dy - (rect.center.dy - maxRadius);
+                dragDistance = dy;
+              } else {
+                final dx = testPos.dx - rect.left;
+                final dy = testPos.dy - rect.top;
+                dragDistance = (dx + dy) / 2;
+              }
               break;
             case ResizeHandle.radiusTopRight:
               final dx = rect.right - testPos.dx;
@@ -679,7 +711,11 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           } else {
             newRadius = dragDistance.roundToDouble();
           }
-          newRadius = newRadius.clamp(0.0, maxRadius);
+          if (target.type == ShapeType.star) {
+            newRadius = newRadius.clamp(0.0, maxRadius * 0.48);
+          } else {
+            newRadius = newRadius.clamp(0.0, maxRadius);
+          }
 
           if (target.type == ShapeType.rectangle && newRadius > 0.0) {
             target.type = ShapeType.roundedRectangle;
@@ -906,8 +942,6 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         final appSettings = ref.read(appSettingsProvider);
         final isCurveMode = currentMode == EditorMode.drawCurve;
         final isText = draftShapeType == ShapeType.text;
-        final isRect = draftShapeType == ShapeType.roundedRectangle ||
-            draftShapeType == ShapeType.rectangle;
         final newShape = VectorShape(
           id: 'shape-${DateTime.now().millisecondsSinceEpoch}',
           name: '${_getModeName(currentMode)} $_shapeCounter',
@@ -917,9 +951,13 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           isStroked: draftShapeType == ShapeType.line ? true : false,
           isFilled: draftShapeType == ShapeType.line ? false : true,
           strokeWidth: appSettings.defaultStrokeWidth,
-          cornerRadius: isRect ? appSettings.defaultCornerRadius : 0.0,
+          cornerRadius: draftShapeType == ShapeType.roundedRectangle
+              ? appSettings.defaultCornerRadius
+              : 0.0,
           isCurved: isCurveMode,
           curvature: isCurveMode ? 35.0 : 0.0,
+          pointCount: 5,
+          innerRadiusRatio: 0.4,
         );
         _shapeCounter++;
         setState(() {
@@ -973,13 +1011,31 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     if (selectedShapeIds.isEmpty) return;
     final newShapes = <VectorShape>[];
     final newIds = <String>{};
+    final groupMapping = <String, (String id, String name)>{};
 
     for (final id in selectedShapeIds) {
       final orig = shapes.firstWhere((s) => s.id == id);
+      String? dupGroupId;
+      String? dupGroupName;
+      if (orig.groupId != null) {
+        final mapped = groupMapping.putIfAbsent(orig.groupId!, () {
+          final newGid =
+              'group_${DateTime.now().millisecondsSinceEpoch}_${math.Random().nextInt(1000)}';
+          final newGname =
+              orig.groupName != null ? '${orig.groupName} Copy' : 'Group';
+          return (newGid, newGname);
+        });
+        dupGroupId = mapped.$1;
+        dupGroupName = mapped.$2;
+      }
+
       final dup = orig.copyWith(
-        id: 'shape-${DateTime.now().millisecondsSinceEpoch}-${math.Random().nextInt(1000)}',
+        id:
+            'shape-${DateTime.now().millisecondsSinceEpoch}-${math.Random().nextInt(1000)}',
         name: '${orig.name} Copy',
         rect: orig.rect.shift(offset),
+        groupId: dupGroupId,
+        groupName: dupGroupName,
       );
       newShapes.add(dup);
       newIds.add(dup.id);
@@ -994,6 +1050,64 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       }
     });
     _saveHistorySnapshot();
+  }
+
+  void _groupSelected() {
+    if (selectedShapeIds.isEmpty) return;
+    final selectedShapes =
+        shapes.where((s) => selectedShapeIds.contains(s.id)).toList();
+    if (selectedShapes.isEmpty) return;
+
+    final existingGroups =
+        shapes.map((s) => s.groupName).whereType<String>().toSet();
+    int nextGroupNum = 1;
+    while (existingGroups.contains('Group $nextGroupNum')) {
+      nextGroupNum++;
+    }
+    final newGroupId = 'group_${DateTime.now().millisecondsSinceEpoch}';
+    final newGroupName = 'Group $nextGroupNum';
+
+    setState(() {
+      for (final shape in selectedShapes) {
+        shape.groupId = newGroupId;
+        shape.groupName = newGroupName;
+      }
+    });
+    _saveHistorySnapshot();
+    _showFeedbackMessage('Grouped as $newGroupName');
+  }
+
+  void _ungroupSelected() {
+    if (selectedShapeIds.isEmpty) return;
+    final groupIdsToClear = shapes
+        .where((s) => selectedShapeIds.contains(s.id) && s.groupId != null)
+        .map((s) => s.groupId!)
+        .toSet();
+
+    if (groupIdsToClear.isEmpty) return;
+
+    setState(() {
+      for (final s in shapes) {
+        if (s.groupId != null && groupIdsToClear.contains(s.groupId)) {
+          s.groupId = null;
+          s.groupName = null;
+        }
+      }
+    });
+    _saveHistorySnapshot();
+    _showFeedbackMessage('Ungrouped selection');
+  }
+
+  void _showFeedbackMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _deleteSelected() {
@@ -1030,6 +1144,30 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       alignToCanvas: toCanvas ?? isAlt,
     );
     setState(() {});
+    _saveHistorySnapshot();
+  }
+
+  void _bringToFront() {
+    if (selectedShapeIds.isEmpty) return;
+    final selectedShapes =
+        shapes.where((s) => selectedShapeIds.contains(s.id)).toList();
+    if (selectedShapes.isEmpty) return;
+    setState(() {
+      shapes.removeWhere((s) => selectedShapeIds.contains(s.id));
+      shapes.addAll(selectedShapes);
+    });
+    _saveHistorySnapshot();
+  }
+
+  void _sendToBack() {
+    if (selectedShapeIds.isEmpty) return;
+    final selectedShapes =
+        shapes.where((s) => selectedShapeIds.contains(s.id)).toList();
+    if (selectedShapes.isEmpty) return;
+    setState(() {
+      shapes.removeWhere((s) => selectedShapeIds.contains(s.id));
+      shapes.insertAll(0, selectedShapes);
+    });
     _saveHistorySnapshot();
   }
 
@@ -1092,6 +1230,378 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     if (selectedShapeIds.isEmpty) return;
     _copySelected();
     _deleteSelected();
+  }
+
+  Future<void> _copySelectedAsSvg() async {
+    if (selectedShapeIds.isEmpty) return;
+    try {
+      final svgCode = SvgExportService.generateSvg(
+        shapes,
+        canvasSize: canvasSize,
+        selectedShapeIds: selectedShapeIds,
+        scope: SvgExportScope.selection,
+      );
+      await Clipboard.setData(ClipboardData(text: svgCode));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('SVG code copied to clipboard'),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _copyShapeAsSvgById(String id) async {
+    try {
+      final svgCode = SvgExportService.generateSvg(
+        shapes,
+        canvasSize: canvasSize,
+        selectedShapeIds: {id},
+        scope: SvgExportScope.selection,
+      );
+      await Clipboard.setData(ClipboardData(text: svgCode));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Layer SVG copied to clipboard'),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (_) {}
+  }
+
+  void _duplicateShapeById(String id) {
+    final index = shapes.indexWhere((s) => s.id == id);
+    if (index == -1) return;
+    final orig = shapes[index];
+    final dup = orig.copyWith(
+      id: 'shape-${DateTime.now().millisecondsSinceEpoch}-${math.Random().nextInt(1000)}',
+      name: '${orig.name} Copy',
+      rect: orig.rect.shift(const Offset(20, 20)),
+    );
+    setState(() {
+      shapes.insert(index + 1, dup);
+      selectedShapeIds.clear();
+      selectedShapeIds.add(dup.id);
+    });
+    _saveHistorySnapshot();
+  }
+
+  void _handleSelectShapes(Set<String> ids) {
+    setState(() {
+      selectedShapeIds.clear();
+      selectedShapeIds.addAll(ids);
+    });
+  }
+
+  String _getShapeTypeName(ShapeType type) {
+    switch (type) {
+      case ShapeType.rectangle:
+        return 'Rectangle';
+      case ShapeType.roundedRectangle:
+        return 'Rounded Rect';
+      case ShapeType.ellipse:
+        return 'Ellipse';
+      case ShapeType.line:
+        return 'Line';
+      case ShapeType.star:
+        return 'Star';
+      case ShapeType.text:
+        return 'Text';
+      case ShapeType.image:
+        return 'Image';
+    }
+  }
+
+  void _addShapeAt(ShapeType type, Offset center) {
+    final appSettings = ref.read(appSettingsProvider);
+    const size = Size(120, 120);
+    final rect =
+        Rect.fromCenter(center: center, width: size.width, height: size.height);
+    final name = '${_getShapeTypeName(type)} $_shapeCounter';
+    _shapeCounter++;
+    final newShape = VectorShape(
+      id: 'shape-${DateTime.now().millisecondsSinceEpoch}-${math.Random().nextInt(1000)}',
+      name: name,
+      type: type,
+      rect: rect,
+      isFilled: type != ShapeType.line,
+      strokeWidth: appSettings.defaultStrokeWidth,
+      cornerRadius: type == ShapeType.roundedRectangle
+          ? appSettings.defaultCornerRadius
+          : 0.0,
+      pointCount: 5,
+      innerRadiusRatio: 0.4,
+    );
+    setState(() {
+      shapes.add(newShape);
+      selectedShapeIds.clear();
+      selectedShapeIds.add(newShape.id);
+    });
+    _saveHistorySnapshot();
+  }
+
+  void _handleCanvasContextMenu(Offset globalPos, Offset canvasPos) {
+    VectorShape? hitShape;
+    for (final shape in shapes.reversed) {
+      if (!shape.isVisible) continue;
+      if (CanvasHitTester.hitTestShape(canvasPos, shape)) {
+        hitShape = shape;
+        break;
+      }
+    }
+    if (hitShape == null) {
+      for (final shape in shapes.reversed) {
+        if (!shape.isVisible) continue;
+        if (shape.getBoundingBox().inflate(8.0).contains(canvasPos)) {
+          hitShape = shape;
+          break;
+        }
+      }
+    }
+
+    if (hitShape != null) {
+      if (!selectedShapeIds.contains(hitShape.id)) {
+        setState(() {
+          selectedShapeIds.clear();
+          selectedShapeIds.add(hitShape!.id);
+        });
+      }
+      _showCanvasShapeContextMenu(globalPos, hitShape);
+    } else {
+      _showEmptyCanvasContextMenu(globalPos, canvasPos);
+    }
+  }
+
+  void _showCanvasShapeContextMenu(Offset globalPos, VectorShape targetShape) {
+    final isAnyLocked = shapes
+        .where((s) => selectedShapeIds.contains(s.id))
+        .any((s) => s.isLocked);
+    final isAnyVisible = shapes
+        .where((s) => selectedShapeIds.contains(s.id))
+        .any((s) => s.isVisible);
+
+    showFigmaContextMenu(
+      context: context,
+      globalPosition: globalPos,
+      items: [
+        FigmaMenuItem(
+          label: 'Cut',
+          icon: Icons.content_cut_rounded,
+          shortcut: '⌘X',
+          onTap: _cutSelected,
+        ),
+        FigmaMenuItem(
+          label: 'Copy',
+          icon: Icons.content_copy_rounded,
+          shortcut: '⌘C',
+          onTap: _copySelected,
+        ),
+        FigmaMenuItem(
+          label: 'Copy as SVG',
+          icon: Icons.code_rounded,
+          shortcut: '⇧⌘C',
+          onTap: _copySelectedAsSvg,
+        ),
+        FigmaMenuItem(
+          label: 'Paste',
+          icon: Icons.content_paste_rounded,
+          shortcut: '⌘V',
+          onTap: _pasteClipboard,
+        ),
+        FigmaMenuItem(
+          label: 'Duplicate',
+          icon: Icons.copy_rounded,
+          shortcut: '⌘D',
+          onTap: _duplicateSelected,
+        ),
+        FigmaMenuItem(
+          label: 'Delete',
+          icon: Icons.delete_outline_rounded,
+          shortcut: '⌫',
+          isDestructive: true,
+          onTap: _deleteSelected,
+        ),
+        const FigmaMenuDivider(),
+        FigmaMenuItem(
+          label: 'Group Selection',
+          icon: Icons.folder_outlined,
+          shortcut: '⌘G',
+          onTap: _groupSelected,
+        ),
+        if (shapes
+            .where((s) => selectedShapeIds.contains(s.id))
+            .any((s) => s.groupId != null))
+          FigmaMenuItem(
+            label: 'Ungroup Selection',
+            icon: Icons.folder_open_outlined,
+            shortcut: '⇧⌘G',
+            onTap: _ungroupSelected,
+          ),
+        const FigmaMenuDivider(),
+        FigmaMenuItem(
+          label: 'Bring to Front',
+          icon: Icons.vertical_align_top_rounded,
+          shortcut: ']',
+          onTap: _bringToFront,
+        ),
+        FigmaMenuItem(
+          label: 'Bring Forward',
+          icon: Icons.keyboard_arrow_up_rounded,
+          shortcut: '⌘]',
+          onTap: _bringForward,
+        ),
+        FigmaMenuItem(
+          label: 'Send Backward',
+          icon: Icons.keyboard_arrow_down_rounded,
+          shortcut: '⌘[',
+          onTap: _sendBackward,
+        ),
+        FigmaMenuItem(
+          label: 'Send to Back',
+          icon: Icons.vertical_align_bottom_rounded,
+          shortcut: '[',
+          onTap: _sendToBack,
+        ),
+        const FigmaMenuDivider(),
+        FigmaMenuItem(
+          label: 'Flip Horizontal',
+          icon: Icons.flip_rounded,
+          shortcut: '⇧H',
+          onTap: _flipHorizontal,
+        ),
+        FigmaMenuItem(
+          label: 'Flip Vertical',
+          icon: Icons.flip_rounded,
+          shortcut: '⇧V',
+          onTap: _flipVertical,
+        ),
+        const FigmaMenuDivider(),
+        FigmaMenuItem(
+          label: isAnyLocked ? 'Unlock Selection' : 'Lock Selection',
+          icon:
+              isAnyLocked ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
+          shortcut: '⌘L',
+          onTap: () {
+            setState(() {
+              final newLock = !isAnyLocked;
+              for (final id in selectedShapeIds) {
+                final s = shapes.firstWhere((x) => x.id == id);
+                s.isLocked = newLock;
+              }
+            });
+            _saveHistorySnapshot();
+          },
+        ),
+        FigmaMenuItem(
+          label: isAnyVisible ? 'Hide Selection' : 'Show Selection',
+          icon: isAnyVisible
+              ? Icons.visibility_off_outlined
+              : Icons.visibility_outlined,
+          shortcut: '⌘H',
+          onTap: () {
+            setState(() {
+              final newVis = !isAnyVisible;
+              for (final id in selectedShapeIds) {
+                final s = shapes.firstWhere((x) => x.id == id);
+                s.isVisible = newVis;
+              }
+            });
+            _saveHistorySnapshot();
+          },
+        ),
+        const FigmaMenuDivider(),
+        FigmaMenuItem(
+          label: 'Select All',
+          icon: Icons.select_all_rounded,
+          shortcut: '⌘A',
+          onTap: _selectAll,
+        ),
+        FigmaMenuItem(
+          label: 'Export Selection...',
+          icon: Icons.file_upload_outlined,
+          shortcut: '⇧⌘E',
+          onTap: _openExportDialog,
+        ),
+      ],
+    );
+  }
+
+  void _showEmptyCanvasContextMenu(Offset globalPos, Offset canvasPos) {
+    showFigmaContextMenu(
+      context: context,
+      globalPosition: globalPos,
+      items: [
+        FigmaMenuItem(
+          label: 'Paste Here',
+          icon: Icons.content_paste_rounded,
+          shortcut: '⌘V',
+          onTap: _pasteClipboard,
+        ),
+        FigmaMenuItem(
+          label: 'Select All',
+          icon: Icons.select_all_rounded,
+          shortcut: '⌘A',
+          onTap: _selectAll,
+        ),
+        const FigmaMenuDivider(),
+        FigmaMenuItem(
+          label: 'Add Rectangle',
+          icon: Icons.crop_din_rounded,
+          shortcut: 'R',
+          onTap: () => _addShapeAt(ShapeType.rectangle, canvasPos),
+        ),
+        FigmaMenuItem(
+          label: 'Add Ellipse',
+          icon: Icons.circle_outlined,
+          shortcut: 'O',
+          onTap: () => _addShapeAt(ShapeType.ellipse, canvasPos),
+        ),
+        FigmaMenuItem(
+          label: 'Add Star',
+          icon: Icons.star_border_rounded,
+          shortcut: 'S',
+          onTap: () => _addShapeAt(ShapeType.star, canvasPos),
+        ),
+        const FigmaMenuDivider(),
+        FigmaMenuItem(
+          label: 'Zoom In',
+          icon: Icons.zoom_in_rounded,
+          shortcut: '⌘+',
+          onTap: _zoomIn,
+        ),
+        FigmaMenuItem(
+          label: 'Zoom Out',
+          icon: Icons.zoom_out_rounded,
+          shortcut: '⌘-',
+          onTap: _zoomOut,
+        ),
+        FigmaMenuItem(
+          label: 'Zoom to Fit',
+          icon: Icons.fit_screen_rounded,
+          shortcut: '⇧0',
+          onTap: _zoomToFit,
+        ),
+        const FigmaMenuDivider(),
+        FigmaMenuItem(
+          label: 'Canvas Settings',
+          icon: Icons.tune_rounded,
+          shortcut: '⌘,',
+          onTap: _openSettingsDialog,
+        ),
+        FigmaMenuItem(
+          label: 'Export Canvas SVG...',
+          icon: Icons.file_upload_outlined,
+          shortcut: '⌘E',
+          onTap: _openExportDialog,
+        ),
+      ],
+    );
   }
 
   Future<void> _pasteClipboard() async {
@@ -1817,7 +2327,24 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           }
           return KeyEventResult.handled;
         } else if (event.logicalKey == LogicalKeyboardKey.keyC) {
-          _copySelected();
+          if (HardwareKeyboard.instance.isShiftPressed) {
+            _copySelectedAsSvg();
+          } else {
+            _copySelected();
+          }
+          return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.keyL) {
+          if (selectedShapeIds.isNotEmpty) {
+            final anyLocked = shapes
+                .where((s) => selectedShapeIds.contains(s.id))
+                .any((s) => s.isLocked);
+            setState(() {
+              for (final id in selectedShapeIds) {
+                shapes.firstWhere((s) => s.id == id).isLocked = !anyLocked;
+              }
+            });
+            _saveHistorySnapshot();
+          }
           return KeyEventResult.handled;
         } else if (event.logicalKey == LogicalKeyboardKey.keyX) {
           _cutSelected();
@@ -1837,6 +2364,13 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           return KeyEventResult.handled;
         } else if (event.logicalKey == LogicalKeyboardKey.keyD) {
           _duplicateSelected();
+          return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.keyG) {
+          if (HardwareKeyboard.instance.isShiftPressed) {
+            _ungroupSelected();
+          } else {
+            _groupSelected();
+          }
           return KeyEventResult.handled;
         } else if (event.logicalKey == LogicalKeyboardKey.keyE) {
           _openExportDialog();
@@ -1893,10 +2427,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           _deleteSelected();
           return KeyEventResult.handled;
         } else if (event.logicalKey == LogicalKeyboardKey.bracketRight) {
-          _bringForward();
+          _bringToFront();
           return KeyEventResult.handled;
         } else if (event.logicalKey == LogicalKeyboardKey.bracketLeft) {
-          _sendBackward();
+          _sendToBack();
           return KeyEventResult.handled;
         } else if (HardwareKeyboard.instance.isShiftPressed &&
             event.logicalKey == LogicalKeyboardKey.keyH) {
@@ -2116,8 +2650,15 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                 _saveHistorySnapshot();
                               },
                               onDeleteShape: _deleteShapeById,
+                              onSelectShapes: _handleSelectShapes,
+                              onBringToFront: _bringToFront,
                               onBringForward: _bringForward,
                               onSendBackward: _sendBackward,
+                              onSendToBack: _sendToBack,
+                              onDuplicateShape: _duplicateShapeById,
+                              onCopySvg: _copyShapeAsSvgById,
+                              onGroupShapes: _groupSelected,
+                              onUngroupShapes: _ungroupSelected,
                               onRenameShape: (id, newName) {
                                 setState(() {
                                   shapes.firstWhere((s) => s.id == id).name =
@@ -2244,6 +2785,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                     _isMouseOverCanvas = hovered,
                                 onPointerHover: (pos) =>
                                     _lastMouseCanvasPosition = pos,
+                                onSecondaryTap: _handleCanvasContextMenu,
                               ),
 
                               // Overlay Drawer for Compact Mobile Screens
@@ -2292,8 +2834,15 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                           _saveHistorySnapshot();
                                         },
                                         onDeleteShape: _deleteShapeById,
+                                        onSelectShapes: _handleSelectShapes,
+                                        onBringToFront: _bringToFront,
                                         onBringForward: _bringForward,
                                         onSendBackward: _sendBackward,
+                                        onSendToBack: _sendToBack,
+                                        onDuplicateShape: _duplicateShapeById,
+                                        onCopySvg: _copyShapeAsSvgById,
+                                        onGroupShapes: _groupSelected,
+                                        onUngroupShapes: _ungroupSelected,
                                         onRenameShape: (id, newName) {
                                           setState(() {
                                             shapes
@@ -2360,6 +2909,13 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                         onDuplicateShape: _duplicateSelected,
                                         onDeleteSelected: _deleteSelected,
                                         onAlignShape: _alignShapes,
+                                        onGroupShapes: _groupSelected,
+                                        onUngroupShapes: _ungroupSelected,
+                                        canGroup: selectedShapeIds.isNotEmpty,
+                                        canUngroup: shapes
+                                            .where((s) =>
+                                                selectedShapeIds.contains(s.id))
+                                            .any((s) => s.groupId != null),
                                         canvasSize: canvasSize,
                                         onCanvasSizeChanged: (newSize) {
                                           setState(() => canvasSize = newSize);
@@ -2478,6 +3034,14 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                               onDuplicateShape: _duplicateSelected,
                               onDeleteSelected: _deleteSelected,
                               onAlignShape: _alignShapes,
+                              onGroupShapes: _groupSelected,
+                              onUngroupShapes: _ungroupSelected,
+                              canGroup: selectedShapeIds.isNotEmpty,
+                              canUngroup: shapes
+                                  .where(
+                                    (s) => selectedShapeIds.contains(s.id),
+                                  )
+                                  .any((s) => s.groupId != null),
                               canvasSize: canvasSize,
                               onCanvasSizeChanged: (newSize) {
                                 setState(() => canvasSize = newSize);

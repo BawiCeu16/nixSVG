@@ -102,7 +102,7 @@ class _ExportDialogState extends State<ExportDialog> {
     return AlertDialog(
       backgroundColor: colorScheme.surfaceContainerHigh,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(16),
         side: BorderSide(
           color: colorScheme.outlineVariant.withValues(
             alpha: isDark ? 0.35 : 0.25,
@@ -110,20 +110,20 @@ class _ExportDialogState extends State<ExportDialog> {
           width: 0.8,
         ),
       ),
-      titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 0),
-      actionsPadding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+      titlePadding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       title: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: colorScheme.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(RemixIcons.code_line, color: colorScheme.primary, size: 20),
+            child: Icon(RemixIcons.code_line, color: colorScheme.primary, size: 18),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,7 +131,7 @@ class _ExportDialogState extends State<ExportDialog> {
               children: [
                 Text(
                   'Export SVG',
-                  style: theme.textTheme.titleLarge?.copyWith(
+                  style: theme.textTheme.titleMedium?.copyWith(
                     color: colorScheme.onSurface,
                     fontWeight: FontWeight.bold,
                   ),
@@ -213,8 +213,7 @@ class _ExportDialogState extends State<ExportDialog> {
                                 child: Text(
                                   'Selection (${widget.selectedShapeIds!.length})',
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 11,
+                                  style: theme.textTheme.labelSmall?.copyWith(
                                     fontWeight:
                                         _scope == SvgExportScope.selection
                                             ? FontWeight.bold
@@ -230,8 +229,7 @@ class _ExportDialogState extends State<ExportDialog> {
                                 child: Text(
                                   'Canvas',
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 11,
+                                  style: theme.textTheme.labelSmall?.copyWith(
                                     fontWeight: _scope == SvgExportScope.canvas
                                         ? FontWeight.bold
                                         : FontWeight.normal,
@@ -245,8 +243,7 @@ class _ExportDialogState extends State<ExportDialog> {
                                 child: Text(
                                   'Artwork',
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 11,
+                                  style: theme.textTheme.labelSmall?.copyWith(
                                     fontWeight: _scope == SvgExportScope.artwork
                                         ? FontWeight.bold
                                         : FontWeight.normal,
@@ -262,8 +259,7 @@ class _ExportDialogState extends State<ExportDialog> {
                                 child: Text(
                                   'Canvas (${(widget.canvasSize?.width ?? 3200).toInt()}×${(widget.canvasSize?.height ?? 2400).toInt()})',
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 11,
+                                  style: theme.textTheme.labelSmall?.copyWith(
                                     fontWeight: _scope == SvgExportScope.canvas
                                         ? FontWeight.bold
                                         : FontWeight.normal,
@@ -277,8 +273,7 @@ class _ExportDialogState extends State<ExportDialog> {
                                 child: Text(
                                   'Artwork Bounds',
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 11,
+                                  style: theme.textTheme.labelSmall?.copyWith(
                                     fontWeight: _scope == SvgExportScope.artwork
                                         ? FontWeight.bold
                                         : FontWeight.normal,
@@ -381,8 +376,7 @@ class _ExportDialogState extends State<ExportDialog> {
                             ),
                             child: Text(
                               '${scale.toInt()}x',
-                              style: TextStyle(
-                                fontSize: 11,
+                              style: theme.textTheme.labelSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: isSelected
                                   ? colorScheme.onPrimary
@@ -419,7 +413,6 @@ class _ExportDialogState extends State<ExportDialog> {
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurface.withValues(alpha: 0.9),
                     fontFamily: 'monospace',
-                    fontSize: 11,
                     height: 1.45,
                   ),
                 ),

@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart' as mui;
 import 'package:nixsvg/providers/app_settings_provider.dart';
@@ -18,6 +20,9 @@ export 'package:nixsvg/ui/workspace/figma_workspace.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (kIsWeb) {
+    BrowserContextMenu.disableContextMenu();
+  }
   ensureFilePickerInitialized();
 
   // Initialize persistent preferences with SharedPreferences
@@ -114,9 +119,8 @@ class _NixSvgAppView extends ConsumerWidget {
           child: RepaintBoundary(
             key: NixSvgApp.rootRepaintBoundaryKey,
             child: MediaQuery(
-              data: MediaQuery.of(context).copyWith(
-                textScaler: TextScaler.linear(uiScale),
-              ),
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(uiScale)),
               child: ResponsiveScaler.scale(
                 context: context,
                 child: child!,

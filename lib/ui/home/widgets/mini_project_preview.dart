@@ -95,8 +95,35 @@ class _MiniCanvasPainter extends CustomPainter {
 
       switch (shape.type) {
         case ShapeType.rectangle:
-          if (shape.isFilled) canvas.drawRect(shape.rect, fillPaint);
-          if (shape.isStroked) canvas.drawRect(shape.rect, strokePaint);
+          final maxR = math.min(shape.rect.width, shape.rect.height) / 2;
+          final hasRadius = shape.cornerRadius > 0 || shape.hasIndependentCorners;
+          if (hasRadius) {
+            final rrect = shape.hasIndependentCorners
+                ? RRect.fromRectAndCorners(
+                    shape.rect,
+                    topLeft: Radius.circular(
+                      shape.effectiveTopLeftRadius.clamp(0.0, maxR),
+                    ),
+                    topRight: Radius.circular(
+                      shape.effectiveTopRightRadius.clamp(0.0, maxR),
+                    ),
+                    bottomRight: Radius.circular(
+                      shape.effectiveBottomRightRadius.clamp(0.0, maxR),
+                    ),
+                    bottomLeft: Radius.circular(
+                      shape.effectiveBottomLeftRadius.clamp(0.0, maxR),
+                    ),
+                  )
+                : RRect.fromRectAndRadius(
+                    shape.rect,
+                    Radius.circular(shape.cornerRadius.clamp(0.0, maxR)),
+                  );
+            if (shape.isFilled) canvas.drawRRect(rrect, fillPaint);
+            if (shape.isStroked) canvas.drawRRect(rrect, strokePaint);
+          } else {
+            if (shape.isFilled) canvas.drawRect(shape.rect, fillPaint);
+            if (shape.isStroked) canvas.drawRect(shape.rect, strokePaint);
+          }
           break;
 
         case ShapeType.roundedRectangle:
@@ -131,7 +158,7 @@ class _MiniCanvasPainter extends CustomPainter {
           break;
 
         case ShapeType.star:
-          final path = _buildStarPath(shape.rect);
+          final path = shape.getPath();
           if (shape.isFilled) canvas.drawPath(path, fillPaint);
           if (shape.isStroked) canvas.drawPath(path, strokePaint);
           break;
@@ -173,28 +200,6 @@ class _MiniCanvasPainter extends CustomPainter {
     }
 
     canvas.restore();
-  }
-
-  Path _buildStarPath(Rect rect) {
-    final path = Path();
-    final center = rect.center;
-    final rOuter = math.min(rect.width, rect.height) / 2;
-    final rInner = rOuter * 0.45;
-    for (int i = 0; i < 10; i++) {
-      final angle = (i * 36 - 90) * math.pi / 180;
-      final r = i.isEven ? rOuter : rInner;
-      final pt = Offset(
-        center.dx + r * math.cos(angle),
-        center.dy + r * math.sin(angle),
-      );
-      if (i == 0) {
-        path.moveTo(pt.dx, pt.dy);
-      } else {
-        path.lineTo(pt.dx, pt.dy);
-      }
-    }
-    path.close();
-    return path;
   }
 
   @override

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:m3e_buttons/m3e_buttons.dart';
@@ -5,6 +6,7 @@ import 'package:nixsvg/controllers/theme_controller.dart';
 import 'package:nixsvg/providers/theme_provider.dart';
 import 'package:nixsvg/theme/components/responsive_layout_tokens.dart';
 import 'package:nixsvg/theme/physics/m3e_physics_spring.dart';
+import 'package:nixsvg/widgets/context_menu/figma_context_menu.dart';
 import 'package:remixicon/remixicon.dart';
 
 /// Pure Material 3 Expressive Navigation Toolbar for nixSVG.
@@ -93,9 +95,16 @@ class TopNavigationBar extends ConsumerWidget {
           return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             child: ConstrainedBox(
-              constraints: BoxConstraints(minWidth: constraints.maxWidth - 28),
+              constraints: BoxConstraints(
+                minWidth: math.max(
+                  0.0,
+                  constraints.maxWidth.isFinite
+                      ? constraints.maxWidth - 16
+                      : 0.0,
+                ),
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -112,8 +121,8 @@ class TopNavigationBar extends ConsumerWidget {
                         onTap: onGoToHome,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
+                            horizontal: 6,
+                            vertical: 3,
                           ),
                           decoration: BoxDecoration(
                             color: colorScheme.surfaceContainerHigh,
@@ -129,8 +138,8 @@ class TopNavigationBar extends ConsumerWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Container(
-                                width: 26,
-                                height: 26,
+                                width: 22,
+                                height: 22,
                                 decoration: BoxDecoration(
                                   color: colorScheme.primary,
                                   borderRadius: BorderRadius.circular(8),
@@ -139,23 +148,23 @@ class TopNavigationBar extends ConsumerWidget {
                                 child: Icon(
                                   RemixIcons.shapes_line,
                                   color: colorScheme.onPrimary,
-                                  size: 15,
+                                  size: 13,
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 6),
                               Text(
                                 'nixSVG',
                                 style: textTheme.titleSmall?.copyWith(
                                   color: colorScheme.onSurface,
                                   fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.4,
+                                  letterSpacing: 0.3,
                                 ),
                               ),
                               if (onGoToHome != null) ...[
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 4),
                                 Icon(
                                   RemixIcons.home_4_line,
-                                  size: 14,
+                                  size: 13,
                                   color: colorScheme.primary,
                                 ),
                               ],
@@ -164,15 +173,17 @@ class TopNavigationBar extends ConsumerWidget {
                         ),
                       ),
 
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 6),
 
                       // --- Material 3 Expressive Document Title Capsule ---
                       _M3EDocumentCapsule(
                         fileName: fileName,
                         onFileNameChanged: onFileNameChanged,
+                        onExportSvg: onExportSvg,
+                        onOpenSettings: onOpenSettings,
                       ),
 
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 6),
 
                       // --- History Segmented Pill (Undo / Redo) ---
                       _M3EPillContainer(
@@ -197,7 +208,7 @@ class TopNavigationBar extends ConsumerWidget {
 
                   // ================= CENTER ZONE =================
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -210,7 +221,7 @@ class TopNavigationBar extends ConsumerWidget {
                           onTap: () => onSnapToGridChanged(!snapToGrid),
                         ),
 
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 6),
 
                         // --- Zoom Controls Segmented Pill ---
                         _M3EPillContainer(
@@ -454,7 +465,7 @@ class TopNavigationBar extends ConsumerWidget {
                         ],
                       ),
 
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 6),
 
                       // --- Canvas Management Group ---
                       _M3EIconButton(
@@ -465,7 +476,7 @@ class TopNavigationBar extends ConsumerWidget {
                         onTap: onClearCanvas,
                       ),
 
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 5),
 
                       // Import Image Button
                       Tooltip(
@@ -477,7 +488,7 @@ class TopNavigationBar extends ConsumerWidget {
                           size: M3EButtonSize.sm,
                           icon: Icon(
                             RemixIcons.image_add_line,
-                            size: 16,
+                            size: 15,
                             color: colorScheme.onSecondaryContainer,
                           ),
                           label: Text(
@@ -489,7 +500,7 @@ class TopNavigationBar extends ConsumerWidget {
                         ),
                       ),
 
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 5),
 
                       // --- Primary Action: Export SVG ---
                       Tooltip(
@@ -501,7 +512,7 @@ class TopNavigationBar extends ConsumerWidget {
                           size: M3EButtonSize.sm,
                           icon: Icon(
                             RemixIcons.download_line,
-                            size: 16,
+                            size: 15,
                             color: colorScheme.onPrimary,
                           ),
                           label: Text(
@@ -533,16 +544,15 @@ class TopNavigationBar extends ConsumerWidget {
   }
 
   String _getColorName(Color color) {
-    if (color.toARGB32() == const Color(0xFF6366F1).toARGB32()) return 'Indigo';
-    if (color.toARGB32() == const Color(0xFF10B981).toARGB32()) {
+    if (color.toARGB32() == Colors.indigo.toARGB32()) return 'Blue';
+    if (color.toARGB32() == Colors.green.toARGB32()) {
       return 'Emerald';
     }
-    if (color.toARGB32() == const Color(0xFF3B82F6).toARGB32()) return 'Blue';
-    if (color.toARGB32() == const Color(0xFF8B5CF6).toARGB32()) return 'Violet';
-    if (color.toARGB32() == const Color(0xFFEC4899).toARGB32()) return 'Pink';
-    if (color.toARGB32() == const Color(0xFFF59E0B).toARGB32()) return 'Amber';
-    if (color.toARGB32() == const Color(0xFF06B6D4).toARGB32()) return 'Cyan';
-    if (color.toARGB32() == const Color(0xFFF43F5E).toARGB32()) return 'Rose';
+    if (color.toARGB32() == Colors.blue.toARGB32()) return 'Blue';
+    if (color.toARGB32() == Colors.green.toARGB32()) return 'Violet';
+    if (color.toARGB32() == Colors.amber.toARGB32()) return 'Amber';
+    if (color.toARGB32() == Colors.pink.toARGB32()) return 'Pink';
+    if (color.toARGB32() == Colors.red.toARGB32()) return 'Rose';
     return 'Dynamic Seed';
   }
 }
@@ -558,8 +568,8 @@ class _M3EPillContainer extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      height: 38,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      height: 30,
+      padding: const EdgeInsets.symmetric(horizontal: 2),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(19),
@@ -601,8 +611,8 @@ class _M3EIconButton extends StatelessWidget {
       tooltip: tooltip,
       onTap: enabled ? onTap : null,
       child: Container(
-        width: 32,
-        height: 32,
+        width: 26,
+        height: 26,
         decoration: const BoxDecoration(
           color: Colors.transparent,
           shape: BoxShape.circle,
@@ -610,7 +620,7 @@ class _M3EIconButton extends StatelessWidget {
         alignment: Alignment.center,
         child: Icon(
           icon,
-          size: 17,
+          size: 15,
           color: enabled
               ? (color ?? colorScheme.onSurface)
               : colorScheme.onSurface.withValues(alpha: 0.35),
@@ -647,8 +657,8 @@ class _M3ETogglePill extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.fastOutSlowIn,
-        height: 38,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        height: 30,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
           color: selected
               ? colorScheme.primaryContainer
@@ -666,12 +676,12 @@ class _M3ETogglePill extends StatelessWidget {
           children: [
             Icon(
               icon,
-              size: 16,
+              size: 14,
               color: selected
                   ? colorScheme.onPrimaryContainer
                   : colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 4),
             Text(
               label,
               style: theme.textTheme.labelMedium?.copyWith(
@@ -715,7 +725,7 @@ class _M3EPanelToggleButton extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.fastOutSlowIn,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
         decoration: BoxDecoration(
           color: active ? colorScheme.primaryContainer : Colors.transparent,
           borderRadius: BorderRadius.circular(14),
@@ -725,12 +735,12 @@ class _M3EPanelToggleButton extends StatelessWidget {
           children: [
             Icon(
               icon,
-              size: 15,
+              size: 14,
               color: active
                   ? colorScheme.onPrimaryContainer
                   : colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(width: 5),
+            const SizedBox(width: 4),
             Text(
               label,
               style: theme.textTheme.labelMedium?.copyWith(
@@ -747,14 +757,19 @@ class _M3EPanelToggleButton extends StatelessWidget {
   }
 }
 
-/// Material 3 Expressive Document Title Capsule with document icon and inline edit.
+/// Material 3 Expressive Document Title Capsule with document icon, inline edit,
+/// and Figma/macOS desktop context menu on right-click / two-finger press.
 class _M3EDocumentCapsule extends StatefulWidget {
   final String fileName;
   final ValueChanged<String> onFileNameChanged;
+  final VoidCallback? onExportSvg;
+  final VoidCallback? onOpenSettings;
 
   const _M3EDocumentCapsule({
     required this.fileName,
     required this.onFileNameChanged,
+    this.onExportSvg,
+    this.onOpenSettings,
   });
 
   @override
@@ -795,75 +810,119 @@ class _M3EDocumentCapsuleState extends State<_M3EDocumentCapsule> {
     super.dispose();
   }
 
+  void _showDocumentContextMenu(Offset globalPos) {
+    showFigmaContextMenu(
+      context: context,
+      globalPosition: globalPos,
+      items: [
+        FigmaMenuItem(
+          label: 'Rename Document',
+          icon: RemixIcons.edit_line,
+          shortcut: 'Enter',
+          onTap: () {
+            _focusNode.requestFocus();
+            _controller.selection = TextSelection(
+              baseOffset: 0,
+              extentOffset: _controller.text.length,
+            );
+          },
+        ),
+        if (widget.onExportSvg != null)
+          FigmaMenuItem(
+            label: 'Export SVG...',
+            icon: RemixIcons.download_line,
+            shortcut: '⌘E',
+            onTap: widget.onExportSvg,
+          ),
+        if (widget.onOpenSettings != null) ...[
+          const FigmaMenuDivider(),
+          FigmaMenuItem(
+            label: 'Document Settings...',
+            icon: RemixIcons.settings_3_line,
+            shortcut: '⌘,',
+            onTap: widget.onOpenSettings,
+          ),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.fastOutSlowIn,
-      height: 38,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: _focusNode.hasFocus
-              ? colorScheme.primary
-              : colorScheme.outlineVariant.withValues(alpha: 0.35),
-          width: _focusNode.hasFocus ? 1.5 : 1.0,
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onSecondaryTapDown: (details) =>
+          _showDocumentContextMenu(details.globalPosition),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.fastOutSlowIn,
+        height: 30,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: _focusNode.hasFocus
+                ? colorScheme.primary
+                : colorScheme.outlineVariant.withValues(alpha: 0.35),
+            width: _focusNode.hasFocus ? 1.5 : 1.0,
+          ),
         ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(RemixIcons.file_edit_line, size: 16, color: colorScheme.primary),
-          const SizedBox(width: 8),
-          ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 70, maxWidth: 170),
-            child: IntrinsicWidth(
-              child: TextField(
-                controller: _controller,
-                focusNode: _focusNode,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (val) {
-                  if (val.trim().isNotEmpty) {
-                    widget.onFileNameChanged(val.trim());
-                  }
-                  _focusNode.unfocus();
-                },
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurface,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
-                  hintText: 'Untitled',
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              RemixIcons.file_edit_line,
+              size: 14,
+              color: colorScheme.primary,
+            ),
+            const SizedBox(width: 6),
+            ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 70, maxWidth: 170),
+              child: IntrinsicWidth(
+                child: TextField(
+                  controller: _controller,
+                  focusNode: _focusNode,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (val) {
+                    if (val.trim().isNotEmpty) {
+                      widget.onFileNameChanged(val.trim());
+                    }
+                    _focusNode.unfocus();
+                  },
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                    hintText: 'Untitled',
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              '.svg',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: colorScheme.onPrimaryContainer,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
+            const SizedBox(width: 5),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '.svg',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

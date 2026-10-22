@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:m3e_slider/m3e_slider.dart';
+import 'package:m3e_seekbar/m3e_seekbar.dart';
 
 export 'package:nixsvg/widgets/nix_slider.dart';
 
-/// Style configurations and token decorations for nixSVG sliders.
+/// Style configurations and token decorations for nixSVG seekbars.
 class AppSliderTheme {
   const AppSliderTheme._();
 
@@ -26,26 +26,25 @@ class AppSliderTheme {
     minimumDragInterval: Duration(milliseconds: 10),
   );
 
-  static M3ESliderDecoration createDecoration(ColorScheme colorScheme) {
-    return M3ESliderDecoration(
+  static M3ESeekbarDecoration createDecoration(ColorScheme colorScheme) {
+    return M3ESeekbarDecoration(
+      handleShape: M3ESeekbarHandleShape.rectangle,
       haptic: M3EHapticFeedback.light,
       trackHeight: trackHeight,
       trackCornerRadius: trackCornerRadius,
-      thumbWidth: thumbWidth,
-      thumbHeight: thumbHeight,
-      colors: M3ESliderColors(
-        thumbColor: colorScheme.primary,
+      handleWidth: thumbWidth,
+      handleHeight: thumbHeight,
+      colors: M3ESeekbarColors(
+        handleColor: colorScheme.primary,
+        disabledHandleColor: colorScheme.onSurface.withValues(alpha: 0.38),
         activeTrackColor: colorScheme.primary,
         inactiveTrackColor: colorScheme.surfaceContainerHighest,
-        disabledThumbColor: colorScheme.onSurface.withValues(alpha: 0.38),
         disabledActiveTrackColor: colorScheme.onSurface.withValues(alpha: 0.38),
         disabledInactiveTrackColor: colorScheme.surfaceContainerHighest
             .withValues(alpha: 0.38),
-        activeTickColor: colorScheme.onPrimary,
-        inactiveTickColor: colorScheme.onSurfaceVariant,
-        disabledActiveTickColor: colorScheme.onSurface.withValues(alpha: 0.38),
-        disabledInactiveTickColor: colorScheme.onSurface.withValues(
-          alpha: 0.38,
+        secondaryTrackColor: colorScheme.primary.withValues(alpha: 0.50),
+        disabledSecondaryTrackColor: colorScheme.onSurface.withValues(
+          alpha: 0.20,
         ),
       ),
       hapticConfig: defaultHapticConfig,

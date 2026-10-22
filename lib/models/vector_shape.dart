@@ -184,6 +184,9 @@ class VectorShape {
   double? bottomRightRadius;
   double? bottomLeftRadius;
 
+  int pointCount;
+  double innerRadiusRatio;
+
   bool get hasIndependentCorners =>
       topLeftRadius != null ||
       topRightRadius != null ||
@@ -212,6 +215,8 @@ class VectorShape {
   bool isLocked;
   Uint8List? imageBytes;
   ui.Image? decodedImage;
+  String? groupId;
+  String? groupName;
 
   // Self-invalidating geometry and rendering caches
   Path? _cachedPath;
@@ -224,6 +229,8 @@ class VectorShape {
   double? _lastPathCurvature;
   bool? _lastPathIsCurved;
   ShapeType? _lastPathType;
+  int? _lastPointCount;
+  double? _lastInnerRadiusRatio;
 
   Path? _cachedDashedPath;
   double? _lastDashLength;
@@ -281,11 +288,13 @@ class VectorShape {
     this.curvature = 0.0,
     this.isFilled = true,
     this.isStroked = false,
-    this.cornerRadius = 12.0,
+    double? cornerRadius,
     this.topLeftRadius,
     this.topRightRadius,
     this.bottomRightRadius,
     this.bottomLeftRadius,
+    this.pointCount = 5,
+    this.innerRadiusRatio = 0.4,
     this.textContent = 'Text Element',
     this.fontSize = 24.0,
     this.fontFamily = 'Roboto',
@@ -303,7 +312,11 @@ class VectorShape {
     this.isLocked = false,
     this.imageBytes,
     this.decodedImage,
-  }) : fontWeight =
+    this.groupId,
+    this.groupName,
+  }) : cornerRadius = cornerRadius ??
+           (type == ShapeType.roundedRectangle ? 12.0 : 0.0),
+       fontWeight =
            fontWeight ?? (isBold ? FontWeight.bold : FontWeight.normal);
 
   VectorShape copyWith({
@@ -338,6 +351,8 @@ class VectorShape {
     double? bottomRightRadius,
     double? bottomLeftRadius,
     bool clearIndependentCorners = false,
+    int? pointCount,
+    double? innerRadiusRatio,
     String? textContent,
     double? fontSize,
     String? fontFamily,
@@ -355,6 +370,9 @@ class VectorShape {
     bool? isLocked,
     Uint8List? imageBytes,
     ui.Image? decodedImage,
+    String? groupId,
+    String? groupName,
+    bool clearGroup = false,
   }) {
     final effectiveIsBold =
         isBold ??
@@ -405,6 +423,8 @@ class VectorShape {
       bottomLeftRadius: clearIndependentCorners
           ? null
           : (bottomLeftRadius ?? this.bottomLeftRadius),
+      pointCount: pointCount ?? this.pointCount,
+      innerRadiusRatio: innerRadiusRatio ?? this.innerRadiusRatio,
       textContent: textContent ?? this.textContent,
       fontSize: fontSize ?? this.fontSize,
       fontFamily: fontFamily ?? this.fontFamily,
@@ -422,6 +442,8 @@ class VectorShape {
       isLocked: isLocked ?? this.isLocked,
       imageBytes: imageBytes ?? this.imageBytes,
       decodedImage: decodedImage ?? this.decodedImage,
+      groupId: clearGroup ? null : (groupId ?? this.groupId),
+      groupName: clearGroup ? null : (groupName ?? this.groupName),
     );
   }
 
@@ -429,6 +451,8 @@ class VectorShape {
     return {
       'id': id,
       'name': name,
+      'groupId': groupId,
+      'groupName': groupName,
       'type': type.name,
       'rect': {
         'left': rect.left,
@@ -462,6 +486,8 @@ class VectorShape {
       'topRightRadius': topRightRadius,
       'bottomRightRadius': bottomRightRadius,
       'bottomLeftRadius': bottomLeftRadius,
+      'pointCount': pointCount,
+      'innerRadiusRatio': innerRadiusRatio,
       'textContent': textContent,
       'fontSize': fontSize,
       'fontFamily': fontFamily,
@@ -583,6 +609,8 @@ class VectorShape {
           json['id'] as String? ??
           'shape-${DateTime.now().millisecondsSinceEpoch}',
       name: json['name'] as String? ?? 'Shape',
+      groupId: json['groupId'] as String?,
+      groupName: json['groupName'] as String?,
       type: type,
       rect: rect,
       rotation: (json['rotation'] as num?)?.toDouble() ?? 0.0,
@@ -615,6 +643,8 @@ class VectorShape {
       topRightRadius: (json['topRightRadius'] as num?)?.toDouble(),
       bottomRightRadius: (json['bottomRightRadius'] as num?)?.toDouble(),
       bottomLeftRadius: (json['bottomLeftRadius'] as num?)?.toDouble(),
+      pointCount: (json['pointCount'] as num?)?.toInt() ?? 5,
+      innerRadiusRatio: (json['innerRadiusRatio'] as num?)?.toDouble() ?? 0.4,
       textContent: json['textContent'] as String? ?? 'Text Element',
       fontSize: (json['fontSize'] as num?)?.toDouble() ?? 24.0,
       fontFamily: json['fontFamily'] as String? ?? 'Roboto',
@@ -750,6 +780,28 @@ class VectorShape {
 
     switch (type) {
       case ShapeType.rectangle:
+        if (hasIndependentCorners || cornerRadius > 0) {
+          final maxR = math.min(rect.width, rect.height) / 2;
+          if (hasIndependentCorners) {
+            final tl = effectiveTopLeftRadius.clamp(0.0, maxR);
+            final tr = effectiveTopRightRadius.clamp(0.0, maxR);
+            final br = effectiveBottomRightRadius.clamp(0.0, maxR);
+            final bl = effectiveBottomLeftRadius.clamp(0.0, maxR);
+            final d = 'M ${rect.left + tl} ${rect.top} '
+                'H ${rect.right - tr} '
+                '${tr > 0 ? 'A $tr $tr 0 0 1 ${rect.right} ${rect.top + tr} ' : ''}'
+                'V ${rect.bottom - br} '
+                '${br > 0 ? 'A $br $br 0 0 1 ${rect.right - br} ${rect.bottom} ' : ''}'
+                'H ${rect.left + bl} '
+                '${bl > 0 ? 'A $bl $bl 0 0 1 ${rect.left} ${rect.bottom - bl} ' : ''}'
+                'V ${rect.top + tl} '
+                '${tl > 0 ? 'A $tl $tl 0 0 1 ${rect.left + tl} ${rect.top} ' : ''}'
+                'Z';
+            return '  <path d="$d" $fillAttr $strokeAttr$transformAttr />';
+          }
+          final r = cornerRadius.clamp(0.0, maxR);
+          return '  <rect x="${rect.left}" y="${rect.top}" width="${rect.width}" height="${rect.height}" rx="$r" ry="$r" $fillAttr $strokeAttr$transformAttr />';
+        }
         return '  <rect x="${rect.left}" y="${rect.top}" width="${rect.width}" height="${rect.height}" $fillAttr $strokeAttr$transformAttr />';
       case ShapeType.roundedRectangle:
         if (hasIndependentCorners) {
@@ -801,7 +853,20 @@ class VectorShape {
         }
         return '  <line x1="${rect.left}" y1="${rect.top}" x2="${rect.right}" y2="${rect.bottom}" $strokeAttr stroke-linecap="$capStr"$markerStart$markerEnd$transformAttr />';
       case ShapeType.star:
-        final points = _generateStarPointsSvg(rect);
+        if (cornerRadius > 0) {
+          final d = CanvasGeometry.generateStarSvgPathData(
+            rect,
+            points: pointCount,
+            innerRadiusRatio: innerRadiusRatio,
+            cornerRadius: cornerRadius,
+          );
+          return '  <path d="$d" $fillAttr $strokeAttr$transformAttr />';
+        }
+        final points = CanvasGeometry.generateStarPointsSvg(
+          rect,
+          points: pointCount,
+          innerRadiusRatio: innerRadiusRatio,
+        );
         return '  <polygon points="$points" $fillAttr $strokeAttr$transformAttr />';
       case ShapeType.text:
         String displayText = textContent;
@@ -880,23 +945,6 @@ class VectorShape {
         .replaceAll("'", '&apos;');
   }
 
-  static String _generateStarPointsSvg(Rect rect) {
-    final center = rect.center;
-    final outerRadius = math.min(rect.width, rect.height) / 2;
-    final innerRadius = outerRadius * 0.4;
-    final pointsList = <String>[];
-    const double angleStep = math.pi / 5;
-
-    for (int i = 0; i < 10; i++) {
-      final r = i.isEven ? outerRadius : innerRadius;
-      final angle = i * angleStep - math.pi / 2;
-      final x = center.dx + r * math.cos(angle);
-      final y = center.dy + r * math.sin(angle);
-      pointsList.add('${x.toStringAsFixed(1)},${y.toStringAsFixed(1)}');
-    }
-    return pointsList.join(' ');
-  }
-
   static String _toTitleCase(String text) {
     if (text.isEmpty) return text;
     return text
@@ -921,14 +969,37 @@ class VectorShape {
         _lastBlRadius == bottomLeftRadius &&
         _lastPathCurvature == curvature &&
         _lastPathIsCurved == isCurved &&
-        _lastPathType == type) {
+        _lastPathType == type &&
+        _lastPointCount == pointCount &&
+        _lastInnerRadiusRatio == innerRadiusRatio) {
       return _cachedPath!;
     }
 
     final path = Path();
     switch (type) {
       case ShapeType.rectangle:
-        path.addRect(rect);
+      case ShapeType.image:
+        final maxR = math.min(rect.width, rect.height) / 2;
+        if (hasIndependentCorners) {
+          path.addRRect(
+            RRect.fromRectAndCorners(
+              rect,
+              topLeft: Radius.circular(effectiveTopLeftRadius.clamp(0.0, maxR)),
+              topRight: Radius.circular(effectiveTopRightRadius.clamp(0.0, maxR)),
+              bottomRight: Radius.circular(effectiveBottomRightRadius.clamp(0.0, maxR)),
+              bottomLeft: Radius.circular(effectiveBottomLeftRadius.clamp(0.0, maxR)),
+            ),
+          );
+        } else if (cornerRadius > 0) {
+          path.addRRect(
+            RRect.fromRectAndRadius(
+              rect,
+              Radius.circular(cornerRadius.clamp(0.0, maxR)),
+            ),
+          );
+        } else {
+          path.addRect(rect);
+        }
         break;
       case ShapeType.roundedRectangle:
         final maxR = math.min(rect.width, rect.height) / 2;
@@ -955,7 +1026,15 @@ class VectorShape {
         path.addOval(rect);
         break;
       case ShapeType.star:
-        path.addPath(CanvasGeometry.createStarPath(rect), Offset.zero);
+        path.addPath(
+          CanvasGeometry.createStarPath(
+            rect,
+            points: pointCount,
+            innerRadiusRatio: innerRadiusRatio,
+            cornerRadius: cornerRadius,
+          ),
+          Offset.zero,
+        );
         break;
       case ShapeType.line:
         final p1 = rect.topLeft;
@@ -975,7 +1054,6 @@ class VectorShape {
         }
         break;
       case ShapeType.text:
-      case ShapeType.image:
         path.addRect(rect);
         break;
     }
@@ -990,6 +1068,8 @@ class VectorShape {
     _lastPathCurvature = curvature;
     _lastPathIsCurved = isCurved;
     _lastPathType = type;
+    _lastPointCount = pointCount;
+    _lastInnerRadiusRatio = innerRadiusRatio;
     return path;
   }
 

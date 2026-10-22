@@ -328,13 +328,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   hintStyle: WidgetStatePropertyAll(
                     textTheme.bodyMedium?.copyWith(
                       color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                      fontSize: 13,
                     ),
                   ),
                   textStyle: WidgetStatePropertyAll(
                     textTheme.bodyMedium?.copyWith(
                       color: colorScheme.onSurface,
-                      fontSize: 13,
                     ),
                   ),
                   leading: Icon(
@@ -470,10 +468,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               label: Text(
                 'New File',
-                style: TextStyle(
+                style: textTheme.labelLarge?.copyWith(
                   color: colorScheme.onPrimary,
                   fontWeight: FontWeight.w600,
-                  fontSize: 13,
                 ),
               ),
             ),
@@ -545,7 +542,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         'Unclosed',
                         style: textTheme.labelSmall?.copyWith(
                           color: colorScheme.primary,
-                          fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -737,8 +733,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: textTheme.bodySmall?.copyWith(
-                    fontSize: 11,
+                  style: textTheme.labelSmall?.copyWith(
                     color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
                   ),
                   maxLines: 1,
@@ -798,7 +793,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             label: Text(
               'Clear Recents',
-              style: TextStyle(fontSize: 12, color: colorScheme.outline),
+              style: textTheme.labelMedium?.copyWith(color: colorScheme.outline),
             ),
           ),
       ],
@@ -888,8 +883,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         const SizedBox(height: 2),
                         Text(
                           '${project.shapes.length} layers • ${_formatTimeAgo(project.lastModified)}',
-                          style: textTheme.bodySmall?.copyWith(
-                            fontSize: 11,
+                          style: textTheme.labelSmall?.copyWith(
                             color: colorScheme.onSurfaceVariant,
                           ),
                         ),

@@ -93,7 +93,10 @@ class InteractiveCanvas extends StatefulWidget {
     required this.onMatrixChanged,
     this.onCanvasHoverChanged,
     this.onPointerHover,
+    this.onSecondaryTap,
   });
+
+  final void Function(Offset globalPos, Offset canvasPos)? onSecondaryTap;
 
   @override
   State<InteractiveCanvas> createState() => _InteractiveCanvasState();
@@ -185,6 +188,17 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
 
   MouseCursor _hoverCursor = SystemMouseCursors.basic;
   ResizeHandle _hoveredHandle = ResizeHandle.none;
+  DateTime? _lastSecondaryTapTime;
+
+  void _triggerSecondaryTap(Offset globalPos, Offset canvasPos) {
+    final now = DateTime.now();
+    if (_lastSecondaryTapTime != null &&
+        now.difference(_lastSecondaryTapTime!).inMilliseconds < 250) {
+      return;
+    }
+    _lastSecondaryTapTime = now;
+    widget.onSecondaryTap?.call(globalPos, canvasPos);
+  }
 
   MouseCursor _resolveCursor(bool isPanActive) {
     if (widget.isPanningWithMouse) return SystemMouseCursors.grabbing;
@@ -331,7 +345,13 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
         widget.currentMode == EditorMode.pan || widget.isSpacePressed;
     final effectiveCanvasBg = widget.canvasBackgroundColor ?? colorScheme.surface;
 
-    return MouseRegion(
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onSecondaryTapDown: (details) {
+        final canvasPos = _toCanvasCoordinates(details.globalPosition);
+        _triggerSecondaryTap(details.globalPosition, canvasPos);
+      },
+      child: MouseRegion(
       cursor: _resolveCursor(isPanActive),
       onEnter: (_) => widget.onCanvasHoverChanged?.call(true),
       onExit: (_) {
@@ -418,6 +438,12 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
             _innerHit = false;
             return;
           }
+          if ((event.buttons & kSecondaryMouseButton) != 0) {
+            final canvasPos =
+                event.transformed(_getGlobalToCanvasMatrix()).localPosition;
+            _triggerSecondaryTap(event.position, canvasPos);
+            return;
+          }
           _outerDragActive = true;
           if (widget.editingTextShapeId != null) {
             widget.onInlineTextCommit?.call();
@@ -450,6 +476,11 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
           child: Listener(
             behavior: HitTestBehavior.opaque,
             onPointerDown: (event) {
+              if ((event.buttons & kSecondaryMouseButton) != 0) {
+                _innerHit = true;
+                _triggerSecondaryTap(event.position, event.localPosition);
+                return;
+              }
               _innerHit = true;
               _outerDragActive = false;
               if (widget.editingTextShapeId != null) {
@@ -505,8 +536,7 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
                     left: 2,
                     child: Text(
                       '${widget.artboardTitle ?? 'Canvas'} • ${widget.canvasSize.width.toInt()} × ${widget.canvasSize.height.toInt()}',
-                      style: TextStyle(
-                        fontSize: 11,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.2,
                         color: colorScheme.onSurfaceVariant.withValues(alpha: 0.65),
@@ -588,6 +618,7 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
         ),
       ),
     ),
-  );
+  ),
+);
 }
 }

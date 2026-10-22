@@ -651,8 +651,7 @@ class _NixColorPickerState extends State<NixColorPicker> {
                           child: Text(
                             widget.title,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 13,
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w700,
                               letterSpacing: -0.2,
                             ),
@@ -998,8 +997,7 @@ class _NixColorPickerState extends State<NixColorPicker> {
                       ),
                       child: Text(
                         '${_gradient.angle.round()}°',
-                        style: TextStyle(
-                          fontSize: 10,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: colorScheme.onSurfaceVariant,
                         ),
@@ -1124,8 +1122,7 @@ class _NixColorPickerState extends State<NixColorPicker> {
             const SizedBox(width: 4),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 10,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
             ),
@@ -1270,8 +1267,7 @@ class _NixColorPickerState extends State<NixColorPicker> {
                           _mode == ColorPickerMode.solid
                               ? NixColorUtils.toHex(_currentColor)
                               : '${_mode.label} (${_gradient.stops.length} stops)',
-                          style: const TextStyle(
-                            fontSize: 12,
+                          style: Theme.of(context).textTheme.labelMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                             fontFamily: 'monospace',
                             letterSpacing: 0.3,
@@ -1279,8 +1275,7 @@ class _NixColorPickerState extends State<NixColorPicker> {
                         ),
                         Text(
                           'Contrast: ${bestContrast.toStringAsFixed(1)}:1 ($rating)',
-                          style: TextStyle(
-                            fontSize: 9.5,
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: colorScheme.onSurfaceVariant,
                             fontWeight: FontWeight.w500,
                           ),
@@ -1470,8 +1465,7 @@ class _NixColorPickerState extends State<NixColorPicker> {
                     child: Center(
                       child: Text(
                         fmt.label,
-                        style: TextStyle(
-                          fontSize: 10,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           fontWeight: isSelected
                               ? FontWeight.w700
                               : FontWeight.w500,
@@ -1607,8 +1601,7 @@ class _NixColorPickerState extends State<NixColorPicker> {
                   padding: const EdgeInsets.only(left: 6),
                   child: Text(
                     prefix,
-                    style: TextStyle(
-                      fontSize: 11,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: colorScheme.outline,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1618,8 +1611,7 @@ class _NixColorPickerState extends State<NixColorPicker> {
                 child: TextField(
                   controller: controller,
                   focusNode: focusNode,
-                  style: const TextStyle(
-                    fontSize: 11,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     fontFamily: 'monospace',
                     fontWeight: FontWeight.w600,
                   ),
@@ -1639,7 +1631,9 @@ class _NixColorPickerState extends State<NixColorPicker> {
                   padding: const EdgeInsets.only(right: 6),
                   child: Text(
                     suffix,
-                    style: TextStyle(fontSize: 10, color: colorScheme.outline),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: colorScheme.outline,
+                    ),
                   ),
                 ),
             ],
@@ -1649,8 +1643,7 @@ class _NixColorPickerState extends State<NixColorPicker> {
         Center(
           child: Text(
             label,
-            style: TextStyle(
-              fontSize: 9,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
               fontWeight: FontWeight.w600,
               color: colorScheme.outline,
             ),
@@ -1669,8 +1662,7 @@ class _NixColorPickerState extends State<NixColorPicker> {
           children: [
             Text(
               'SWATCHES',
-              style: TextStyle(
-                fontSize: 9.5,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.w800,
                 color: colorScheme.outline,
                 letterSpacing: 0.6,

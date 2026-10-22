@@ -681,26 +681,231 @@ class CanvasGeometry {
     return dest;
   }
 
-  /// Generates a geometric 5-point star [Path] fitted within [rect].
-  static Path createStarPath(Rect rect) {
-    final path = Path();
+  /// Generates a geometric star [Path] fitted within [rect], supporting custom [points],
+  /// [innerRadiusRatio], and smooth [cornerRadius] corner rounding fillets.
+  static Path createStarPath(
+    Rect rect, {
+    int points = 5,
+    double innerRadiusRatio = 0.4,
+    double cornerRadius = 0.0,
+  }) {
+    final numPoints = math.max(3, points);
+    final ratio = innerRadiusRatio.clamp(0.05, 0.95);
     final center = rect.center;
     final outerRadius = math.min(rect.width, rect.height) / 2;
-    final innerRadius = outerRadius * 0.4;
-    const double angleStep = math.pi / 5;
+    final innerRadius = outerRadius * ratio;
+    final totalVertices = numPoints * 2;
+    final angleStep = math.pi / numPoints;
 
-    for (int i = 0; i < 10; i++) {
+    final vertices = <Offset>[];
+    for (int i = 0; i < totalVertices; i++) {
+      final r = i.isEven ? outerRadius : innerRadius;
+      final angle = i * angleStep - math.pi / 2;
+      vertices.add(
+        Offset(center.dx + r * math.cos(angle), center.dy + r * math.sin(angle)),
+      );
+    }
+
+    final path = Path();
+    if (vertices.isEmpty) return path;
+
+    if (cornerRadius <= 0.0) {
+      path.moveTo(vertices[0].dx, vertices[0].dy);
+      for (int i = 1; i < totalVertices; i++) {
+        path.lineTo(vertices[i].dx, vertices[i].dy);
+      }
+      path.close();
+      return path;
+    }
+
+    // Compute edge lengths
+    final edgeLengths = <double>[];
+    for (int i = 0; i < totalVertices; i++) {
+      final nextIdx = (i + 1) % totalVertices;
+      edgeLengths.add((vertices[nextIdx] - vertices[i]).distance);
+    }
+
+    // Compute tangent points and conic fillet weights for each vertex
+    final tangentIn = <Offset>[];
+    final tangentOut = <Offset>[];
+    final filletWeights = <double>[];
+
+    for (int i = 0; i < totalVertices; i++) {
+      final prevIdx = (i - 1 + totalVertices) % totalVertices;
+      final pi = vertices[i];
+      final pPrev = vertices[prevIdx];
+      final pNext = vertices[(i + 1) % totalVertices];
+
+      final vIn = pPrev - pi;
+      final vOut = pNext - pi;
+      final lenIn = edgeLengths[prevIdx];
+      final lenOut = edgeLengths[i];
+
+      if (lenIn == 0 || lenOut == 0) {
+        tangentIn.add(pi);
+        tangentOut.add(pi);
+        filletWeights.add(1.0);
+        continue;
+      }
+
+      final uIn = Offset(vIn.dx / lenIn, vIn.dy / lenIn);
+      final uOut = Offset(vOut.dx / lenOut, vOut.dy / lenOut);
+
+      final dot = (uIn.dx * uOut.dx + uIn.dy * uOut.dy).clamp(-1.0, 1.0);
+      final angle = math.acos(dot);
+      final halfAngle = angle / 2;
+      final tanHalf = math.tan(halfAngle);
+
+      final maxFilletDist = math.min(lenIn, lenOut) * 0.49;
+      double d = 0.0;
+      if (tanHalf > 1e-4) {
+        d = (cornerRadius / tanHalf).clamp(0.0, maxFilletDist);
+      }
+
+      tangentIn.add(pi + Offset(uIn.dx * d, uIn.dy * d));
+      tangentOut.add(pi + Offset(uOut.dx * d, uOut.dy * d));
+      filletWeights.add(math.cos(halfAngle));
+    }
+
+    path.moveTo(tangentOut[0].dx, tangentOut[0].dy);
+    for (int i = 1; i <= totalVertices; i++) {
+      final idx = i % totalVertices;
+      path.lineTo(tangentIn[idx].dx, tangentIn[idx].dy);
+
+      final pi = vertices[idx];
+      path.conicTo(
+        pi.dx,
+        pi.dy,
+        tangentOut[idx].dx,
+        tangentOut[idx].dy,
+        filletWeights[idx],
+      );
+    }
+    path.close();
+    return path;
+  }
+
+  /// Generates SVG path data commands for a star with optional rounded corner fillets.
+  static String generateStarSvgPathData(
+    Rect rect, {
+    int points = 5,
+    double innerRadiusRatio = 0.4,
+    double cornerRadius = 0.0,
+  }) {
+    final numPoints = math.max(3, points);
+    final ratio = innerRadiusRatio.clamp(0.05, 0.95);
+    final center = rect.center;
+    final outerRadius = math.min(rect.width, rect.height) / 2;
+    final innerRadius = outerRadius * ratio;
+    final totalVertices = numPoints * 2;
+    final angleStep = math.pi / numPoints;
+
+    final vertices = <Offset>[];
+    for (int i = 0; i < totalVertices; i++) {
+      final r = i.isEven ? outerRadius : innerRadius;
+      final angle = i * angleStep - math.pi / 2;
+      vertices.add(
+        Offset(center.dx + r * math.cos(angle), center.dy + r * math.sin(angle)),
+      );
+    }
+
+    if (cornerRadius <= 0.0) {
+      final sb = StringBuffer();
+      sb.write(
+        'M ${vertices[0].dx.toStringAsFixed(1)} ${vertices[0].dy.toStringAsFixed(1)}',
+      );
+      for (int i = 1; i < totalVertices; i++) {
+        sb.write(
+          ' L ${vertices[i].dx.toStringAsFixed(1)} ${vertices[i].dy.toStringAsFixed(1)}',
+        );
+      }
+      sb.write(' Z');
+      return sb.toString();
+    }
+
+    final edgeLengths = <double>[];
+    for (int i = 0; i < totalVertices; i++) {
+      final nextIdx = (i + 1) % totalVertices;
+      edgeLengths.add((vertices[nextIdx] - vertices[i]).distance);
+    }
+
+    final tangentIn = <Offset>[];
+    final tangentOut = <Offset>[];
+
+    for (int i = 0; i < totalVertices; i++) {
+      final prevIdx = (i - 1 + totalVertices) % totalVertices;
+      final pi = vertices[i];
+      final pPrev = vertices[prevIdx];
+      final pNext = vertices[(i + 1) % totalVertices];
+
+      final vIn = pPrev - pi;
+      final vOut = pNext - pi;
+      final lenIn = edgeLengths[prevIdx];
+      final lenOut = edgeLengths[i];
+
+      if (lenIn == 0 || lenOut == 0) {
+        tangentIn.add(pi);
+        tangentOut.add(pi);
+        continue;
+      }
+
+      final uIn = Offset(vIn.dx / lenIn, vIn.dy / lenIn);
+      final uOut = Offset(vOut.dx / lenOut, vOut.dy / lenOut);
+      final dot = (uIn.dx * uOut.dx + uIn.dy * uOut.dy).clamp(-1.0, 1.0);
+      final halfAngle = math.acos(dot) / 2;
+      final tanHalf = math.tan(halfAngle);
+      final maxFilletDist = math.min(lenIn, lenOut) * 0.49;
+      double d = 0.0;
+      if (tanHalf > 1e-4) {
+        d = (cornerRadius / tanHalf).clamp(0.0, maxFilletDist);
+      }
+
+      tangentIn.add(pi + Offset(uIn.dx * d, uIn.dy * d));
+      tangentOut.add(pi + Offset(uOut.dx * d, uOut.dy * d));
+    }
+
+    final sb = StringBuffer();
+    sb.write(
+      'M ${tangentOut[0].dx.toStringAsFixed(1)} ${tangentOut[0].dy.toStringAsFixed(1)}',
+    );
+    for (int i = 1; i <= totalVertices; i++) {
+      final idx = i % totalVertices;
+      final pi = vertices[idx];
+      final tIn = tangentIn[idx];
+      final tOut = tangentOut[idx];
+      sb.write(
+        ' L ${tIn.dx.toStringAsFixed(1)} ${tIn.dy.toStringAsFixed(1)}',
+      );
+      sb.write(
+        ' Q ${pi.dx.toStringAsFixed(1)} ${pi.dy.toStringAsFixed(1)} ${tOut.dx.toStringAsFixed(1)} ${tOut.dy.toStringAsFixed(1)}',
+      );
+    }
+    sb.write(' Z');
+    return sb.toString();
+  }
+
+  /// Generates SVG points list string for unrounded polygon stars.
+  static String generateStarPointsSvg(
+    Rect rect, {
+    int points = 5,
+    double innerRadiusRatio = 0.4,
+  }) {
+    final numPoints = math.max(3, points);
+    final ratio = innerRadiusRatio.clamp(0.05, 0.95);
+    final center = rect.center;
+    final outerRadius = math.min(rect.width, rect.height) / 2;
+    final innerRadius = outerRadius * ratio;
+    final totalVertices = numPoints * 2;
+    final angleStep = math.pi / numPoints;
+    final pointsList = <String>[];
+
+    for (int i = 0; i < totalVertices; i++) {
       final r = i.isEven ? outerRadius : innerRadius;
       final angle = i * angleStep - math.pi / 2;
       final x = center.dx + r * math.cos(angle);
       final y = center.dy + r * math.sin(angle);
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
+      pointsList.add('${x.toStringAsFixed(1)},${y.toStringAsFixed(1)}');
     }
-    path.close();
-    return path;
+    return pointsList.join(' ');
   }
 }

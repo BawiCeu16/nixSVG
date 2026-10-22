@@ -124,11 +124,28 @@ class SvgExportService {
       buffer.write('$indent</defs>$newline');
     }
 
+    String? currentGroupId;
     for (final shape in exportShapes) {
+      if (shape.groupId != currentGroupId) {
+        if (currentGroupId != null) {
+          buffer.write('$indent</g>$newline');
+        }
+        currentGroupId = shape.groupId;
+        if (currentGroupId != null) {
+          final gName = shape.groupName ?? currentGroupId;
+          buffer.write('$indent<g id="$gName">$newline');
+        }
+      }
+
       final elementSvg = shape.toSvgElement();
       if (elementSvg.isNotEmpty) {
-        buffer.write('$elementSvg$newline');
+        final prefix = currentGroupId != null ? indent : '';
+        buffer.write('$prefix$elementSvg$newline');
       }
+    }
+
+    if (currentGroupId != null) {
+      buffer.write('$indent</g>$newline');
     }
 
     buffer.write('</svg>');

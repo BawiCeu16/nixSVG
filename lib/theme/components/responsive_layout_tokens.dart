@@ -29,12 +29,12 @@ class ResponsiveLayoutTokens {
     final width = media.size.width;
 
     if (isDesktop || width >= 1200) {
-      return 60.0;
+      return 46.0;
     } else if (width >= 600) {
-      return isLandscape ? 56.0 : 58.0;
+      return isLandscape ? 42.0 : 44.0;
     } else {
       // Small phone screens
-      return isLandscape ? 48.0 : 54.0;
+      return isLandscape ? 38.0 : 42.0;
     }
   }
 
@@ -89,11 +89,11 @@ class ResponsiveLayoutTokens {
     final media = MediaQuery.of(context);
     final bottomInset = media.padding.bottom;
     if (media.orientation == Orientation.landscape && media.size.height < 500) {
-      return 10.0 + bottomInset;
+      return 8.0 + bottomInset;
     }
     return (media.size.width < 600)
-        ? (14.0 + bottomInset)
-        : (24.0 + bottomInset);
+        ? (10.0 + bottomInset)
+        : (14.0 + bottomInset);
   }
 
   /// Dynamic scale factor for the [FloatingToolBar] across device form factors.

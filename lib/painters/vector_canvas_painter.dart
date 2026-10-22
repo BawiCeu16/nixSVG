@@ -281,10 +281,40 @@ class VectorCanvasPainter extends CustomPainter {
 
     switch (shape.type) {
       case ShapeType.rectangle:
-        if (shape.isFilled) canvas.drawRect(shape.rect, fillPaint);
-        if (shape.isStroked) {
-          final path = shape.getPath();
-          drawStrokedPath(path, shapeBoundary: path);
+        final maxR = math.min(shape.rect.width, shape.rect.height) / 2;
+        final hasRadius = shape.cornerRadius > 0 || shape.hasIndependentCorners;
+        if (hasRadius) {
+          final rrect = shape.hasIndependentCorners
+              ? RRect.fromRectAndCorners(
+                  shape.rect,
+                  topLeft: Radius.circular(
+                    shape.effectiveTopLeftRadius.clamp(0.0, maxR),
+                  ),
+                  topRight: Radius.circular(
+                    shape.effectiveTopRightRadius.clamp(0.0, maxR),
+                  ),
+                  bottomRight: Radius.circular(
+                    shape.effectiveBottomRightRadius.clamp(0.0, maxR),
+                  ),
+                  bottomLeft: Radius.circular(
+                    shape.effectiveBottomLeftRadius.clamp(0.0, maxR),
+                  ),
+                )
+              : RRect.fromRectAndRadius(
+                  shape.rect,
+                  Radius.circular(shape.cornerRadius.clamp(0.0, maxR)),
+                );
+          if (shape.isFilled) canvas.drawRRect(rrect, fillPaint);
+          if (shape.isStroked) {
+            final path = shape.getPath();
+            drawStrokedPath(path, shapeBoundary: path);
+          }
+        } else {
+          if (shape.isFilled) canvas.drawRect(shape.rect, fillPaint);
+          if (shape.isStroked) {
+            final path = shape.getPath();
+            drawStrokedPath(path, shapeBoundary: path);
+          }
         }
         break;
 
@@ -420,6 +450,31 @@ class VectorCanvasPainter extends CustomPainter {
         break;
 
       case ShapeType.image:
+        final maxR = math.min(shape.rect.width, shape.rect.height) / 2;
+        final hasRadius = shape.cornerRadius > 0 || shape.hasIndependentCorners;
+        final rrect = hasRadius
+            ? (shape.hasIndependentCorners
+                ? RRect.fromRectAndCorners(
+                    shape.rect,
+                    topLeft: Radius.circular(
+                      shape.effectiveTopLeftRadius.clamp(0.0, maxR),
+                    ),
+                    topRight: Radius.circular(
+                      shape.effectiveTopRightRadius.clamp(0.0, maxR),
+                    ),
+                    bottomRight: Radius.circular(
+                      shape.effectiveBottomRightRadius.clamp(0.0, maxR),
+                    ),
+                    bottomLeft: Radius.circular(
+                      shape.effectiveBottomLeftRadius.clamp(0.0, maxR),
+                    ),
+                  )
+                : RRect.fromRectAndRadius(
+                    shape.rect,
+                    Radius.circular(shape.cornerRadius.clamp(0.0, maxR)),
+                  ))
+            : null;
+
         if (shape.decodedImage != null) {
           final srcRect = Rect.fromLTWH(
             0,
@@ -427,23 +482,56 @@ class VectorCanvasPainter extends CustomPainter {
             shape.decodedImage!.width.toDouble(),
             shape.decodedImage!.height.toDouble(),
           );
-          canvas.drawImageRect(
-            shape.decodedImage!,
-            srcRect,
-            shape.rect,
-            Paint(),
-          );
+          if (rrect != null) {
+            canvas.save();
+            canvas.clipRRect(rrect);
+            canvas.drawImageRect(
+              shape.decodedImage!,
+              srcRect,
+              shape.rect,
+              Paint(),
+            );
+            canvas.restore();
+          } else {
+            canvas.drawImageRect(
+              shape.decodedImage!,
+              srcRect,
+              shape.rect,
+              Paint(),
+            );
+          }
         } else {
-          canvas.drawRect(shape.rect, fillPaint);
+          if (rrect != null) {
+            canvas.drawRRect(rrect, fillPaint);
+          } else {
+            canvas.drawRect(shape.rect, fillPaint);
+          }
         }
-        if (shape.isStroked) canvas.drawRect(shape.rect, strokePaint);
+        if (shape.isStroked) {
+          if (rrect != null) {
+            final path = shape.getPath();
+            drawStrokedPath(path, shapeBoundary: path);
+          } else {
+            canvas.drawRect(shape.rect, strokePaint);
+          }
+        }
         break;
     }
 
     canvas.restore();
   }
 
-  Path _generateStarPath(Rect rect) => CanvasGeometry.createStarPath(rect);
+  Path _generateStarPath(
+    Rect rect, {
+    int points = 5,
+    double innerRadiusRatio = 0.4,
+    double cornerRadius = 0.0,
+  }) => CanvasGeometry.createStarPath(
+    rect,
+    points: points,
+    innerRadiusRatio: innerRadiusRatio,
+    cornerRadius: cornerRadius,
+  );
 
   void _drawSelectionBox(Canvas canvas, VectorShape shape) {
     canvas.save();
@@ -653,7 +741,9 @@ class VectorCanvasPainter extends CustomPainter {
         rect,
         shapeType: shape.type,
         cornerRadius: (shape.type == ShapeType.roundedRectangle ||
-                shape.type == ShapeType.rectangle)
+                shape.type == ShapeType.rectangle ||
+                shape.type == ShapeType.star ||
+                shape.type == ShapeType.image)
             ? (activeResizeHandle == ResizeHandle.radiusTopLeft
                 ? shape.effectiveTopLeftRadius
                 : activeResizeHandle == ResizeHandle.radiusTopRight
@@ -785,7 +875,9 @@ class VectorCanvasPainter extends CustomPainter {
       final ry = (height / 2).round();
       badgeText = '$width × $height  (rx: $rx, ry: $ry)';
     } else if ((shapeType == ShapeType.roundedRectangle ||
-            shapeType == ShapeType.rectangle) &&
+            shapeType == ShapeType.rectangle ||
+            shapeType == ShapeType.star ||
+            shapeType == ShapeType.image) &&
         cornerRadius != null &&
         cornerRadius > 0) {
       badgeText = '$width × $height  (r: ${cornerRadius.round()})';

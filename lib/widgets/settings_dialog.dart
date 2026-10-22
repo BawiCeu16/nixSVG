@@ -2,11 +2,73 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:m3e_buttons/m3e_buttons.dart';
+import 'package:m3e_card_list/m3e_card_list.dart';
 import 'package:nixsvg/providers/app_settings_provider.dart';
 import 'package:nixsvg/providers/project_provider.dart';
 import 'package:nixsvg/theme/physics/m3e_physics_spring.dart';
 import 'package:nixsvg/widgets/color_picker/nix_color_picker_presenter.dart';
+import 'package:nixsvg/widgets/nix_slider.dart';
 import 'package:remixicon/remixicon.dart';
+
+/// Unified Material 3 Expressive Switch for nixSVG Studio settings and controls.
+/// Features expressive thumb icons (check / close), color harmonization with M3 tokens,
+/// and light haptic feedback on state toggling.
+class M3ESwitch extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+  final String? tooltip;
+
+  const M3ESwitch({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    this.tooltip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    final switchWidget = Switch(
+      value: value,
+      onChanged: onChanged != null
+          ? (val) {
+              HapticFeedback.lightImpact();
+              onChanged!(val);
+            }
+          : null,
+      thumbIcon: WidgetStateProperty.resolveWith<Icon?>((states) {
+        if (states.contains(WidgetState.selected)) {
+          return Icon(
+            RemixIcons.check_line,
+            size: 14,
+            color: colorScheme.onPrimary,
+          );
+        }
+        return Icon(
+          RemixIcons.close_line,
+          size: 14,
+          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+        );
+      }),
+      activeTrackColor: colorScheme.primary,
+      activeThumbColor: colorScheme.onPrimary,
+      inactiveThumbColor: colorScheme.outline,
+      inactiveTrackColor: colorScheme.surfaceContainerHighest,
+      trackOutlineColor: WidgetStateProperty.resolveWith<Color?>(
+        (states) => states.contains(WidgetState.selected)
+            ? Colors.transparent
+            : colorScheme.outline.withValues(alpha: 0.4),
+      ),
+    );
+
+    if (tooltip != null) {
+      return Tooltip(message: tooltip!, child: switchWidget);
+    }
+    return switchWidget;
+  }
+}
 
 /// Shows the adaptive full-screen Material 3 Expressive Settings & Preferences Dialog.
 Future<void> showAppSettingsDialog(BuildContext context) {
@@ -139,7 +201,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                             )
                           : Column(
                               children: [
-                                _buildCompactCategoryTabs(colorScheme),
+                                _buildCompactCategoryTabs(context, colorScheme),
                                 const Divider(height: 1),
                                 Expanded(
                                   child: _buildSettingsBody(
@@ -174,9 +236,10 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     bool isWide,
     bool isCompact,
   ) {
+    final theme = Theme.of(context);
     return Container(
-      height: 60,
-      padding: EdgeInsets.symmetric(horizontal: isCompact ? 10 : 16),
+      height: 46,
+      padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 12),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainer.withValues(
           alpha: isDark ? 0.75 : 0.88,
@@ -196,7 +259,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
             tooltip: 'Close Settings (Esc)',
             onTap: () => Navigator.of(context).pop(),
             child: Container(
-              padding: EdgeInsets.all(isCompact ? 6 : 8),
+              padding: EdgeInsets.all(isCompact ? 4 : 5),
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainerHigh,
                 shape: BoxShape.circle,
@@ -207,21 +270,21 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               ),
               child: Icon(
                 RemixIcons.close_line,
-                size: isCompact ? 16 : 18,
+                size: isCompact ? 14 : 16,
                 color: colorScheme.onSurface,
               ),
             ),
           ),
-          SizedBox(width: isCompact ? 8 : 14),
+          SizedBox(width: isCompact ? 6 : 10),
 
           // Title with app badge
           if (!isCompact) ...[
             Text(
               'Settings & Preferences',
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold, letterSpacing: 0.3),
+              style: Theme.of(context).textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.bold, letterSpacing: 0.2),
             ),
-            const SizedBox(width: 20),
+            const SizedBox(width: 14),
             const Spacer(),
           ] else ...[
             Text(
@@ -229,7 +292,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               style: Theme.of(context).textTheme.titleSmall
                   ?.copyWith(fontWeight: FontWeight.bold),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
           ],
 
           // Search Field using Flutter native SearchBar
@@ -237,27 +300,26 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: isCompact ? 180 : 420),
               child: SizedBox(
-                height: 38,
+                height: 30,
                 child: SearchBar(
                   controller: _searchController,
                   hintText: isCompact
                       ? 'Search...'
                       : 'Search settings, canvas, shortcuts...',
                   hintStyle: WidgetStatePropertyAll(
-                    Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant.withValues(
                         alpha: 0.7,
                       ),
-                      fontSize: 13,
                     ),
                   ),
                   textStyle: WidgetStatePropertyAll(
-                    Theme.of(context).textTheme.bodyMedium
-                        ?.copyWith(color: colorScheme.onSurface, fontSize: 13),
+                    Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: colorScheme.onSurface),
                   ),
                   leading: Icon(
                     RemixIcons.search_line,
-                    size: 16,
+                    size: 14,
                     color: colorScheme.onSurfaceVariant,
                   ),
                   trailing: [
@@ -265,7 +327,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                       IconButton(
                         icon: Icon(
                           RemixIcons.close_circle_line,
-                          size: 16,
+                          size: 14,
                           color: colorScheme.onSurfaceVariant,
                         ),
                         onPressed: () => _searchController.clear(),
@@ -277,7 +339,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                   ),
                   shape: WidgetStatePropertyAll(
                     RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(19),
+                      borderRadius: BorderRadius.circular(8),
                       side: BorderSide(
                         color: colorScheme.outlineVariant.withValues(
                           alpha: 0.35,
@@ -287,7 +349,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                     ),
                   ),
                   padding: WidgetStatePropertyAll(
-                    EdgeInsets.symmetric(horizontal: isCompact ? 8 : 12),
+                    EdgeInsets.symmetric(horizontal: isCompact ? 6 : 10),
                   ),
                 ),
               ),
@@ -309,10 +371,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               ),
               label: Text(
                 'Reset Defaults',
-                style: TextStyle(
+                style: theme.textTheme.labelMedium?.copyWith(
                   color: colorScheme.error,
                   fontWeight: FontWeight.w600,
-                  fontSize: 12.5,
                 ),
               ),
             )
@@ -352,9 +413,10 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     ColorScheme colorScheme,
     bool isDark,
   ) {
+    final theme = Theme.of(context);
     return Container(
       color: colorScheme.surfaceContainerLowest,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
       child: Column(
         children: [
           Expanded(
@@ -363,7 +425,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                 final isSelected =
                     _selectedCategory == cat && _searchQuery.isEmpty;
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
+                  padding: const EdgeInsets.only(bottom: 2),
                   child: InkWell(
                     onTap: () {
                       setState(() {
@@ -373,12 +435,12 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                         }
                       });
                     },
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
+                        horizontal: 10,
+                        vertical: 6,
                       ),
                       decoration: BoxDecoration(
                         color: isSelected
@@ -386,7 +448,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                                 alpha: isDark ? 0.35 : 0.6,
                               )
                             : Colors.transparent,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: isSelected
                               ? colorScheme.primary.withValues(alpha: 0.3)
@@ -398,24 +460,23 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                         children: [
                           Icon(
                             cat.icon,
-                            size: 18,
+                            size: 16,
                             color: isSelected
                                 ? colorScheme.primary
                                 : colorScheme.onSurfaceVariant,
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               cat.label,
-                              style: TextStyle(
-                                color: isSelected
-                                    ? colorScheme.primary
-                                    : colorScheme.onSurface,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.w500,
-                                fontSize: 13.5,
-                              ),
+                              style: isSelected
+                                  ? theme.textTheme.labelLarge?.copyWith(
+                                      color: colorScheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                    )
+                                  : theme.textTheme.bodyMedium?.copyWith(
+                                      color: colorScheme.onSurface,
+                                    ),
                             ),
                           ),
                         ],
@@ -435,7 +496,11 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
   // Compact Category Tabs (Mobile / Narrow)
   // --------------------------------------------------------------------------
 
-  Widget _buildCompactCategoryTabs(ColorScheme colorScheme) {
+  Widget _buildCompactCategoryTabs(
+    BuildContext context,
+    ColorScheme colorScheme,
+  ) {
+    final theme = Theme.of(context);
     return Container(
       height: 48,
       color: colorScheme.surfaceContainerLowest,
@@ -455,7 +520,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               children: [
                 Icon(cat.icon, size: 14),
                 const SizedBox(width: 6),
-                Text(cat.label, style: const TextStyle(fontSize: 12)),
+                Text(cat.label, style: theme.textTheme.labelMedium),
               ],
             ),
             onSelected: (val) {
@@ -483,7 +548,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     AppSettingsNotifier notifier,
   ) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 840),
@@ -598,17 +663,17 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                   ButtonSegment(
                     value: ThemeMode.light,
                     icon: Icon(RemixIcons.sun_line, size: 15),
-                    label: Text('Light', style: TextStyle(fontSize: 12)),
+                    label: Text('Light'),
                   ),
                   ButtonSegment(
                     value: ThemeMode.dark,
                     icon: Icon(RemixIcons.moon_line, size: 15),
-                    label: Text('Dark', style: TextStyle(fontSize: 12)),
+                    label: Text('Dark'),
                   ),
                   ButtonSegment(
                     value: ThemeMode.system,
                     icon: Icon(RemixIcons.computer_line, size: 15),
-                    label: Text('System', style: TextStyle(fontSize: 12)),
+                    label: Text('System'),
                   ),
                 ],
                 selected: {settings.themeMode},
@@ -681,7 +746,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               colorScheme: colorScheme,
               title: 'OLED High Contrast',
               subtitle: 'Uses ultra-deep pitch black backgrounds for maximum contrast and battery efficiency',
-              trailing: Switch.adaptive(
+              trailing: M3ESwitch(
                 value: settings.oledDark,
                 onChanged: notifier.setOledDark,
               ),
@@ -702,6 +767,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     AppSettingsState settings,
     AppSettingsNotifier notifier,
   ) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -720,7 +786,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               colorScheme: colorScheme,
               title: 'Snap to Grid',
               subtitle: 'Automatically aligns vector anchor points and shapes to the nearest grid step',
-              trailing: Switch.adaptive(
+              trailing: M3ESwitch(
                 value: settings.snapToGrid,
                 onChanged: notifier.setSnapToGrid,
               ),
@@ -738,12 +804,12 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                   ButtonSegment(
                     value: 'dots',
                     icon: Icon(RemixIcons.checkbox_blank_circle_line, size: 14),
-                    label: Text('Dots', style: TextStyle(fontSize: 12)),
+                    label: Text('Dots'),
                   ),
                   ButtonSegment(
                     value: 'lines',
                     icon: Icon(RemixIcons.grid_line, size: 14),
-                    label: Text('Lines', style: TextStyle(fontSize: 12)),
+                    label: Text('Lines'),
                   ),
                 ],
                 selected: {settings.gridStyle},
@@ -760,24 +826,26 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               subtitle:
                   'Distance in logical pixels between grid points (${settings.gridSpacing.toInt()} px)',
               trailing: SizedBox(
-                width: 220,
+                width: 230,
                 child: Row(
                   children: [
                     Expanded(
-                      child: Slider(
+                      child: NixSlider(
                         value: settings.gridSpacing,
                         min: 10,
                         max: 100,
                         divisions: 18,
-                        label: '${settings.gridSpacing.toInt()}px',
                         onChanged: notifier.setGridSpacing,
                       ),
                     ),
-                    Text(
-                      '${settings.gridSpacing.toInt()}px',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                    SizedBox(
+                      width: 46,
+                      child: Text(
+                        '${settings.gridSpacing.toInt()}px',
+                        textAlign: TextAlign.end,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
@@ -792,7 +860,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               colorScheme: colorScheme,
               title: 'Smart Alignment Guides',
               subtitle: 'Shows magenta dynamic alignment guidelines when snapping to neighboring shapes',
-              trailing: Switch.adaptive(
+              trailing: M3ESwitch(
                 value: settings.smartGuides,
                 onChanged: notifier.setSmartGuides,
               ),
@@ -805,7 +873,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               colorScheme: colorScheme,
               title: 'Invert Mouse Wheel Zoom',
               subtitle: 'Reverse the scroll wheel zoom direction to match standard trackpad pinch',
-              trailing: Switch.adaptive(
+              trailing: M3ESwitch(
                 value: settings.invertZoom,
                 onChanged: notifier.setInvertZoom,
               ),
@@ -826,6 +894,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     AppSettingsState settings,
     AppSettingsNotifier notifier,
   ) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -846,24 +915,26 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               subtitle:
                   'Default dock width for the left layers hierarchy tree (${settings.layersSidebarWidth.toInt()} px)',
               trailing: SizedBox(
-                width: 220,
+                width: 230,
                 child: Row(
                   children: [
                     Expanded(
-                      child: Slider(
+                      child: NixSlider(
                         value: settings.layersSidebarWidth,
                         min: 180,
                         max: 380,
                         divisions: 20,
-                        label: '${settings.layersSidebarWidth.toInt()}px',
                         onChanged: notifier.setLayersSidebarWidth,
                       ),
                     ),
-                    Text(
-                      '${settings.layersSidebarWidth.toInt()}px',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                    SizedBox(
+                      width: 46,
+                      child: Text(
+                        '${settings.layersSidebarWidth.toInt()}px',
+                        textAlign: TextAlign.end,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
@@ -880,24 +951,26 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               subtitle:
                   'Default dock width for the right property inspector panel (${settings.propertiesSidebarWidth.toInt()} px)',
               trailing: SizedBox(
-                width: 220,
+                width: 230,
                 child: Row(
                   children: [
                     Expanded(
-                      child: Slider(
+                      child: NixSlider(
                         value: settings.propertiesSidebarWidth,
                         min: 200,
                         max: 420,
                         divisions: 22,
-                        label: '${settings.propertiesSidebarWidth.toInt()}px',
                         onChanged: notifier.setPropertiesSidebarWidth,
                       ),
                     ),
-                    Text(
-                      '${settings.propertiesSidebarWidth.toInt()}px',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                    SizedBox(
+                      width: 46,
+                      child: Text(
+                        '${settings.propertiesSidebarWidth.toInt()}px',
+                        textAlign: TextAlign.end,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
@@ -917,12 +990,12 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                   ButtonSegment(
                     value: 'bottom',
                     icon: Icon(RemixIcons.layout_bottom_line, size: 14),
-                    label: Text('Bottom', style: TextStyle(fontSize: 12)),
+                    label: Text('Bottom'),
                   ),
                   ButtonSegment(
                     value: 'top',
                     icon: Icon(RemixIcons.layout_top_line, size: 14),
-                    label: Text('Top', style: TextStyle(fontSize: 12)),
+                    label: Text('Top'),
                   ),
                 ],
                 selected: {settings.toolbarPosition},
@@ -946,6 +1019,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     AppSettingsState settings,
     AppSettingsNotifier notifier,
   ) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -966,25 +1040,26 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               subtitle:
                   'Initial outline thickness assigned to newly drawn paths and shapes (${settings.defaultStrokeWidth.toStringAsFixed(1)} px)',
               trailing: SizedBox(
-                width: 220,
+                width: 230,
                 child: Row(
                   children: [
                     Expanded(
-                      child: Slider(
+                      child: NixSlider(
                         value: settings.defaultStrokeWidth,
                         min: 0.5,
                         max: 12.0,
                         divisions: 23,
-                        label:
-                            '${settings.defaultStrokeWidth.toStringAsFixed(1)}px',
                         onChanged: notifier.setDefaultStrokeWidth,
                       ),
                     ),
-                    Text(
-                      '${settings.defaultStrokeWidth.toStringAsFixed(1)}px',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                    SizedBox(
+                      width: 50,
+                      child: Text(
+                        '${settings.defaultStrokeWidth.toStringAsFixed(1)}px',
+                        textAlign: TextAlign.end,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
@@ -1001,24 +1076,26 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               subtitle:
                   'Initial rounded border curvature applied to new rounded rectangles (${settings.defaultCornerRadius.toInt()} px)',
               trailing: SizedBox(
-                width: 220,
+                width: 230,
                 child: Row(
                   children: [
                     Expanded(
-                      child: Slider(
+                      child: NixSlider(
                         value: settings.defaultCornerRadius,
                         min: 0,
                         max: 32,
                         divisions: 16,
-                        label: '${settings.defaultCornerRadius.toInt()}px',
                         onChanged: notifier.setDefaultCornerRadius,
                       ),
                     ),
-                    Text(
-                      '${settings.defaultCornerRadius.toInt()}px',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                    SizedBox(
+                      width: 46,
+                      child: Text(
+                        '${settings.defaultCornerRadius.toInt()}px',
+                        textAlign: TextAlign.end,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
@@ -1033,7 +1110,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               colorScheme: colorScheme,
               title: 'Auto-Switch to Select Tool',
               subtitle: 'Automatically revert to the pointer selection tool after finishing drawing a shape',
-              trailing: Switch.adaptive(
+              trailing: M3ESwitch(
                 value: settings.autoSwitchToSelect,
                 onChanged: notifier.setAutoSwitchToSelect,
               ),
@@ -1072,7 +1149,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               colorScheme: colorScheme,
               title: 'SVG Pretty-Printing',
               subtitle: 'Format exported SVG source with clean 2-space indentation and line breaks for readability',
-              trailing: Switch.adaptive(
+              trailing: M3ESwitch(
                 value: settings.svgPrettyPrint,
                 onChanged: notifier.setSvgPrettyPrint,
               ),
@@ -1085,7 +1162,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               colorScheme: colorScheme,
               title: 'Include XML Prolog Header',
               subtitle: 'Prepend standard <?xml version="1.0" encoding="UTF-8"?> header to SVG documents',
-              trailing: Switch.adaptive(
+              trailing: M3ESwitch(
                 value: settings.svgIncludeXml,
                 onChanged: notifier.setSvgIncludeXml,
               ),
@@ -1103,15 +1180,15 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                 segments: const [
                   ButtonSegment(
                     value: 1.0,
-                    label: Text('1x', style: TextStyle(fontSize: 12)),
+                    label: Text('1x'),
                   ),
                   ButtonSegment(
                     value: 2.0,
-                    label: Text('2x', style: TextStyle(fontSize: 12)),
+                    label: Text('2x'),
                   ),
                   ButtonSegment(
                     value: 3.0,
-                    label: Text('3x', style: TextStyle(fontSize: 12)),
+                    label: Text('3x'),
                   ),
                 ],
                 selected: {settings.exportScale},
@@ -1210,6 +1287,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
   // --------------------------------------------------------------------------
 
   Widget _buildAboutSection(BuildContext context, ColorScheme colorScheme) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1263,9 +1341,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                         const SizedBox(height: 4),
                         Text(
                           'Version 1.0.0 (Material 3 Expressive & macOS Studio)',
-                          style: TextStyle(
+                          style: theme.textTheme.bodySmall?.copyWith(
                             color: colorScheme.onSurfaceVariant,
-                            fontSize: 13,
                           ),
                         ),
                       ],
@@ -1300,10 +1377,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
             return TextButton.icon(
               onPressed: () => _confirmResetDefaults(context, notifier),
               icon: const Icon(RemixIcons.restart_line, size: 15),
-              label: const Text(
-                'Reset Defaults',
-                style: TextStyle(fontSize: 12),
-              ),
+              label: const Text('Reset Defaults'),
             );
           },
         ),
@@ -1425,13 +1499,13 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
   // --------------------------------------------------------------------------
 
   Widget _buildSectionHeader(String title, String description) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style: const TextStyle(
-            fontSize: 18,
+          style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
             letterSpacing: 0.2,
           ),
@@ -1439,9 +1513,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         const SizedBox(height: 4),
         Text(
           description,
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontSize: 13,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
       ],
@@ -1450,28 +1523,21 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
 
   Widget _buildCard(ColorScheme colorScheme, {required List<Widget> children}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHigh.withValues(
-          alpha: isDark ? 0.7 : 0.9,
-        ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.35),
-          width: 0.8,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+    final validChildren = children.where((c) => c is! Divider).toList();
+
+    return M3ECardColumn(
+      outerRadius: 16.0,
+      innerRadius: 4.0,
+      gap: 3.0,
+      color: colorScheme.surfaceContainerHigh.withValues(
+        alpha: isDark ? 0.7 : 0.9,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: children,
+      border: BorderSide(
+        color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+        width: 0.8,
       ),
+      padding: EdgeInsets.zero,
+      children: validChildren,
     );
   }
 
@@ -1484,34 +1550,73 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final theme = Theme.of(context);
         final isNarrow = constraints.maxWidth < 460;
-        final isSwitchOnly = trailing is Switch || trailing is Checkbox;
+        final isSwitchOnly = trailing is Switch || trailing is M3ESwitch || trailing is Checkbox;
 
+        VoidCallback? onTileTap;
+        if (trailing is M3ESwitch) {
+          final m3e = trailing;
+          if (m3e.onChanged != null) {
+            onTileTap = () => m3e.onChanged!(!m3e.value);
+          }
+        } else if (trailing is Switch) {
+          final sw = trailing;
+          if (sw.onChanged != null) {
+            onTileTap = () => sw.onChanged!(!sw.value);
+          }
+        }
+
+        final iconContainer = Container(
+          padding: const EdgeInsets.all(7),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.8,
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 16, color: colorScheme.primary),
+        );
+
+        final titleAndSubtitle = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (subtitle.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  height: 1.25,
+                ),
+              ),
+            ],
+          ],
+        );
+
+        Widget content;
         if (isNarrow && !isSwitchOnly) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          content = Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(7),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest.withValues(
-                          alpha: 0.7,
-                        ),
-                        borderRadius: BorderRadius.circular(9),
-                      ),
-                      child: Icon(icon, size: 16, color: colorScheme.primary),
-                    ),
-                    const SizedBox(width: 12),
+                    iconContainer,
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         title,
-                        style: const TextStyle(
+                        style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
-                          fontSize: 13.5,
                         ),
                       ),
                     ),
@@ -1520,18 +1625,17 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                 if (subtitle.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Padding(
-                    padding: const EdgeInsets.only(left: 35),
+                    padding: const EdgeInsets.only(left: 36),
                     child: Text(
                       subtitle,
-                      style: TextStyle(
+                      style: theme.textTheme.labelSmall?.copyWith(
                         color: colorScheme.onSurfaceVariant,
-                        fontSize: 12,
-                        height: 1.3,
+                        height: 1.25,
                       ),
                     ),
                   ),
                 ],
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: SingleChildScrollView(
@@ -1542,51 +1646,29 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               ],
             ),
           );
+        } else {
+          content = Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            child: Row(
+              children: [
+                iconContainer,
+                const SizedBox(width: 12),
+                Expanded(child: titleAndSubtitle),
+                const SizedBox(width: 14),
+                trailing,
+              ],
+            ),
+          );
         }
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.7,
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, size: 17, color: colorScheme.primary),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13.5,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: colorScheme.onSurfaceVariant,
-                        fontSize: 12,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 14),
-              trailing,
-            ],
-          ),
-        );
+        if (onTileTap != null) {
+          return InkWell(
+            onTap: onTileTap,
+            child: content,
+          );
+        }
+
+        return content;
       },
     );
   }

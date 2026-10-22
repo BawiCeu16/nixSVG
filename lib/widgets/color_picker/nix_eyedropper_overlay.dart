@@ -471,9 +471,8 @@ class _EyedropperOverlayWidgetState extends State<_EyedropperOverlayWidget>
                               const SizedBox(width: 8),
                               Text(
                                 NixColorUtils.toHex(_hoverColor),
-                                style: const TextStyle(
+                                style: Theme.of(context).textTheme.labelMedium?.copyWith(
                                   color: Colors.white,
-                                  fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                   fontFamily: 'monospace',
                                   letterSpacing: 0.6,
@@ -482,9 +481,8 @@ class _EyedropperOverlayWidgetState extends State<_EyedropperOverlayWidget>
                               const SizedBox(width: 8),
                               Text(
                                 'rgb(${(_hoverColor.r * 255).round()}, ${(_hoverColor.g * 255).round()}, ${(_hoverColor.b * 255).round()})',
-                                style: TextStyle(
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
                                   color: Colors.white.withValues(alpha: 0.8),
-                                  fontSize: 10,
                                   fontFamily: 'monospace',
                                   fontWeight: FontWeight.w500,
                                 ),

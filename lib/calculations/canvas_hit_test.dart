@@ -77,20 +77,37 @@ class CanvasHitTester {
   }) {
     final s = (1.0 / (zoomScale > 0 ? zoomScale : 1.0)).clamp(0.02, 50.0);
     final minSize = 24.0 * s;
-    if ((shape.type != ShapeType.rectangle &&
-            shape.type != ShapeType.roundedRectangle) ||
-        shape.rect.width < minSize ||
-        shape.rect.height < minSize) {
+    if (shape.rect.width < minSize || shape.rect.height < minSize) {
+      return const {};
+    }
+
+    if (shape.type == ShapeType.star) {
+      final rect = shape.rect;
+      final maxRadius = math.min(rect.width, rect.height) / 2;
+      final center = rect.center;
+      final rInset = math.min(
+        shape.cornerRadius > 0
+            ? shape.cornerRadius.clamp(10.0 * s, maxRadius * 0.45)
+            : 16.0 * s,
+        maxRadius * 0.45,
+      );
+      return {
+        ResizeHandle.radiusTopLeft: Offset(center.dx, center.dy - maxRadius + rInset),
+      };
+    }
+
+    if (shape.type != ShapeType.rectangle &&
+        shape.type != ShapeType.roundedRectangle &&
+        shape.type != ShapeType.image) {
       return const {};
     }
     final rect = shape.rect;
     final maxRadius = math.min(rect.width, rect.height) / 2;
-    final isRound = shape.type == ShapeType.roundedRectangle;
 
-    final tlRadius = (isRound ? shape.effectiveTopLeftRadius : 0.0).clamp(0.0, maxRadius);
-    final trRadius = (isRound ? shape.effectiveTopRightRadius : 0.0).clamp(0.0, maxRadius);
-    final blRadius = (isRound ? shape.effectiveBottomLeftRadius : 0.0).clamp(0.0, maxRadius);
-    final brRadius = (isRound ? shape.effectiveBottomRightRadius : 0.0).clamp(0.0, maxRadius);
+    final tlRadius = shape.effectiveTopLeftRadius.clamp(0.0, maxRadius);
+    final trRadius = shape.effectiveTopRightRadius.clamp(0.0, maxRadius);
+    final blRadius = shape.effectiveBottomLeftRadius.clamp(0.0, maxRadius);
+    final brRadius = shape.effectiveBottomRightRadius.clamp(0.0, maxRadius);
 
     final tlInset = tlRadius > 0
         ? tlRadius.clamp(8.0 * s, maxRadius)

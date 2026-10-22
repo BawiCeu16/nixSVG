@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:m3e_slider/m3e_slider.dart';
+import 'package:m3e_seekbar/m3e_seekbar.dart';
 import 'package:nixsvg/widgets/nix_slider.dart';
 
 void main() {
-  testWidgets('NixSlider renders with custom M3ESlider motion and decoration', (
+  testWidgets('NixSlider renders with custom M3ESeekbar decoration', (
     tester,
   ) async {
     double currentValue = 0.48;
@@ -25,19 +25,23 @@ void main() {
       ),
     );
 
-    final sliderFinder = find.byType(M3ESlider);
-    expect(sliderFinder, findsOneWidget);
+    final paddingFinder = find.byType(Padding);
+    expect(paddingFinder, findsWidgets);
 
-    final m3eSlider = tester.widget<M3ESlider>(sliderFinder);
-    expect(m3eSlider.value, 0.48);
-    expect(m3eSlider.motion, M3EMotion.expressiveSpatialFast);
+    final seekbarFinder = find.byType(M3ESeekbar);
+    expect(seekbarFinder, findsOneWidget);
 
-    final dec = m3eSlider.decoration!;
+    final m3eSeekbar = tester.widget<M3ESeekbar>(seekbarFinder);
+    expect(m3eSeekbar.value, 0.48);
+    expect(m3eSeekbar.trackCornerRadius, 100.00);
+
+    final dec = m3eSeekbar.decoration!;
     expect(dec.haptic, M3EHapticFeedback.light);
     expect(dec.trackHeight, 5.00);
     expect(dec.trackCornerRadius, 1.00);
-    expect(dec.thumbWidth, 4.00);
-    expect(dec.thumbHeight, 22.00);
+    expect(dec.handleWidth, 4.00);
+    expect(dec.handleHeight, 22.00);
+    expect(dec.handleShape, M3ESeekbarHandleShape.rectangle);
 
     final haptic = dec.hapticConfig!;
     expect(haptic.enableContinuousDrag, isTrue);
