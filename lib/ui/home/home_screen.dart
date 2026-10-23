@@ -1,4 +1,7 @@
-import 'package:file_picker/file_picker.dart';
+import 'package:cross_file/cross_file.dart';
+import 'package:nixsvg/services/file_import_service.dart';
+import 'package:nixsvg/services/safe_file_picker.dart';
+import 'package:nixsvg/widgets/nix_file_drop_zone.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -69,38 +72,107 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _handleOpenFile() async {
     try {
       ensureFilePickerInitialized();
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['svg', 'json', 'nixsvg'],
-        withData: true,
+      final result = await SafeFilePicker.pickFiles(
+        context: context,
+        allowedExtensions: FileImportService.supportedExtensions,
+        allowMultiple: false,
       );
 
       if (result != null && result.files.isNotEmpty) {
         final file = result.files.first;
         final rawBytes = file.bytes;
-        final name = file.name.replaceAll(RegExp(r'\.(svg|json|nixsvg)$'), '');
+        if (rawBytes != null) {
+          final imported = await FileImportService.importFileFromBytes(
+            fileName: file.name,
+            bytes: rawBytes,
+          );
 
-        // If file content is SVG or image, create a project with an imported image/shape
-        final project = ProjectModel.createNew(
-          name: name.isEmpty ? 'Imported Project' : name,
-          shapes: rawBytes != null
-              ? [
-                  VectorShape(
-                    id: 'shape-${DateTime.now().millisecondsSinceEpoch}',
-                    name: 'Imported Artwork',
-                    type: ShapeType.image,
-                    rect: const Rect.fromLTWH(200, 150, 400, 300),
-                    imageBytes: rawBytes,
-                  ),
-                ]
-              : [],
-        );
-        _handleOpenProject(project);
+          if (imported.isSuccess) {
+            if (imported.project != null) {
+              _handleOpenProject(imported.project!);
+              return;
+            }
+
+            if (imported.shapes.isNotEmpty) {
+              final cleanName = file.name.replaceAll(
+                RegExp(r'\.(svg|json|nixsvg|png|jpg|jpeg|webp|gif)$', caseSensitive: false),
+                '',
+              );
+              Size canvasSize = const Size(1920, 1080);
+              if (imported.type == ImportedFileType.image) {
+                final img = imported.shapes.first;
+                canvasSize = Size(img.rect.width, img.rect.height);
+              }
+
+              final project = ProjectModel.createNew(
+                name: cleanName.isEmpty ? 'Imported Design' : cleanName,
+                size: canvasSize,
+                shapes: imported.shapes,
+              );
+              _handleOpenProject(project);
+              return;
+            }
+          }
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Could not open file: $e')));
+      }
+    }
+  }
+
+  /// Handles drag-and-drop file import when files are dropped onto the HomeScreen.
+  Future<void> _handleFilesDropped(
+    List<XFile> files,
+    Offset localDropPosition,
+  ) async {
+    if (files.isEmpty) return;
+
+    try {
+      final results = await FileImportService.importDropItems(files);
+
+      for (final result in results) {
+        if (!result.isSuccess) continue;
+
+        // If a full project file was dropped, open it
+        if (result.project != null) {
+          _handleOpenProject(result.project!);
+          return;
+        }
+
+        // If vector shapes or raster images were dropped, initialize a new project
+        if (result.shapes.isNotEmpty) {
+          final cleanName = result.fileName.replaceAll(
+            RegExp(r'\.(svg|json|nixsvg|png|jpg|jpeg|webp|gif)$', caseSensitive: false),
+            '',
+          );
+
+          Size projectCanvasSize = const Size(1920, 1080);
+          if (result.type == ImportedFileType.image) {
+            final imgShape = result.shapes.first;
+            projectCanvasSize = Size(imgShape.rect.width, imgShape.rect.height);
+          }
+
+          final project = ProjectModel.createNew(
+            name: cleanName.isEmpty ? 'Imported Design' : cleanName,
+            size: projectCanvasSize,
+            shapes: result.shapes,
+          );
+          _handleOpenProject(project);
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('HomeScreen: Error handling dropped files: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open dropped file: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -152,7 +224,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       onKeyEvent: _handleKeyEvent,
       child: Scaffold(
         backgroundColor: colorScheme.surface,
-        body: Column(
+        body: NixFileDropZone(
+          onFilesDropped: _handleFilesDropped,
+          title: 'Drop files to open or start a new project',
+          subtitle:
+              'Drop any SVG, PNG, JPG, WEBP, or JSON project file to begin editing',
+          child: Column(
           children: [
             // ================= TOP MAC-STYLE HEADER BAR =================
             _buildTopBar(context, colorScheme, textTheme, themeState, isDark),
@@ -236,6 +313,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -376,7 +454,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
           // Theme Color Picker Menu
           PopupMenuButton<Color>(
-            tooltip: 'Dynamic Theme Color',
+            tooltip:
+                'Theme Accent: ${ThemeController.getColorName(themeState.seedColor)}',
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
               side: BorderSide(
@@ -419,7 +498,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ref.read(themeProvider.notifier).setSeedColor(color);
             },
             itemBuilder: (context) {
-              return ThemeController.themePresets.map((color) {
+              return ThemeController.presets.map((preset) {
+                final color = preset.color;
                 final isSelected =
                     themeState.seedColor.toARGB32() == color.toARGB32();
                 return PopupMenuItem<Color>(
@@ -442,7 +522,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        _getColorName(color),
+                        preset.name,
                         style: textTheme.bodyMedium?.copyWith(
                           fontWeight: isSelected
                               ? FontWeight.bold
@@ -458,7 +538,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
           // Dark/Light Theme Mode Toggle
           IconButton(
-            tooltip: themeState.isDarkMode ? 'Light Mode' : 'Dark Mode',
+            tooltip: themeState.isDarkMode
+                ? 'Switch to Light Mode'
+                : 'Switch to Dark Mode',
             icon: Icon(
               themeState.isDarkMode
                   ? RemixIcons.sun_line
@@ -936,17 +1018,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ],
       ),
     );
-  }
-
-  static String _getColorName(Color color) {
-    if (color == const Color(0xFF6366F1)) return 'Indigo';
-    if (color == const Color(0xFF0EA5E9)) return 'Sky';
-    if (color == const Color(0xFF10B981)) return 'Emerald';
-    if (color == const Color(0xFFF59E0B)) return 'Amber';
-    if (color == const Color(0xFFEC4899)) return 'Pink';
-    if (color == const Color(0xFF8B5CF6)) return 'Purple';
-    if (color == const Color(0xFFE11D48)) return 'Rose';
-    return 'Custom';
   }
 
   static String _formatTimeAgo(DateTime dt) {

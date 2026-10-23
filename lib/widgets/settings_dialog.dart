@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:m3e_buttons/m3e_buttons.dart';
 import 'package:m3e_card_list/m3e_card_list.dart';
+import 'package:nixsvg/controllers/theme_controller.dart';
 import 'package:nixsvg/providers/app_settings_provider.dart';
 import 'package:nixsvg/providers/project_provider.dart';
 import 'package:nixsvg/theme/physics/m3e_physics_spring.dart';
@@ -629,16 +630,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     AppSettingsState settings,
     AppSettingsNotifier notifier,
   ) {
-    final seedColors = [
-      const Color(0xFF6366F1), // Indigo
-      const Color(0xFF10B981), // Emerald
-      const Color(0xFF3B82F6), // Blue
-      const Color(0xFF8B5CF6), // Violet
-      const Color(0xFFEC4899), // Pink
-      const Color(0xFFF59E0B), // Amber
-      const Color(0xFF06B6D4), // Cyan
-      const Color(0xFFF43F5E), // Rose
-    ];
+    final themePresets = ThemeController.presets;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -687,36 +679,41 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               icon: RemixIcons.palette_line,
               colorScheme: colorScheme,
               title: 'Dynamic Accent Color',
-              subtitle: 'Material 3 Expressive color harmonization seed for active highlights',
+              subtitle:
+                  'Active: ${ThemeController.getColorName(settings.seedColor)} — Material 3 Expressive color harmonization seed',
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  ...seedColors.map((col) {
+                  ...themePresets.map((preset) {
+                    final col = preset.color;
                     final isSelected =
                         col.toARGB32() == settings.seedColor.toARGB32();
-                    return GestureDetector(
-                      onTap: () => notifier.setSeedColor(col),
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 3),
-                        width: 26,
-                        height: 26,
-                        decoration: BoxDecoration(
-                          color: col,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isSelected
-                                ? Colors.white
-                                : Colors.transparent,
-                            width: 2.2,
+                    return Tooltip(
+                      message: preset.name,
+                      child: GestureDetector(
+                        onTap: () => notifier.setSeedColor(col),
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            color: col,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isSelected
+                                  ? Colors.white
+                                  : Colors.transparent,
+                              width: 2.2,
+                            ),
+                            boxShadow: [
+                              if (isSelected)
+                                BoxShadow(
+                                  color: col.withValues(alpha: 0.6),
+                                  blurRadius: 8,
+                                  spreadRadius: 1,
+                                ),
+                            ],
                           ),
-                          boxShadow: [
-                            if (isSelected)
-                              BoxShadow(
-                                color: col.withValues(alpha: 0.6),
-                                blurRadius: 8,
-                                spreadRadius: 1,
-                              ),
-                          ],
                         ),
                       ),
                     );

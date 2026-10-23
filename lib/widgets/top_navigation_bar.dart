@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:m3e_buttons/m3e_buttons.dart';
@@ -131,12 +132,6 @@ class TopNavigationBar extends ConsumerWidget {
                           decoration: BoxDecoration(
                             color: colorScheme.surfaceContainerHigh,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: colorScheme.outlineVariant.withValues(
-                                alpha: 0.3,
-                              ),
-                              width: 1.0,
-                            ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -486,7 +481,8 @@ class TopNavigationBar extends ConsumerWidget {
                         children: [
                           // Dynamic Seed Color Selector Menu
                           PopupMenuButton<Color>(
-                            tooltip: 'Dynamic Theme Color',
+                            tooltip:
+                                'Theme Accent: ${ThemeController.getColorName(themeState.seedColor)}',
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                               side: BorderSide(
@@ -517,7 +513,8 @@ class TopNavigationBar extends ConsumerWidget {
                                         color: themeState.seedColor,
                                         shape: BoxShape.circle,
                                         border: Border.all(
-                                          color: colorScheme.surfaceContainerHigh,
+                                          color:
+                                              colorScheme.surfaceContainerHigh,
                                           width: 1,
                                         ),
                                       ),
@@ -532,7 +529,8 @@ class TopNavigationBar extends ConsumerWidget {
                                   .setSeedColor(color);
                             },
                             itemBuilder: (context) {
-                              return ThemeController.themePresets.map((color) {
+                              return ThemeController.presets.map((preset) {
+                                final color = preset.color;
                                 final isSelected =
                                     themeState.seedColor.toARGB32() ==
                                     color.toARGB32();
@@ -556,7 +554,7 @@ class TopNavigationBar extends ConsumerWidget {
                                       ),
                                       const SizedBox(width: 10),
                                       Text(
-                                        _getColorName(color),
+                                        preset.name,
                                         style: textTheme.bodyMedium?.copyWith(
                                           color: colorScheme.onSurface,
                                           fontWeight: isSelected
@@ -579,8 +577,8 @@ class TopNavigationBar extends ConsumerWidget {
                                 ? RemixIcons.sun_line
                                 : RemixIcons.moon_line,
                             tooltip: themeState.isDarkMode
-                                ? 'Light Theme'
-                                : 'Dark Theme',
+                                ? 'Switch to Light Mode'
+                                : 'Switch to Dark Mode',
                             enabled: true,
                             onTap: () {
                               ref
@@ -679,19 +677,6 @@ class TopNavigationBar extends ConsumerWidget {
       height: 18,
       color: colorScheme.outlineVariant.withValues(alpha: 0.35),
     );
-  }
-
-  String _getColorName(Color color) {
-    if (color.toARGB32() == Colors.indigo.toARGB32()) return 'Blue';
-    if (color.toARGB32() == Colors.green.toARGB32()) {
-      return 'Emerald';
-    }
-    if (color.toARGB32() == Colors.blue.toARGB32()) return 'Blue';
-    if (color.toARGB32() == Colors.green.toARGB32()) return 'Violet';
-    if (color.toARGB32() == Colors.amber.toARGB32()) return 'Amber';
-    if (color.toARGB32() == Colors.pink.toARGB32()) return 'Pink';
-    if (color.toARGB32() == Colors.red.toARGB32()) return 'Rose';
-    return 'Dynamic Seed';
   }
 }
 

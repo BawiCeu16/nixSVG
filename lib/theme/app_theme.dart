@@ -1,15 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:material_ui/material_ui.dart' as mui;
+import 'package:nixsvg/controllers/theme_controller.dart';
 import 'package:nixsvg/theme/color_schemes.dart';
 import 'package:nixsvg/theme/components/buttons_theme.dart';
 import 'package:nixsvg/theme/components/cards_and_chips_theme.dart';
 import 'package:nixsvg/theme/components/dialogs_theme.dart';
 import 'package:nixsvg/theme/typography.dart';
 
+export 'package:nixsvg/controllers/theme_controller.dart' show ThemePreset;
+
 /// Central theme builder creating dynamic Material 3 Expressive [ThemeData]
 /// for both Light and Dark modes based on the current seed color.
 class AppTheme {
   const AppTheme._();
+
+  /// Curated theme accent presets with names and colors.
+  static List<ThemePreset> get presets => ThemeController.presets;
+
+  /// Curated seed colors for quick mapping.
+  static List<Color> get themePresets => ThemeController.themePresets;
+
+  /// Returns the human-readable display name for a given seed [color].
+  static String getColorName(Color color) => ThemeController.getColorName(color);
 
   /// Builds a dynamic [ThemeData] for the requested [Brightness] and [seedColor].
   static ThemeData buildTheme({

@@ -29,6 +29,13 @@ class VectorCanvasPainter extends CustomPainter {
   final List<PathNode>? activePenNodes;
   final Offset? activePenCursor;
   final bool isPenHoveringStart;
+  final String? editingPathShapeId;
+  final List<PathNode>? editingPathNodes;
+  final Set<int>? selectedPathNodeIndices;
+  final int? hoveredPathNodeIndex;
+  final int? activeHandleNodeIndex;
+  final int? activeHandleType;
+  final bool isPathClosed;
 
   VectorCanvasPainter({
     required this.shapes,
@@ -52,13 +59,28 @@ class VectorCanvasPainter extends CustomPainter {
     this.activePenNodes,
     this.activePenCursor,
     this.isPenHoveringStart = false,
+    this.editingPathShapeId,
+    this.editingPathNodes,
+    this.selectedPathNodeIndices,
+    this.hoveredPathNodeIndex,
+    this.activeHandleNodeIndex,
+    this.activeHandleType,
+    this.isPathClosed = false,
     int? shapesRevision,
   }) : shapesRevision = shapesRevision ?? _computeShapesRevision(shapes);
 
   static int _computeShapesRevision(List<VectorShape> shapes) {
     int hash = shapes.length;
     for (int i = 0; i < shapes.length; i++) {
-      hash = 0x1fffffff & (hash + shapes[i].revision * 31);
+      final s = shapes[i];
+      int shapeState = s.revision * 31;
+      if (s.isVisible) shapeState += 17;
+      if (s.isLocked) shapeState += 19;
+      shapeState += (s.rect.left * 10).toInt();
+      shapeState += (s.rect.top * 10).toInt();
+      shapeState += (s.rect.width * 10).toInt();
+      shapeState += (s.rect.height * 10).toInt();
+      hash = 0x1fffffff & (hash * 31 + shapeState + s.id.hashCode);
     }
     return hash;
   }
@@ -359,6 +381,143 @@ class VectorCanvasPainter extends CustomPainter {
           4.0 * s,
           Paint()
             ..color = isStart ? colorScheme.tertiary : colorScheme.primary
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5 * s,
+        );
+      }
+    }
+
+    // 7. Vector Path Node Editing Overlay (when in Vector Node Edit Mode)
+    if (editingPathShapeId != null &&
+        editingPathNodes != null &&
+        editingPathNodes!.isNotEmpty) {
+      _drawVectorNodeEditingOverlay(canvas, s);
+    }
+  }
+
+  void _drawVectorNodeEditingOverlay(Canvas canvas, double s) {
+    final nodes = editingPathNodes!;
+    final selectedIndices = selectedPathNodeIndices ?? const {};
+
+    // 1. Live path contour preview
+    if (nodes.length > 1) {
+      final path = CanvasGeometry.nodesToPath(nodes, isClosed: isPathClosed);
+      final segmentPaint = Paint()
+        ..color = colorScheme.primary
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0 * s
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      canvas.drawPath(path, segmentPaint);
+    }
+
+    // 2. Control handles for selected and hovered nodes
+    final armPaint = Paint()
+      ..color = colorScheme.primary.withValues(alpha: 0.85)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2 * s;
+
+    for (int i = 0; i < nodes.length; i++) {
+      final node = nodes[i];
+      final isSelected = selectedIndices.contains(i);
+      final isHovered = hoveredPathNodeIndex == i;
+
+      if (isSelected || isHovered) {
+        // Inbound handle
+        if (node.handleIn != null) {
+          canvas.drawLine(node.position, node.handleIn!, armPaint);
+          final isDraggingThis = activeHandleNodeIndex == i && activeHandleType == 1;
+          canvas.drawCircle(
+            node.handleIn!,
+            4.0 * s,
+            Paint()
+              ..color = isDraggingThis ? colorScheme.primary : Colors.white
+              ..style = PaintingStyle.fill,
+          );
+          canvas.drawCircle(
+            node.handleIn!,
+            4.0 * s,
+            Paint()
+              ..color = colorScheme.primary
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.5 * s,
+          );
+        }
+
+        // Outbound handle
+        if (node.handleOut != null) {
+          canvas.drawLine(node.position, node.handleOut!, armPaint);
+          final isDraggingThis = activeHandleNodeIndex == i && activeHandleType == 2;
+          canvas.drawCircle(
+            node.handleOut!,
+            4.0 * s,
+            Paint()
+              ..color = isDraggingThis ? colorScheme.primary : Colors.white
+              ..style = PaintingStyle.fill,
+          );
+          canvas.drawCircle(
+            node.handleOut!,
+            4.0 * s,
+            Paint()
+              ..color = colorScheme.primary
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.5 * s,
+          );
+        }
+      }
+    }
+
+    // 3. Anchor points (Corner = crisp square, Smooth = crisp circle)
+    for (int i = 0; i < nodes.length; i++) {
+      final node = nodes[i];
+      final isSelected = selectedIndices.contains(i);
+      final isHovered = hoveredPathNodeIndex == i;
+
+      // Outer hover accent ring
+      if (isHovered) {
+        canvas.drawCircle(
+          node.position,
+          8.5 * s,
+          Paint()
+            ..color = colorScheme.primary.withValues(alpha: 0.35)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.0 * s,
+        );
+      }
+
+      if (node.isCorner) {
+        final half = 4.0 * s;
+        final squareRect = Rect.fromCenter(
+          center: node.position,
+          width: half * 2,
+          height: half * 2,
+        );
+        canvas.drawRect(
+          squareRect,
+          Paint()
+            ..color = isSelected ? colorScheme.primary : Colors.white
+            ..style = PaintingStyle.fill,
+        );
+        canvas.drawRect(
+          squareRect,
+          Paint()
+            ..color = isSelected ? Colors.white : colorScheme.primary
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5 * s,
+        );
+      } else {
+        canvas.drawCircle(
+          node.position,
+          4.5 * s,
+          Paint()
+            ..color = isSelected ? colorScheme.primary : Colors.white
+            ..style = PaintingStyle.fill,
+        );
+        canvas.drawCircle(
+          node.position,
+          4.5 * s,
+          Paint()
+            ..color = isSelected ? Colors.white : colorScheme.primary
             ..style = PaintingStyle.stroke
             ..strokeWidth = 1.5 * s,
         );
@@ -790,6 +949,9 @@ class VectorCanvasPainter extends CustomPainter {
   );
 
   void _drawSelectionBox(Canvas canvas, VectorShape shape) {
+    if (shape.id == editingPathShapeId) {
+      return;
+    }
     canvas.save();
 
     final center = shape.rect.center;
@@ -1287,6 +1449,13 @@ class VectorCanvasPainter extends CustomPainter {
     if (oldDelegate.activePenNodes != activePenNodes) return true;
     if (oldDelegate.activePenCursor != activePenCursor) return true;
     if (oldDelegate.isPenHoveringStart != isPenHoveringStart) return true;
+    if (oldDelegate.editingPathShapeId != editingPathShapeId) return true;
+    if (oldDelegate.editingPathNodes != editingPathNodes) return true;
+    if (oldDelegate.selectedPathNodeIndices != selectedPathNodeIndices) return true;
+    if (oldDelegate.hoveredPathNodeIndex != hoveredPathNodeIndex) return true;
+    if (oldDelegate.activeHandleNodeIndex != activeHandleNodeIndex) return true;
+    if (oldDelegate.activeHandleType != activeHandleType) return true;
+    if (oldDelegate.isPathClosed != isPathClosed) return true;
     if (oldDelegate.shapes.length != shapes.length) return true;
     if (oldDelegate.selectedShapeIds.length != selectedShapeIds.length) return true;
     if (!setEquals(oldDelegate.selectedShapeIds, selectedShapeIds)) return true;

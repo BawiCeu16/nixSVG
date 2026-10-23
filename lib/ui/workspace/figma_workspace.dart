@@ -1,8 +1,7 @@
-import 'dart:convert';
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
+import 'package:nixsvg/services/safe_file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -17,12 +16,15 @@ import 'package:nixsvg/models/vector_shape.dart';
 import 'package:nixsvg/providers/app_settings_provider.dart';
 import 'package:nixsvg/providers/project_provider.dart';
 import 'package:nixsvg/providers/workspace_settings_provider.dart';
+import 'package:nixsvg/services/svg_import_service.dart';
 import 'package:nixsvg/theme/components/responsive_layout_tokens.dart';
 import 'package:nixsvg/theme/physics/m3e_physics_spring.dart';
 import 'package:nixsvg/services/svg_export_service.dart';
-import 'package:nixsvg/services/svg_import_service.dart';
+import 'package:cross_file/cross_file.dart';
+import 'package:nixsvg/services/file_import_service.dart';
 import 'package:nixsvg/ui/canvas/interactive_canvas.dart';
 import 'package:nixsvg/ui/widgets/sidebar_resize_handle.dart';
+import 'package:nixsvg/widgets/nix_file_drop_zone.dart';
 import 'package:nixsvg/widgets/color_picker_dialog.dart';
 import 'package:nixsvg/widgets/context_menu/figma_context_menu.dart';
 import 'package:nixsvg/widgets/export_dialog.dart';
@@ -164,14 +166,28 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   bool _isPenDraggingHandle = false;
   bool _isClosingNode = false;
 
+  // Vector Node Edit Mode State (Figma-style vector editing)
+  String? _editingPathShapeId;
+  List<PathNode>? _editingPathNodes;
+  final Set<int> _selectedPathNodeIndices = {};
+  int? _hoveredPathNodeIndex;
+  int? _activeDraggingNodeIndex;
+  int? _activeHandleNodeIndex;
+  int? _activeHandleType; // 1: handleIn, 2: handleOut
+  Offset? _nodeDragStartPos;
+  Map<int, PathNode>? _initialDraggingNodes;
+  bool _isEditingPathClosed = false;
+  Map<String, List<PathNode>>? _initialShapeNodes;
+
   bool get _isPenHoveringStart {
     if (currentMode != EditorMode.drawPen ||
         _penNodes.length < 2 ||
         _lastMouseCanvasPosition == null) {
       return false;
     }
-    final zoomScale =
-        CanvasTransformHelper.getScale(_transformationController.value);
+    final zoomScale = CanvasTransformHelper.getScale(
+      _transformationController.value,
+    );
     final closeThreshold = 14.0 / (zoomScale > 0 ? zoomScale : 1.0);
     return (_lastMouseCanvasPosition! - _penNodes.first.position).distance <=
         closeThreshold;
@@ -284,7 +300,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
   void _persistCurrentProject() {
     final project =
-        (widget.initialProject ?? ProjectModel.createNew(name: fileName, size: canvasSize))
+        (widget.initialProject ??
+                ProjectModel.createNew(name: fileName, size: canvasSize))
             .copyWith(
               name: fileName,
               lastModified: DateTime.now(),
@@ -409,7 +426,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     }
 
     // Check click on last placed node to complete open path
-    if ((localPos - _penNodes.last.position).distance < 6.0) {
+    final finishThreshold = 10.0 / (zoomScale > 0 ? zoomScale : 1.0);
+    if ((localPos - _penNodes.last.position).distance < finishThreshold) {
       _commitPenPath(isClosed: false);
       return;
     }
@@ -433,10 +451,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       return;
     }
 
-    final path = CanvasGeometry.nodesToPath(
-      _penNodes,
-      isClosed: isClosed,
-    );
+    final path = CanvasGeometry.nodesToPath(_penNodes, isClosed: isClosed);
     final bounds = path.getBounds();
     final safeBounds = Rect.fromLTWH(
       bounds.left,
@@ -457,6 +472,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       rect: safeBounds,
       customPath: path,
       pathData: svgData,
+      pathNodes: _penNodes.map((n) => n.copyWith()).toList(),
+      isClosed: isClosed,
       isStroked: true,
       isFilled: isClosed,
       strokeWidth: appSettings.defaultStrokeWidth,
@@ -477,6 +494,62 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       }
     });
     _saveHistorySnapshot();
+  }
+
+  // Vector Node Edit Mode Methods
+  void _enterPathEditMode(VectorShape shape) {
+    if (shape.isLocked || !shape.isVisible) return;
+    if (_editingTextShapeId != null) {
+      _stopTextEditing(commit: true);
+    }
+    final nodes = shape.getOrGeneratePathNodes();
+    if (nodes.isEmpty) return;
+
+    setState(() {
+      _editingPathShapeId = shape.id;
+      _editingPathNodes = nodes.map((n) => n.copyWith()).toList();
+      _selectedPathNodeIndices.clear();
+      _hoveredPathNodeIndex = null;
+      _activeDraggingNodeIndex = null;
+      _activeHandleNodeIndex = null;
+      _activeHandleType = null;
+      _isEditingPathClosed = shape.isClosed;
+      selectedShapeIds.clear();
+      selectedShapeIds.add(shape.id);
+      currentMode = EditorMode.select;
+    });
+  }
+
+  void _commitPathEdit() {
+    if (_editingPathShapeId == null || _editingPathNodes == null) return;
+    final shapeIndex = shapes.indexWhere((s) => s.id == _editingPathShapeId);
+    if (shapeIndex != -1 && _editingPathNodes!.isNotEmpty) {
+      final s = shapes[shapeIndex];
+      s.updateFromPathNodes(_editingPathNodes!, closed: _isEditingPathClosed);
+      _saveHistorySnapshot();
+    }
+    setState(() {
+      _editingPathShapeId = null;
+      _editingPathNodes = null;
+      _selectedPathNodeIndices.clear();
+      _hoveredPathNodeIndex = null;
+      _activeDraggingNodeIndex = null;
+      _activeHandleNodeIndex = null;
+      _activeHandleType = null;
+      _initialDraggingNodes = null;
+    });
+    _workspaceFocusNode.requestFocus();
+  }
+
+  void _syncEditingNodesToShape() {
+    if (_editingPathShapeId == null || _editingPathNodes == null) return;
+    final shapeIndex = shapes.indexWhere((s) => s.id == _editingPathShapeId);
+    if (shapeIndex != -1 && _editingPathNodes!.isNotEmpty) {
+      shapes[shapeIndex].updateFromPathNodes(
+        _editingPathNodes!,
+        closed: _isEditingPathClosed,
+      );
+    }
   }
 
   // Pointer Down / Move / Up / Cancel Gestures
@@ -521,7 +594,125 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       _stopTextEditing(commit: true);
     }
 
-    // Detect double-click on text shape to edit text like Figma
+    // Check Vector Node Edit Mode interactions
+    if (_editingPathShapeId != null && _editingPathNodes != null) {
+      final zoomScale = CanvasTransformHelper.getScale(
+        _transformationController.value,
+      );
+
+      // 1. Check if clicked a handle of any selected node
+      for (final nodeIdx in _selectedPathNodeIndices) {
+        if (nodeIdx < _editingPathNodes!.length) {
+          final handleType = CanvasGeometry.hitTestPathHandle(
+            localPos,
+            _editingPathNodes![nodeIdx],
+            zoomScale: zoomScale,
+          );
+          if (handleType != 0) {
+            _activeHandleNodeIndex = nodeIdx;
+            _activeHandleType = handleType;
+            _nodeDragStartPos = localPos;
+            setState(() {});
+            return;
+          }
+        }
+      }
+
+      // 2. Check if clicked an anchor node
+      final hitNodeIdx = CanvasGeometry.hitTestPathNodes(
+        localPos,
+        _editingPathNodes!,
+        zoomScale: zoomScale,
+      );
+
+      if (hitNodeIdx != null) {
+        final now = DateTime.now();
+        final isDouble =
+            _lastPointerDownTime != null &&
+            now.difference(_lastPointerDownTime!) <
+                const Duration(milliseconds: 350) &&
+            _lastPointerDownPos != null &&
+            (localPos - _lastPointerDownPos!).distance < 16.0;
+        _lastPointerDownTime = now;
+        _lastPointerDownPos = localPos;
+
+        final isAlt = HardwareKeyboard.instance.isAltPressed;
+
+        if (isDouble || isAlt) {
+          // Toggle corner vs smooth curve
+          final node = _editingPathNodes![hitNodeIdx];
+          if (node.isCorner) {
+            final tangent = CanvasGeometry.calculateDefaultTangent(
+              _editingPathNodes!,
+              hitNodeIdx,
+              isClosed: _isEditingPathClosed,
+            );
+            node.isCorner = false;
+            node.handleOut = node.position + tangent;
+            node.handleIn = node.position - tangent;
+          } else {
+            node.isCorner = true;
+            node.handleIn = null;
+            node.handleOut = null;
+          }
+          _syncEditingNodesToShape();
+          _saveHistorySnapshot();
+          setState(() {});
+          return;
+        }
+
+        final isShift = HardwareKeyboard.instance.isShiftPressed;
+        if (isShift) {
+          if (_selectedPathNodeIndices.contains(hitNodeIdx)) {
+            _selectedPathNodeIndices.remove(hitNodeIdx);
+          } else {
+            _selectedPathNodeIndices.add(hitNodeIdx);
+          }
+        } else {
+          if (!_selectedPathNodeIndices.contains(hitNodeIdx)) {
+            _selectedPathNodeIndices.clear();
+            _selectedPathNodeIndices.add(hitNodeIdx);
+          }
+        }
+
+        _activeDraggingNodeIndex = hitNodeIdx;
+        _nodeDragStartPos = localPos;
+        _initialDraggingNodes = {
+          for (final idx in _selectedPathNodeIndices)
+            if (idx < _editingPathNodes!.length)
+              idx: _editingPathNodes![idx].copyWith(),
+        };
+        setState(() {});
+        return;
+      }
+
+      // 3. Check if clicked near a path segment to insert a new anchor node
+      final segIdx = CanvasGeometry.findNearestSegmentIndex(
+        localPos,
+        _editingPathNodes!,
+        isClosed: _isEditingPathClosed,
+        zoomScale: zoomScale,
+      );
+      if (segIdx != null) {
+        final newNode = PathNode(position: localPos, isCorner: true);
+        final insertIdx = segIdx + 1;
+        _editingPathNodes!.insert(insertIdx, newNode);
+        _selectedPathNodeIndices.clear();
+        _selectedPathNodeIndices.add(insertIdx);
+        _activeDraggingNodeIndex = insertIdx;
+        _nodeDragStartPos = localPos;
+        _initialDraggingNodes = {insertIdx: newNode.copyWith()};
+        _syncEditingNodesToShape();
+        _saveHistorySnapshot();
+        setState(() {});
+        return;
+      }
+
+      // Clicked outside active editing path: commit and exit vector edit mode
+      _commitPathEdit();
+    }
+
+    // Detect double-click on text or path/line shape to edit like Figma
     final now = DateTime.now();
     final isDoubleClick =
         _lastPointerDownTime != null &&
@@ -534,16 +725,25 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
     if (isDoubleClick) {
       VectorShape? hitTextShape;
+      VectorShape? hitPathShape;
       for (int i = shapes.length - 1; i >= 0; i--) {
         final s = shapes[i];
-        if (s.type == ShapeType.text &&
-            CanvasHitTester.hitTestShape(localPos, s)) {
-          hitTextShape = s;
-          break;
+        if (s.isLocked || !s.isVisible) continue;
+        if (CanvasHitTester.hitTestShape(localPos, s)) {
+          if (s.type == ShapeType.text && hitTextShape == null) {
+            hitTextShape = s;
+          } else if ((s.type == ShapeType.path || s.type == ShapeType.line) &&
+              hitPathShape == null) {
+            hitPathShape = s;
+          }
         }
       }
       if (hitTextShape != null) {
         _startTextEditing(hitTextShape, isNew: false, selectAll: true);
+        return;
+      }
+      if (hitPathShape != null) {
+        _enterPathEditMode(hitPathShape);
         return;
       }
     }
@@ -663,9 +863,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           if (isShiftPressed) {
             final groupMembers = (matchedShape.groupId != null)
                 ? shapes
-                    .where((s) => s.groupId == matchedShape.groupId)
-                    .map((s) => s.id)
-                    .toSet()
+                      .where((s) => s.groupId == matchedShape.groupId)
+                      .map((s) => s.id)
+                      .toSet()
                 : {matchedShape.id};
             final allSelected = groupMembers.every(
               (id) => selectedShapeIds.contains(id),
@@ -704,6 +904,11 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                 .toList();
             initialShapeRects = {
               for (final s in _activeSelectedShapes) s.id: s.rect,
+            };
+            _initialShapeNodes = {
+              for (final s in _activeSelectedShapes)
+                if (s.pathNodes != null)
+                  s.id: s.pathNodes!.map((n) => n.copyWith()).toList(),
             };
           }
         });
@@ -750,12 +955,90 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       _lastMouseCanvasPosition = event.localPosition;
       if (currentMode == EditorMode.drawPen && _penNodes.isNotEmpty) {
         setState(() {});
+      } else if (_editingPathShapeId != null && _editingPathNodes != null) {
+        final zoomScale = CanvasTransformHelper.getScale(
+          _transformationController.value,
+        );
+        final hIdx = CanvasGeometry.hitTestPathNodes(
+          event.localPosition,
+          _editingPathNodes!,
+          zoomScale: zoomScale,
+        );
+        if (hIdx != _hoveredPathNodeIndex) {
+          setState(() => _hoveredPathNodeIndex = hIdx);
+        }
       }
       return;
     }
 
     final localPos = event.localPosition;
     _lastMouseCanvasPosition = localPos;
+
+    if (_editingPathShapeId != null && _editingPathNodes != null) {
+      if (_activeHandleNodeIndex != null && _activeHandleType != null) {
+        if (_activeHandleNodeIndex! < _editingPathNodes!.length) {
+          final node = _editingPathNodes![_activeHandleNodeIndex!];
+          final center = node.position;
+          final isShift = HardwareKeyboard.instance.isShiftPressed;
+          final isAlt = HardwareKeyboard.instance.isAltPressed;
+
+          Offset targetPos = localPos;
+          if (isShift) {
+            targetPos = CanvasGeometry.calculateHandleSnapAngle(center, localPos);
+          }
+
+          if (_activeHandleType == 2) {
+            // Dragging handleOut
+            node.handleOut = targetPos;
+            node.isCorner = false;
+            if (!isAlt) {
+              node.handleIn = center - (targetPos - center);
+            }
+          } else if (_activeHandleType == 1) {
+            // Dragging handleIn
+            node.handleIn = targetPos;
+            node.isCorner = false;
+            if (!isAlt) {
+              node.handleOut = center - (targetPos - center);
+            }
+          }
+          _syncEditingNodesToShape();
+          setState(() {});
+        }
+        return;
+      }
+
+      if (_activeDraggingNodeIndex != null && _nodeDragStartPos != null) {
+        final delta = localPos - _nodeDragStartPos!;
+        for (final idx in _selectedPathNodeIndices) {
+          if (idx < _editingPathNodes!.length) {
+            final initNode = _initialDraggingNodes?[idx] ?? _editingPathNodes![idx];
+            _editingPathNodes![idx] = initNode.copyWith(
+              position: initNode.position + delta,
+              handleIn: initNode.handleIn != null ? initNode.handleIn! + delta : null,
+              handleOut: initNode.handleOut != null ? initNode.handleOut! + delta : null,
+            );
+          }
+        }
+        _syncEditingNodesToShape();
+        setState(() {});
+        return;
+      }
+
+      final zoomScale = CanvasTransformHelper.getScale(
+        _transformationController.value,
+      );
+      final hIdx = CanvasGeometry.hitTestPathNodes(
+        localPos,
+        _editingPathNodes!,
+        zoomScale: zoomScale,
+      );
+      if (hIdx != _hoveredPathNodeIndex) {
+        setState(() => _hoveredPathNodeIndex = hIdx);
+      }
+      return;
+    }
+
     if (currentMode == EditorMode.drawPen) {
       if (_penNodes.isNotEmpty && _isPenDraggingHandle) {
         final targetIndex = _isClosingNode ? 0 : _penNodes.length - 1;
@@ -944,8 +1227,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           }
 
           target.invalidateCache();
-        } else if (activeResizeHandle.isRatio &&
-            selectedShapeIds.length == 1) {
+        } else if (activeResizeHandle.isRatio && selectedShapeIds.length == 1) {
           final target = shapes.firstWhere(
             (s) => s.id == selectedShapeIds.first,
           );
@@ -1017,6 +1299,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
               final localDy = dx * sinVal + dy * cosVal;
               unrotatedCurrent = panStartOffset! + Offset(localDx, localDy);
             }
+            final oldRect = target.rect;
             target.rect = CanvasGeometry.resizeRect(
               initialRect,
               panStartOffset!,
@@ -1024,6 +1307,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
               activeResizeHandle,
               isLine: target.type == ShapeType.line,
             );
+            if (target.pathNodes != null) {
+              target.scaleNodes(oldRect, target.rect);
+            }
             target.invalidateCache();
           }
         } else if (activeResizeHandle != ResizeHandle.none &&
@@ -1057,12 +1343,16 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                 final relTop = (initR.top - initialCombined.top) * scaleY;
                 final newW = initR.width * scaleX;
                 final newH = initR.height * scaleY;
+                final oldR = s.rect;
                 s.rect = Rect.fromLTWH(
                   newCombined.left + relLeft,
                   newCombined.top + relTop,
                   math.max(4.0, newW),
                   math.max(4.0, newH),
                 );
+                if (s.pathNodes != null) {
+                  s.scaleNodes(oldR, s.rect);
+                }
                 s.invalidateCache();
               }
             }
@@ -1104,6 +1394,19 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
             final initR = initialShapeRects![s.id];
             if (initR != null) {
               s.rect = initR.shift(delta);
+              if (_initialShapeNodes?[s.id] != null) {
+                s.pathNodes = _initialShapeNodes![s.id]!
+                    .map((n) => n.copyWith(
+                          position: n.position + delta,
+                          handleIn: n.handleIn != null ? n.handleIn! + delta : null,
+                          handleOut: n.handleOut != null ? n.handleOut! + delta : null,
+                        ))
+                    .toList();
+                s.customPath = CanvasGeometry.nodesToPath(
+                  s.pathNodes!,
+                  isClosed: s.isClosed,
+                );
+              }
               s.invalidateCache();
             }
           }
@@ -1124,6 +1427,21 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     if (panStartOffset == null) return;
 
     final localPos = event.localPosition;
+
+    if (_editingPathShapeId != null) {
+      if (_activeHandleNodeIndex != null || _activeDraggingNodeIndex != null) {
+        _activeHandleNodeIndex = null;
+        _activeHandleType = null;
+        _activeDraggingNodeIndex = null;
+        _nodeDragStartPos = null;
+        _initialDraggingNodes = null;
+        _saveHistorySnapshot();
+        setState(() {});
+      }
+      panStartOffset = null;
+      panCurrentOffset = null;
+      return;
+    }
 
     if (currentMode == EditorMode.drawPen) {
       if (_isClosingNode && _penNodes.length >= 2) {
@@ -1229,6 +1547,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       panStartOffset = null;
       panCurrentOffset = null;
       initialShapeRects = null;
+      _initialShapeNodes = null;
       _activeSelectedShapes.clear();
       activeResizeHandle = ResizeHandle.none;
       isMovingShapes = false;
@@ -1268,8 +1587,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         final mapped = groupMapping.putIfAbsent(orig.groupId!, () {
           final newGid =
               'group_${DateTime.now().millisecondsSinceEpoch}_${math.Random().nextInt(1000)}';
-          final newGname =
-              orig.groupName != null ? '${orig.groupName} Copy' : 'Group';
+          final newGname = orig.groupName != null
+              ? '${orig.groupName} Copy'
+              : 'Group';
           return (newGid, newGname);
         });
         dupGroupId = mapped.$1;
@@ -1277,8 +1597,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       }
 
       final dup = orig.copyWith(
-        id:
-            'shape-${DateTime.now().millisecondsSinceEpoch}-${math.Random().nextInt(1000)}',
+        id: 'shape-${DateTime.now().millisecondsSinceEpoch}-${math.Random().nextInt(1000)}',
         name: '${orig.name} Copy',
         rect: orig.rect.shift(offset),
         groupId: dupGroupId,
@@ -1301,12 +1620,15 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
   void _groupSelected() {
     if (selectedShapeIds.isEmpty) return;
-    final selectedShapes =
-        shapes.where((s) => selectedShapeIds.contains(s.id)).toList();
+    final selectedShapes = shapes
+        .where((s) => selectedShapeIds.contains(s.id))
+        .toList();
     if (selectedShapes.isEmpty) return;
 
-    final existingGroups =
-        shapes.map((s) => s.groupName).whereType<String>().toSet();
+    final existingGroups = shapes
+        .map((s) => s.groupName)
+        .whereType<String>()
+        .toSet();
     int nextGroupNum = 1;
     while (existingGroups.contains('Group $nextGroupNum')) {
       nextGroupNum++;
@@ -1396,8 +1718,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
   void _bringToFront() {
     if (selectedShapeIds.isEmpty) return;
-    final selectedShapes =
-        shapes.where((s) => selectedShapeIds.contains(s.id)).toList();
+    final selectedShapes = shapes
+        .where((s) => selectedShapeIds.contains(s.id))
+        .toList();
     if (selectedShapes.isEmpty) return;
     setState(() {
       shapes.removeWhere((s) => selectedShapeIds.contains(s.id));
@@ -1408,8 +1731,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
   void _sendToBack() {
     if (selectedShapeIds.isEmpty) return;
-    final selectedShapes =
-        shapes.where((s) => selectedShapeIds.contains(s.id)).toList();
+    final selectedShapes = shapes
+        .where((s) => selectedShapeIds.contains(s.id))
+        .toList();
     if (selectedShapes.isEmpty) return;
     setState(() {
       shapes.removeWhere((s) => selectedShapeIds.contains(s.id));
@@ -1572,8 +1896,11 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   void _addShapeAt(ShapeType type, Offset center) {
     final appSettings = ref.read(appSettingsProvider);
     const size = Size(120, 120);
-    final rect =
-        Rect.fromCenter(center: center, width: size.width, height: size.height);
+    final rect = Rect.fromCenter(
+      center: center,
+      width: size.width,
+      height: size.height,
+    );
     final name = '${_getShapeTypeName(type)} $_shapeCounter';
     _shapeCounter++;
     final newShape = VectorShape(
@@ -1735,15 +2062,16 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         const FigmaMenuDivider(),
         FigmaMenuItem(
           label: isAnyLocked ? 'Unlock Selection' : 'Lock Selection',
-          icon:
-              isAnyLocked ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
+          icon: isAnyLocked
+              ? Icons.lock_open_rounded
+              : Icons.lock_outline_rounded,
           shortcut: '⌘L',
           onTap: () {
             setState(() {
               final newLock = !isAnyLocked;
               for (final id in selectedShapeIds) {
                 final s = shapes.firstWhere((x) => x.id == id);
-                s.isLocked = newLock;
+                s.setLocked(newLock);
               }
             });
             _saveHistorySnapshot();
@@ -1760,7 +2088,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
               final newVis = !isAnyVisible;
               for (final id in selectedShapeIds) {
                 final s = shapes.firstWhere((x) => x.id == id);
-                s.isVisible = newVis;
+                s.setVisible(newVis);
+              }
+              if (!newVis) {
+                selectedShapeIds.clear();
               }
             });
             _saveHistorySnapshot();
@@ -2322,83 +2653,54 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   Future<void> _importFileFromDevice() async {
     try {
       ensureFilePickerInitialized();
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['svg', 'png', 'jpg', 'jpeg', 'webp', 'gif'],
-        allowMultiple: false,
-        withData: true,
+      final result = await SafeFilePicker.pickFiles(
+        context: context,
+        allowedExtensions: FileImportService.supportedExtensions,
+        allowMultiple: true,
       );
 
       if (result != null && result.files.isNotEmpty) {
-        final file = result.files.first;
-        final bytes = file.bytes;
-        if (bytes != null) {
-          final isSvg = file.name.toLowerCase().endsWith('.svg') ||
-              (bytes.length > 5 &&
-                  utf8.decode(bytes.take(100).toList(), allowMalformed: true).contains('<svg'));
+        final focalPoint =
+            (_isMouseOverCanvas && _lastMouseCanvasPosition != null)
+            ? _lastMouseCanvasPosition!
+            : _getViewportCanvasCenter();
 
-          final focalPoint = (_isMouseOverCanvas && _lastMouseCanvasPosition != null)
-              ? _lastMouseCanvasPosition!
-              : _getViewportCanvasCenter();
-
-          if (isSvg) {
-            final svgContent = utf8.decode(bytes);
-            final importedShapes = SvgImportService.parseSvg(
-              svgContent,
-              targetOrigin: focalPoint,
+        final addedShapes = <VectorShape>[];
+        for (int i = 0; i < result.files.length; i++) {
+          final file = result.files[i];
+          final bytes = file.bytes;
+          if (bytes != null) {
+            final targetPoint = focalPoint + Offset(i * 32.0, i * 32.0);
+            final imported = await FileImportService.importFileFromBytes(
+              fileName: file.name,
+              bytes: bytes,
+              targetCanvasPoint: targetPoint,
             );
-
-            if (importedShapes.isNotEmpty) {
-              setState(() {
-                shapes.addAll(importedShapes);
-                selectedShapeIds.clear();
-                selectedShapeIds.addAll(importedShapes.map((s) => s.id));
-              });
-              _saveHistorySnapshot();
-
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Imported ${importedShapes.length} vector shape(s) from ${file.name}',
-                    ),
-                    duration: const Duration(seconds: 3),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-              return;
+            if (imported.isSuccess && imported.shapes.isNotEmpty) {
+              addedShapes.addAll(imported.shapes);
             }
           }
+        }
 
-          // Raster bitmap fallback
-          final codec = await ui.instantiateImageCodec(bytes);
-          final frame = await codec.getNextFrame();
-          final decodedImage = frame.image;
-
-          final double width = decodedImage.width.toDouble().clamp(100, 800);
-          final double height = decodedImage.height.toDouble().clamp(100, 800);
-
-          final newShape = VectorShape(
-            id: 'shape-${DateTime.now().millisecondsSinceEpoch}',
-            name: 'Image ${file.name}',
-            type: ShapeType.image,
-            rect: Rect.fromLTWH(
-              focalPoint.dx - width / 2,
-              focalPoint.dy - height / 2,
-              width,
-              height,
-            ),
-            imageBytes: bytes,
-            decodedImage: decodedImage,
-          );
-
+        if (addedShapes.isNotEmpty) {
           setState(() {
-            shapes.add(newShape);
+            shapes.addAll(addedShapes);
             selectedShapeIds.clear();
-            selectedShapeIds.add(newShape.id);
+            selectedShapeIds.addAll(addedShapes.map((s) => s.id));
           });
           _saveHistorySnapshot();
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Imported ${addedShapes.length} element(s) into canvas',
+                ),
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
         }
       }
     } catch (e) {
@@ -2407,6 +2709,66 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error importing file: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Handles drag-and-drop file imports from desktop, web, or mobile.
+  /// Translates screen drop location into canvas vector coordinates and
+  /// places imported assets exactly where dropped.
+  Future<void> _handleFilesDropped(
+    List<XFile> files,
+    Offset localDropPosition,
+  ) async {
+    if (files.isEmpty) return;
+
+    try {
+      final canvasPoint = CanvasTransformHelper.screenToCanvas(
+        _transformationController.value,
+        localDropPosition,
+      );
+
+      final results = await FileImportService.importDropItems(
+        files,
+        targetCanvasPoint: canvasPoint,
+      );
+
+      final addedShapes = <VectorShape>[];
+      for (final result in results) {
+        if (result.isSuccess && result.shapes.isNotEmpty) {
+          addedShapes.addAll(result.shapes);
+        }
+      }
+
+      if (addedShapes.isNotEmpty) {
+        setState(() {
+          shapes.addAll(addedShapes);
+          selectedShapeIds.clear();
+          selectedShapeIds.addAll(addedShapes.map((s) => s.id));
+        });
+        _saveHistorySnapshot();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Dropped & imported ${addedShapes.length} element(s) at (${canvasPoint.dx.toInt()}, ${canvasPoint.dy.toInt()})',
+              ),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error handling dropped files: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error importing dropped files: $e'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -2727,6 +3089,80 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       return KeyEventResult.ignored;
     }
 
+    if (_editingPathShapeId != null) {
+      if (event is KeyDownEvent) {
+        final isCtrl =
+            HardwareKeyboard.instance.isControlPressed ||
+            HardwareKeyboard.instance.isMetaPressed;
+        if (event.logicalKey == LogicalKeyboardKey.escape ||
+            event.logicalKey == LogicalKeyboardKey.enter ||
+            event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+          _commitPathEdit();
+          return KeyEventResult.handled;
+        } else if (isCtrl && event.logicalKey == LogicalKeyboardKey.keyA) {
+          if (_editingPathNodes != null) {
+            _selectedPathNodeIndices.clear();
+            for (int i = 0; i < _editingPathNodes!.length; i++) {
+              _selectedPathNodeIndices.add(i);
+            }
+            setState(() {});
+          }
+          return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.delete ||
+            event.logicalKey == LogicalKeyboardKey.backspace) {
+          if (_selectedPathNodeIndices.isNotEmpty &&
+              _editingPathNodes != null &&
+              _editingPathNodes!.length - _selectedPathNodeIndices.length >= 2) {
+            final sorted = _selectedPathNodeIndices.toList()
+              ..sort((a, b) => b.compareTo(a));
+            for (final idx in sorted) {
+              if (idx >= 0 && idx < _editingPathNodes!.length) {
+                _editingPathNodes!.removeAt(idx);
+              }
+            }
+            _selectedPathNodeIndices.clear();
+            _syncEditingNodesToShape();
+            _saveHistorySnapshot();
+            setState(() {});
+          }
+          return KeyEventResult.handled;
+        } else if (_selectedPathNodeIndices.isNotEmpty &&
+            _editingPathNodes != null &&
+            (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
+                event.logicalKey == LogicalKeyboardKey.arrowRight ||
+                event.logicalKey == LogicalKeyboardKey.arrowUp ||
+                event.logicalKey == LogicalKeyboardKey.arrowDown)) {
+          final isShift = HardwareKeyboard.instance.isShiftPressed;
+          final step = isShift ? 10.0 : 1.0;
+          Offset delta = Offset.zero;
+          if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+            delta = Offset(-step, 0);
+          } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+            delta = Offset(step, 0);
+          } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+            delta = Offset(0, -step);
+          } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+            delta = Offset(0, step);
+          }
+          for (final idx in _selectedPathNodeIndices) {
+            if (idx < _editingPathNodes!.length) {
+              final n = _editingPathNodes![idx];
+              _editingPathNodes![idx] = n.copyWith(
+                position: n.position + delta,
+                handleIn: n.handleIn != null ? n.handleIn! + delta : null,
+                handleOut: n.handleOut != null ? n.handleOut! + delta : null,
+              );
+            }
+          }
+          _syncEditingNodesToShape();
+          _saveHistorySnapshot();
+          setState(() {});
+          return KeyEventResult.handled;
+        }
+      }
+      return KeyEventResult.ignored;
+    }
+
     if (event is KeyDownEvent &&
         event.logicalKey == LogicalKeyboardKey.escape) {
       FocusManager.instance.primaryFocus?.unfocus();
@@ -2816,7 +3252,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                 .any((s) => s.isLocked);
             setState(() {
               for (final id in selectedShapeIds) {
-                shapes.firstWhere((s) => s.id == id).isLocked = !anyLocked;
+                shapes.firstWhere((s) => s.id == id).setLocked(!anyLocked);
               }
             });
             _saveHistorySnapshot();
@@ -2918,9 +3354,15 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
               (s) => s?.id == selectedShapeIds.first,
               orElse: () => null,
             );
-            if (selected != null && selected.type == ShapeType.text) {
-              _startTextEditing(selected, isNew: false, selectAll: true);
-              return KeyEventResult.handled;
+            if (selected != null) {
+              if (selected.type == ShapeType.text) {
+                _startTextEditing(selected, isNew: false, selectAll: true);
+                return KeyEventResult.handled;
+              } else if (selected.type == ShapeType.path ||
+                  selected.type == ShapeType.line) {
+                _enterPathEditMode(selected);
+                return KeyEventResult.handled;
+              }
             }
           }
         } else if (event.logicalKey == LogicalKeyboardKey.delete ||
@@ -2974,7 +3416,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           setState(() {
             for (final id in selectedShapeIds) {
               final s = shapes.firstWhere((s) => s.id == id);
-              s.rect = s.rect.shift(delta);
+              s.shiftPosition(delta);
             }
           });
           _saveHistorySnapshot();
@@ -3002,6 +3444,18 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           setState(() => currentMode = EditorMode.drawCurve);
           return KeyEventResult.handled;
         } else if (event.logicalKey == LogicalKeyboardKey.keyP) {
+          if (selectedShapeIds.length == 1) {
+            final selected = shapes.cast<VectorShape?>().firstWhere(
+              (s) => s?.id == selectedShapeIds.first,
+              orElse: () => null,
+            );
+            if (selected != null &&
+                (selected.type == ShapeType.path ||
+                    selected.type == ShapeType.line)) {
+              _enterPathEditMode(selected);
+              return KeyEventResult.handled;
+            }
+          }
           setState(() => currentMode = EditorMode.drawPen);
           return KeyEventResult.handled;
         } else if (event.logicalKey == LogicalKeyboardKey.keyS) {
@@ -3091,15 +3545,23 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                   },
                   onZoomToFit: _zoomToFit,
                   onZoomToSelection: _zoomToSelection,
-                  showLayers: isLayersPanelOpen ?? appSettings.showLayers ?? (!isCompact),
+                  showLayers:
+                      isLayersPanelOpen ??
+                      appSettings.showLayers ??
+                      (!isCompact),
                   onToggleLayers: (val) {
                     setState(() => isLayersPanelOpen = val);
                     ref.read(appSettingsProvider.notifier).setShowLayers(val);
                   },
-                  showProperties: isPropertiesPanelOpen ?? appSettings.showProperties ?? (!isCompact),
+                  showProperties:
+                      isPropertiesPanelOpen ??
+                      appSettings.showProperties ??
+                      (!isCompact),
                   onToggleProperties: (val) {
                     setState(() => isPropertiesPanelOpen = val);
-                    ref.read(appSettingsProvider.notifier).setShowProperties(val);
+                    ref
+                        .read(appSettingsProvider.notifier)
+                        .setShowProperties(val);
                   },
                 ),
               ),
@@ -3109,9 +3571,13 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final showLayers =
-                        isLayersPanelOpen ?? appSettings.showLayers ?? (!isCompact);
+                        isLayersPanelOpen ??
+                        appSettings.showLayers ??
+                        (!isCompact);
                     final showProperties =
-                        isPropertiesPanelOpen ?? appSettings.showProperties ?? (!isCompact);
+                        isPropertiesPanelOpen ??
+                        appSettings.showProperties ??
+                        (!isCompact);
 
                     final effectiveLayersWidth =
                         ResponsiveLayoutTokens.getEffectiveLayersWidth(
@@ -3144,7 +3610,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                   final s = shapes.firstWhere(
                                     (s) => s.id == id,
                                   );
-                                  s.isVisible = !s.isVisible;
+                                  s.setVisible(!s.isVisible);
+                                  if (!s.isVisible) {
+                                    selectedShapeIds.remove(id);
+                                  }
                                 });
                                 _saveHistorySnapshot();
                               },
@@ -3153,7 +3622,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                   final s = shapes.firstWhere(
                                     (s) => s.id == id,
                                   );
-                                  s.isLocked = !s.isLocked;
+                                  s.setLocked(!s.isLocked);
                                 });
                                 _saveHistorySnapshot();
                               },
@@ -3210,10 +3679,12 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                           ),
                         ],
 
-                        // Center Workspace Interactive Canvas
+                        // Center Workspace Interactive Canvas with Custom Drag & Drop
                         Expanded(
-                          child: Stack(
-                            children: [
+                          child: NixFileDropZone(
+                            onFilesDropped: _handleFilesDropped,
+                            child: Stack(
+                              children: [
                               InteractiveCanvas(
                                 key: _canvasKey,
                                 transformationController:
@@ -3258,15 +3729,23 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                     appSettings.defaultCanvasBgColor,
                                 activePenNodes:
                                     currentMode == EditorMode.drawPen &&
-                                            _penNodes.isNotEmpty
-                                        ? List.unmodifiable(_penNodes)
-                                        : null,
+                                        _penNodes.isNotEmpty
+                                    ? List.unmodifiable(_penNodes)
+                                    : null,
                                 activePenCursor:
                                     currentMode == EditorMode.drawPen &&
-                                            _penNodes.isNotEmpty
-                                        ? _lastMouseCanvasPosition
-                                        : null,
+                                        _penNodes.isNotEmpty
+                                    ? _lastMouseCanvasPosition
+                                    : null,
                                 isPenHoveringStart: _isPenHoveringStart,
+                                editingPathShapeId: _editingPathShapeId,
+                                editingPathNodes: _editingPathNodes,
+                                selectedPathNodeIndices:
+                                    _selectedPathNodeIndices,
+                                hoveredPathNodeIndex: _hoveredPathNodeIndex,
+                                activeHandleNodeIndex: _activeHandleNodeIndex,
+                                activeHandleType: _activeHandleType,
+                                isPathClosed: _isEditingPathClosed,
                                 onInlineTextChanged: (text) {
                                   final editingId = _editingTextShapeId;
                                   if (editingId == null) return;
@@ -3317,20 +3796,25 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                         if (showLayers) {
                                           isLayersPanelOpen = false;
                                           ref
-                                              .read(appSettingsProvider.notifier)
+                                              .read(
+                                                appSettingsProvider.notifier,
+                                              )
                                               .setShowLayers(false);
                                         }
                                         if (showProperties) {
                                           isPropertiesPanelOpen = false;
                                           ref
-                                              .read(appSettingsProvider.notifier)
+                                              .read(
+                                                appSettingsProvider.notifier,
+                                              )
                                               .setShowProperties(false);
                                         }
                                       });
                                     },
                                     child: Container(
                                       color: Colors.black.withValues(
-                                        alpha: Theme.of(context).brightness ==
+                                        alpha:
+                                            Theme.of(context).brightness ==
                                                 Brightness.dark
                                             ? 0.45
                                             : 0.25,
@@ -3361,86 +3845,95 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                     },
                                     child: Material(
                                       elevation: 12,
-                                      shadowColor:
-                                          Colors.black.withValues(alpha: 0.35),
+                                      shadowColor: Colors.black.withValues(
+                                        alpha: 0.35,
+                                      ),
                                       color: colorScheme.surfaceContainer,
                                       borderRadius:
                                           const BorderRadius.horizontal(
-                                        right: Radius.circular(16),
-                                      ),
+                                            right: Radius.circular(16),
+                                          ),
                                       clipBehavior: Clip.antiAlias,
                                       child: RepaintBoundary(
                                         child: LayersSidebar(
-                                        width:
-                                            ResponsiveLayoutTokens.getCompactDrawerWidth(
-                                              constraints.maxWidth,
-                                            ),
-                                        shapes: shapes,
-                                        selectedShapeIds: selectedShapeIds,
-                                        onSelectShape: (id) {
-                                          setState(() {
-                                            selectedShapeIds.clear();
-                                            selectedShapeIds.add(id);
-                                          });
-                                        },
-                                        onToggleVisibility: (id) {
-                                          setState(() {
-                                            final s = shapes.firstWhere(
-                                              (s) => s.id == id,
-                                            );
-                                            s.isVisible = !s.isVisible;
-                                          });
-                                          _saveHistorySnapshot();
-                                        },
-                                        onToggleLock: (id) {
-                                          setState(() {
-                                            final s = shapes.firstWhere(
-                                              (s) => s.id == id,
-                                            );
-                                            s.isLocked = !s.isLocked;
-                                          });
-                                          _saveHistorySnapshot();
-                                        },
-                                        onDeleteShape: _deleteShapeById,
-                                        onSelectShapes: _handleSelectShapes,
-                                        onBringToFront: _bringToFront,
-                                        onBringForward: _bringForward,
-                                        onSendBackward: _sendBackward,
-                                        onSendToBack: _sendToBack,
-                                        onDuplicateShape: _duplicateShapeById,
-                                        onCopySvg: _copyShapeAsSvgById,
-                                        onGroupShapes: _groupSelected,
-                                        onUngroupShapes: _ungroupSelected,
-                                        onRenameShape: (id, newName) {
-                                          setState(() {
-                                            shapes
-                                                    .firstWhere(
-                                                      (s) => s.id == id,
-                                                    )
-                                                    .name =
-                                                newName;
-                                          });
-                                          _saveHistorySnapshot();
-                                        },
-                                        onReorder: (oldIndex, newIndex) {
-                                          setState(() {
-                                            if (newIndex > oldIndex) newIndex--;
-                                            final displayList = shapes.reversed
-                                                .toList();
-                                            final shape = displayList.removeAt(
-                                              oldIndex,
-                                            );
-                                            displayList.insert(newIndex, shape);
-                                            shapes = displayList.reversed
-                                                .toList();
-                                          });
-                                          _saveHistorySnapshot();
-                                        },
+                                          width:
+                                              ResponsiveLayoutTokens.getCompactDrawerWidth(
+                                                constraints.maxWidth,
+                                              ),
+                                          shapes: shapes,
+                                          selectedShapeIds: selectedShapeIds,
+                                          onSelectShape: (id) {
+                                            setState(() {
+                                              selectedShapeIds.clear();
+                                              selectedShapeIds.add(id);
+                                            });
+                                          },
+                                          onToggleVisibility: (id) {
+                                            setState(() {
+                                              final s = shapes.firstWhere(
+                                                (s) => s.id == id,
+                                              );
+                                              s.setVisible(!s.isVisible);
+                                              if (!s.isVisible) {
+                                                selectedShapeIds.remove(id);
+                                              }
+                                            });
+                                            _saveHistorySnapshot();
+                                          },
+                                          onToggleLock: (id) {
+                                            setState(() {
+                                              final s = shapes.firstWhere(
+                                                (s) => s.id == id,
+                                              );
+                                              s.setLocked(!s.isLocked);
+                                            });
+                                            _saveHistorySnapshot();
+                                          },
+                                          onDeleteShape: _deleteShapeById,
+                                          onSelectShapes: _handleSelectShapes,
+                                          onBringToFront: _bringToFront,
+                                          onBringForward: _bringForward,
+                                          onSendBackward: _sendBackward,
+                                          onSendToBack: _sendToBack,
+                                          onDuplicateShape: _duplicateShapeById,
+                                          onCopySvg: _copyShapeAsSvgById,
+                                          onGroupShapes: _groupSelected,
+                                          onUngroupShapes: _ungroupSelected,
+                                          onRenameShape: (id, newName) {
+                                            setState(() {
+                                              shapes
+                                                      .firstWhere(
+                                                        (s) => s.id == id,
+                                                      )
+                                                      .name =
+                                                  newName;
+                                            });
+                                            _saveHistorySnapshot();
+                                          },
+                                          onReorder: (oldIndex, newIndex) {
+                                            setState(() {
+                                              if (newIndex > oldIndex) {
+                                                newIndex--;
+                                              }
+                                              final displayList = shapes
+                                                  .reversed
+                                                  .toList();
+                                              final shape = displayList
+                                                  .removeAt(oldIndex);
+                                              displayList.insert(
+                                                newIndex,
+                                                shape,
+                                              );
+                                              shapes = displayList.reversed
+                                                  .toList();
+                                            });
+                                            _saveHistorySnapshot();
+                                          },
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
 
                               // Overlay Properties for Compact Mobile Screens
                               if (isCompact && showProperties)
@@ -3464,94 +3957,108 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                     },
                                     child: Material(
                                       elevation: 12,
-                                      shadowColor:
-                                          Colors.black.withValues(alpha: 0.35),
+                                      shadowColor: Colors.black.withValues(
+                                        alpha: 0.35,
+                                      ),
                                       color: colorScheme.surfaceContainer,
                                       borderRadius:
                                           const BorderRadius.horizontal(
-                                        left: Radius.circular(16),
-                                      ),
+                                            left: Radius.circular(16),
+                                          ),
                                       clipBehavior: Clip.antiAlias,
                                       child: RepaintBoundary(
                                         child: PropertiesSidebar(
-                                        width:
-                                            ResponsiveLayoutTokens.getCompactDrawerWidth(
-                                              constraints.maxWidth,
-                                            ),
-                                        selectedShape: selectedShape,
-                                        onShapeChanged:
-                                            _onPropertiesShapeChanged,
-                                        onShapeChangeEnd:
-                                            _onPropertiesShapeChangeEnd,
-                                        onOpenColorPickerFill: ([anchorRect]) =>
-                                            _openColorPicker(true, anchorRect),
-                                        onOpenColorPickerStroke:
-                                            ([anchorRect]) => _openColorPicker(
-                                              false,
-                                              anchorRect,
-                                            ),
-                                        onDuplicateShape: _duplicateSelected,
-                                        onDeleteSelected: _deleteSelected,
-                                        onAlignShape: _alignShapes,
-                                        onDistributeShapes: _distributeShapes,
-                                        onBooleanOperation: _executeBooleanOperation,
-                                        selectedShapesCount: selectedShapeIds.length,
-                                        onGroupShapes: _groupSelected,
-                                        onUngroupShapes: _ungroupSelected,
-                                        canGroup: selectedShapeIds.isNotEmpty,
-                                        canUngroup: shapes
-                                            .where((s) =>
-                                                selectedShapeIds.contains(s.id))
-                                            .any((s) => s.groupId != null),
-                                        canvasSize: canvasSize,
-                                        onCanvasSizeChanged: (newSize) {
-                                          setState(() => canvasSize = newSize);
-                                          _saveHistorySnapshot();
-                                        },
-                                        canvasBackgroundColor:
-                                            canvasBackgroundColor,
-                                        onCanvasBackgroundColorChanged: (col) {
-                                          setState(
-                                            () => canvasBackgroundColor = col,
-                                          );
-                                          _saveHistorySnapshot();
-                                        },
-                                        snapToGrid: appSettings.snapToGrid,
-                                        onToggleSnapToGrid: (val) {
-                                          ref
-                                              .read(
-                                                appSettingsProvider.notifier,
+                                          width:
+                                              ResponsiveLayoutTokens.getCompactDrawerWidth(
+                                                constraints.maxWidth,
+                                              ),
+                                          selectedShape: selectedShape,
+                                          onShapeChanged:
+                                              _onPropertiesShapeChanged,
+                                          onShapeChangeEnd:
+                                              _onPropertiesShapeChangeEnd,
+                                          onOpenColorPickerFill:
+                                              ([anchorRect]) =>
+                                                  _openColorPicker(
+                                                    true,
+                                                    anchorRect,
+                                                  ),
+                                          onOpenColorPickerStroke:
+                                              ([anchorRect]) =>
+                                                  _openColorPicker(
+                                                    false,
+                                                    anchorRect,
+                                                  ),
+                                          onDuplicateShape: _duplicateSelected,
+                                          onDeleteSelected: _deleteSelected,
+                                          onAlignShape: _alignShapes,
+                                          onDistributeShapes: _distributeShapes,
+                                          onBooleanOperation:
+                                              _executeBooleanOperation,
+                                          selectedShapesCount:
+                                              selectedShapeIds.length,
+                                          onGroupShapes: _groupSelected,
+                                          onUngroupShapes: _ungroupSelected,
+                                          canGroup: selectedShapeIds.isNotEmpty,
+                                          canUngroup: shapes
+                                              .where(
+                                                (s) => selectedShapeIds
+                                                    .contains(s.id),
                                               )
-                                              .setSnapToGrid(val);
-                                        },
-                                        gridSpacing: appSettings.gridSpacing,
-                                        onGridSpacingChanged: (val) {
-                                          ref
-                                              .read(
-                                                appSettingsProvider.notifier,
-                                              )
-                                              .setGridSpacing(val);
-                                        },
-                                        totalShapesCount: shapes.length,
-                                        zoomScale: zoomScale,
-                                        onZoomIn: _zoomIn,
-                                        onZoomOut: _zoomOut,
-                                        onSetZoomScale: _setZoomScale,
-                                        isPanMode:
-                                            currentMode == EditorMode.pan,
-                                        onTogglePanMode: _togglePanMode,
-                                        onCenterCanvas: _centerCanvas,
-                                        onResetZoom: _resetZoom,
-                                        onZoomToFit: _zoomToFit,
-                                        onZoomToSelection: _zoomToSelection,
-                                        onSelectAll: _selectAll,
-                                        onExportSvg: _openExportDialog,
-                                        onClearCanvas: _clearCanvas,
+                                              .any((s) => s.groupId != null),
+                                          canvasSize: canvasSize,
+                                          onCanvasSizeChanged: (newSize) {
+                                            setState(
+                                              () => canvasSize = newSize,
+                                            );
+                                            _saveHistorySnapshot();
+                                          },
+                                          canvasBackgroundColor:
+                                              canvasBackgroundColor,
+                                          onCanvasBackgroundColorChanged:
+                                              (col) {
+                                                setState(
+                                                  () => canvasBackgroundColor =
+                                                      col,
+                                                );
+                                                _saveHistorySnapshot();
+                                              },
+                                          snapToGrid: appSettings.snapToGrid,
+                                          onToggleSnapToGrid: (val) {
+                                            ref
+                                                .read(
+                                                  appSettingsProvider.notifier,
+                                                )
+                                                .setSnapToGrid(val);
+                                          },
+                                          gridSpacing: appSettings.gridSpacing,
+                                          onGridSpacingChanged: (val) {
+                                            ref
+                                                .read(
+                                                  appSettingsProvider.notifier,
+                                                )
+                                                .setGridSpacing(val);
+                                          },
+                                          totalShapesCount: shapes.length,
+                                          zoomScale: zoomScale,
+                                          onZoomIn: _zoomIn,
+                                          onZoomOut: _zoomOut,
+                                          onSetZoomScale: _setZoomScale,
+                                          isPanMode:
+                                              currentMode == EditorMode.pan,
+                                          onTogglePanMode: _togglePanMode,
+                                          onCenterCanvas: _centerCanvas,
+                                          onResetZoom: _resetZoom,
+                                          onZoomToFit: _zoomToFit,
+                                          onZoomToSelection: _zoomToSelection,
+                                          onSelectAll: _selectAll,
+                                          onExportSvg: _openExportDialog,
+                                          onClearCanvas: _clearCanvas,
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
 
                               // Center Dynamic Floating Tool Bar (Top or Bottom based on App Settings)
                               Positioned(
@@ -3575,7 +4082,11 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                       child: FloatingToolBar(
                                         currentMode: currentMode,
                                         onModeChanged: (mode) {
-                                          if (currentMode == EditorMode.drawPen &&
+                                          if (_editingPathShapeId != null) {
+                                            _commitPathEdit();
+                                          }
+                                          if (currentMode ==
+                                                  EditorMode.drawPen &&
                                               _penNodes.length >= 2) {
                                             _commitPenPath(isClosed: false);
                                           } else {
@@ -3591,9 +4102,104 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                   ),
                                 ),
                               ),
+
+                              // Vector Edit Mode Floating Banner
+                              if (_editingPathShapeId != null)
+                                Positioned(
+                                  top: appSettings.toolbarPosition == 'top'
+                                      ? 72.0
+                                      : 16.0,
+                                  left: 0,
+                                  right: 0,
+                                  child: Center(
+                                    child: Material(
+                                      elevation: 6,
+                                      shadowColor: Colors.black38,
+                                      borderRadius: BorderRadius.circular(28),
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHigh,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(28),
+                                          border: Border.all(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary
+                                                .withValues(alpha: 0.35),
+                                            width: 1.2,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.timeline_rounded,
+                                              size: 18,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'Vector Edit Mode',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 13,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurface,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              '• Drag points/handles, double-click to toggle curve, Del to remove',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            FilledButton(
+                                              onPressed: _commitPathEdit,
+                                              style: FilledButton.styleFrom(
+                                                visualDensity:
+                                                    VisualDensity.compact,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 14,
+                                                  vertical: 6,
+                                                ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(16),
+                                                ),
+                                              ),
+                                              child: const Text(
+                                                'Done',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
+                      ),
 
                         // Right Properties Inspector Sidebar (Docked when wide & enabled)
                         if (!isCompact && showProperties) ...[
@@ -3637,9 +4243,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                               onUngroupShapes: _ungroupSelected,
                               canGroup: selectedShapeIds.isNotEmpty,
                               canUngroup: shapes
-                                  .where(
-                                    (s) => selectedShapeIds.contains(s.id),
-                                  )
+                                  .where((s) => selectedShapeIds.contains(s.id))
                                   .any((s) => s.groupId != null),
                               canvasSize: canvasSize,
                               onCanvasSizeChanged: (newSize) {

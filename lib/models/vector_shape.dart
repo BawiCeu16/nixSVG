@@ -312,6 +312,8 @@ class VectorShape {
   String? groupName;
   String? pathData;
   Path? customPath;
+  List<PathNode>? pathNodes;
+  bool isClosed;
   int revision;
 
   // Self-invalidating geometry and rendering caches
@@ -426,6 +428,8 @@ class VectorShape {
     this.groupName,
     this.pathData,
     this.customPath,
+    this.pathNodes,
+    this.isClosed = false,
     this.revision = 0,
   }) : cornerRadius = cornerRadius ??
            (type == ShapeType.roundedRectangle ? 12.0 : 0.0),
@@ -488,6 +492,8 @@ class VectorShape {
     bool clearGroup = false,
     String? pathData,
     Path? customPath,
+    List<PathNode>? pathNodes,
+    bool? isClosed,
     int? revision,
   }) {
     final effectiveIsBold =
@@ -562,6 +568,9 @@ class VectorShape {
       groupName: clearGroup ? null : (groupName ?? this.groupName),
       pathData: pathData ?? this.pathData,
       customPath: customPath ?? this.customPath,
+      pathNodes: pathNodes ??
+          this.pathNodes?.map((n) => n.copyWith()).toList(),
+      isClosed: isClosed ?? this.isClosed,
       revision: revision ?? (this.revision + 1),
     );
   }
@@ -623,6 +632,8 @@ class VectorShape {
       'isVisible': isVisible,
       'isLocked': isLocked,
       'pathData': pathData,
+      'isClosed': isClosed,
+      'pathNodes': pathNodes?.map((n) => n.toJson()).toList(),
       'imageBytes': imageBytes != null ? base64Encode(imageBytes!) : null,
     };
   }
@@ -732,6 +743,12 @@ class VectorShape {
       } catch (_) {}
     }
 
+    final pathNodesRaw = json['pathNodes'] as List<dynamic>?;
+    final pathNodes = pathNodesRaw
+        ?.map((n) => PathNode.fromJson(n as Map<String, dynamic>))
+        .toList();
+    final isClosed = json['isClosed'] as bool? ?? false;
+
     return VectorShape(
       id:
           json['id'] as String? ??
@@ -791,6 +808,8 @@ class VectorShape {
       imageBytes: imageBytes,
       pathData: pathData,
       customPath: customPath,
+      pathNodes: pathNodes,
+      isClosed: isClosed,
     );
   }
 
@@ -1510,6 +1529,22 @@ class VectorShape {
     return painter;
   }
 
+  /// Sets visibility and invalidates cache if changed.
+  void setVisible(bool visible) {
+    if (isVisible != visible) {
+      isVisible = visible;
+      invalidateCache();
+    }
+  }
+
+  /// Sets lock state and invalidates cache if changed.
+  void setLocked(bool locked) {
+    if (isLocked != locked) {
+      isLocked = locked;
+      invalidateCache();
+    }
+  }
+
   /// Clears all memoized caches when shape undergoes deep modifications.
   void invalidateCache() {
     revision++;
@@ -1518,5 +1553,76 @@ class VectorShape {
     _cachedBoundingBox = null;
     _cachedTextPainter = null;
     _cachedTextStyle = null;
+  }
+
+  /// Shifts this shape and all its path nodes / handles by [delta].
+  void shiftPosition(Offset delta) {
+    rect = rect.shift(delta);
+    if (pathNodes != null) {
+      pathNodes = pathNodes!.map((node) {
+        return node.copyWith(
+          position: node.position + delta,
+          handleIn: node.handleIn != null ? node.handleIn! + delta : null,
+          handleOut: node.handleOut != null ? node.handleOut! + delta : null,
+        );
+      }).toList();
+    }
+    if (customPath != null) {
+      final matrix = Matrix4.identity()..translateByDouble(delta.dx, delta.dy, 0.0, 1.0);
+      customPath = customPath!.transform(matrix.storage);
+    }
+    invalidateCache();
+  }
+
+  /// Scales all path nodes when the shape bounding box is resized from [oldRect] to [newRect].
+  void scaleNodes(Rect oldRect, Rect newRect) {
+    if (pathNodes == null || oldRect.width == 0 || oldRect.height == 0) return;
+    final sx = newRect.width / oldRect.width;
+    final sy = newRect.height / oldRect.height;
+    pathNodes = pathNodes!.map((node) {
+      Offset scalePt(Offset pt) {
+        final relX = pt.dx - oldRect.left;
+        final relY = pt.dy - oldRect.top;
+        return Offset(newRect.left + relX * sx, newRect.top + relY * sy);
+      }
+      return node.copyWith(
+        position: scalePt(node.position),
+        handleIn: node.handleIn != null ? scalePt(node.handleIn!) : null,
+        handleOut: node.handleOut != null ? scalePt(node.handleOut!) : null,
+      );
+    }).toList();
+    customPath = CanvasGeometry.nodesToPath(pathNodes!, isClosed: isClosed);
+    pathData = CanvasGeometry.nodesToSvgData(pathNodes!, isClosed: isClosed);
+    invalidateCache();
+  }
+
+  /// Updates this path shape directly from an edited list of [PathNode] anchor points.
+  void updateFromPathNodes(List<PathNode> newNodes, {bool? closed}) {
+    pathNodes = newNodes.map((n) => n.copyWith()).toList();
+    if (closed != null) isClosed = closed;
+    customPath = CanvasGeometry.nodesToPath(pathNodes!, isClosed: isClosed);
+    final bounds = customPath!.getBounds();
+    rect = Rect.fromLTWH(
+      bounds.left,
+      bounds.top,
+      math.max(bounds.width, 4.0),
+      math.max(bounds.height, 4.0),
+    );
+    pathData = CanvasGeometry.nodesToSvgData(pathNodes!, isClosed: isClosed);
+    invalidateCache();
+  }
+
+  /// Returns active or dynamically extracted [PathNode] points for vector node editing.
+  List<PathNode> getOrGeneratePathNodes() {
+    if (pathNodes != null && pathNodes!.isNotEmpty) {
+      return pathNodes!.map((n) => n.copyWith()).toList();
+    }
+    if (type == ShapeType.line) {
+      return [
+        PathNode(position: rect.topLeft, isCorner: true),
+        PathNode(position: rect.bottomRight, isCorner: true),
+      ];
+    }
+    return CanvasGeometry.extractNodesFromPath(getPath(), isClosed: isClosed);
   }
 }

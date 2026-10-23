@@ -55,6 +55,13 @@ class InteractiveCanvas extends StatefulWidget {
   final List<PathNode>? activePenNodes;
   final Offset? activePenCursor;
   final bool isPenHoveringStart;
+  final String? editingPathShapeId;
+  final List<PathNode>? editingPathNodes;
+  final Set<int>? selectedPathNodeIndices;
+  final int? hoveredPathNodeIndex;
+  final int? activeHandleNodeIndex;
+  final int? activeHandleType;
+  final bool isPathClosed;
   final ValueChanged<Offset>? onPointerHover;
 
   const InteractiveCanvas({
@@ -90,6 +97,13 @@ class InteractiveCanvas extends StatefulWidget {
     this.activePenNodes,
     this.activePenCursor,
     this.isPenHoveringStart = false,
+    this.editingPathShapeId,
+    this.editingPathNodes,
+    this.selectedPathNodeIndices,
+    this.hoveredPathNodeIndex,
+    this.activeHandleNodeIndex,
+    this.activeHandleType,
+    this.isPathClosed = false,
     this.onInlineTextChanged,
     this.onInlineTextCommit,
     this.onInlineTextCancel,
@@ -599,6 +613,13 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
                       activePenNodes: widget.activePenNodes,
                       activePenCursor: widget.activePenCursor,
                       isPenHoveringStart: widget.isPenHoveringStart,
+                      editingPathShapeId: widget.editingPathShapeId,
+                      editingPathNodes: widget.editingPathNodes,
+                      selectedPathNodeIndices: widget.selectedPathNodeIndices,
+                      hoveredPathNodeIndex: widget.hoveredPathNodeIndex,
+                      activeHandleNodeIndex: widget.activeHandleNodeIndex,
+                      activeHandleType: widget.activeHandleType,
+                      isPathClosed: widget.isPathClosed,
                     ),
                   ),
                 ),

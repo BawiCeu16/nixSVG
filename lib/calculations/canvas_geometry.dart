@@ -1450,4 +1450,153 @@ class CanvasGeometry {
     }
     return path;
   }
+
+  /// Extracts anchor [PathNode] points from an existing [Path] by evaluating its contour metrics.
+  static List<PathNode> extractNodesFromPath(
+    Path path, {
+    bool isClosed = false,
+  }) {
+    final metrics = path.computeMetrics().toList();
+    if (metrics.isEmpty) return [];
+    final nodes = <PathNode>[];
+
+    for (final metric in metrics) {
+      final len = metric.length;
+      if (len <= 0) continue;
+
+      // Sample nodes evenly along path length
+      final step = (len / 8.0).clamp(30.0, 120.0);
+      for (double d = 0; d < len; d += step) {
+        final tangent = metric.getTangentForOffset(d);
+        if (tangent != null) {
+          nodes.add(PathNode(position: tangent.position));
+        }
+      }
+
+      if (!metric.isClosed && !isClosed) {
+        final endTangent = metric.getTangentForOffset(len);
+        if (endTangent != null &&
+            (nodes.isEmpty ||
+                (nodes.last.position - endTangent.position).distance > 2.0)) {
+          nodes.add(PathNode(position: endTangent.position));
+        }
+      }
+    }
+    return nodes;
+  }
+
+  /// Tests if [point] hits [node.position] within [tolerance].
+  static bool hitTestPathNode(
+    Offset point,
+    PathNode node, {
+    double tolerance = 10.0,
+    double zoomScale = 1.0,
+  }) {
+    final effectiveTol = tolerance / (zoomScale > 0 ? zoomScale : 1.0);
+    return (point - node.position).distance <= effectiveTol;
+  }
+
+  /// Finds the index of the node in [nodes] hit by [point], or null if none.
+  static int? hitTestPathNodes(
+    Offset point,
+    List<PathNode> nodes, {
+    double tolerance = 10.0,
+    double zoomScale = 1.0,
+  }) {
+    final effectiveTol = tolerance / (zoomScale > 0 ? zoomScale : 1.0);
+    for (int i = 0; i < nodes.length; i++) {
+      if ((point - nodes[i].position).distance <= effectiveTol) {
+        return i;
+      }
+    }
+    return null;
+  }
+
+  /// Tests if [point] hits [node.handleIn] (returns 1) or [node.handleOut] (returns 2). Returns 0 if none.
+  static int hitTestPathHandle(
+    Offset point,
+    PathNode node, {
+    double tolerance = 10.0,
+    double zoomScale = 1.0,
+  }) {
+    final effectiveTol = tolerance / (zoomScale > 0 ? zoomScale : 1.0);
+    if (node.handleIn != null &&
+        (point - node.handleIn!).distance <= effectiveTol) {
+      return 1;
+    }
+    if (node.handleOut != null &&
+        (point - node.handleOut!).distance <= effectiveTol) {
+      return 2;
+    }
+    return 0;
+  }
+
+  /// Finds the index of the segment between nodes[i] and nodes[i+1] nearest to [point].
+  /// Returns null if no segment is within [threshold].
+  static int? findNearestSegmentIndex(
+    Offset point,
+    List<PathNode> nodes, {
+    bool isClosed = false,
+    double threshold = 12.0,
+    double zoomScale = 1.0,
+  }) {
+    if (nodes.length < 2) return null;
+    int? bestIndex;
+    final effectiveThreshold = threshold / (zoomScale > 0 ? zoomScale : 1.0);
+    double bestDistance = effectiveThreshold;
+
+    final segmentCount = isClosed ? nodes.length : nodes.length - 1;
+    for (int i = 0; i < segmentCount; i++) {
+      final a = nodes[i];
+      final b = nodes[(i + 1) % nodes.length];
+
+      final p0 = a.position;
+      final p1 = a.handleOut ?? a.position;
+      final p2 = b.handleIn ?? b.position;
+      final p3 = b.position;
+
+      // Sample 12 points along segment
+      for (int step = 0; step <= 12; step++) {
+        final t = step / 12.0;
+        final oneMinusT = 1.0 - t;
+        final samplePoint = p0 * (oneMinusT * oneMinusT * oneMinusT) +
+            p1 * (3.0 * oneMinusT * oneMinusT * t) +
+            p2 * (3.0 * oneMinusT * t * t) +
+            p3 * (t * t * t);
+
+        final dist = (point - samplePoint).distance;
+        if (dist < bestDistance) {
+          bestDistance = dist;
+          bestIndex = i;
+        }
+      }
+    }
+    return bestIndex;
+  }
+
+  /// Calculates a default smooth tangent vector for converting a sharp corner node into a smooth curve.
+  static Offset calculateDefaultTangent(
+    List<PathNode> nodes,
+    int index, {
+    bool isClosed = false,
+  }) {
+    if (nodes.length < 2) return const Offset(20, 0);
+
+    final current = nodes[index].position;
+    final prev = nodes[index > 0 ? index - 1 : (isClosed ? nodes.length - 1 : 0)].position;
+    final next = nodes[(index + 1) < nodes.length ? index + 1 : (isClosed ? 0 : index)].position;
+
+    final dir = next - prev;
+    if (dir.distance == 0) return const Offset(20, 0);
+
+    final normalized = Offset(dir.dx / dir.distance, dir.dy / dir.distance);
+    final distanceToPrev = (current - prev).distance;
+    final distanceToNext = (next - current).distance;
+    final handleLength = math.min(
+      math.min(distanceToPrev, distanceToNext) * 0.35,
+      60.0,
+    );
+
+    return normalized * math.max(handleLength, 15.0);
+  }
 }

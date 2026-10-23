@@ -34,7 +34,6 @@ class AppButtonsTheme {
         foregroundColor: scheme.primary,
         disabledBackgroundColor: scheme.onSurface.withValues(alpha: 0.12),
         disabledForegroundColor: scheme.onSurface.withValues(alpha: 0.38),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
       ),
     );
@@ -56,7 +55,6 @@ class AppButtonsTheme {
           ),
           width: scheme.brightness == Brightness.dark ? 1.2 : 1.0,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
       ),
     );
@@ -69,7 +67,6 @@ class AppButtonsTheme {
         shadowColor: Colors.transparent,
         foregroundColor: scheme.primary,
         disabledForegroundColor: scheme.onSurface.withValues(alpha: 0.38),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
       ),
     );
@@ -84,7 +81,6 @@ class AppButtonsTheme {
         highlightColor: scheme.primary.withValues(
           alpha: scheme.brightness == Brightness.dark ? 0.12 : 0.08,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -112,13 +108,6 @@ class AppButtonsTheme {
         disabledForegroundColor: scheme.onSurface.withValues(alpha: 0.38),
         elevation: 0,
         shadowColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        side: BorderSide(
-          color: scheme.outlineVariant.withValues(
-            alpha: scheme.brightness == Brightness.dark ? 0.5 : 0.3,
-          ),
-          width: 1,
-        ),
         textStyle: textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
       ),
     );
@@ -133,7 +122,6 @@ class AppButtonsTheme {
       disabledElevation: 0,
       backgroundColor: scheme.primaryContainer,
       foregroundColor: scheme.onPrimaryContainer,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     );
   }
 }
