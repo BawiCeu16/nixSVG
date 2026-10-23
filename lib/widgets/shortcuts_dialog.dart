@@ -59,7 +59,12 @@ class ShortcutsDialog extends StatelessWidget {
                     'L',
                     'Draw Line Tool (Hold Shift for 45°)',
                   ),
-                  _buildShortcutRow(context, 'C / P', 'Draw Curve / Path Tool'),
+                  _buildShortcutRow(context, 'C', 'Draw Curve / Bend Tool'),
+                  _buildShortcutRow(
+                    context,
+                    'P',
+                    'Vector Pen Tool (Click nodes or drag smooth path)',
+                  ),
                   _buildShortcutRow(context, 'S', 'Draw Star Tool'),
                   _buildShortcutRow(context, 'Y', 'Draw Polygon Tool'),
                   _buildShortcutRow(context, 'T', 'Draw Text Tool'),

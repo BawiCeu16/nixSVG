@@ -25,6 +25,10 @@ class VectorCanvasPainter extends CustomPainter {
   final String? editingShapeId;
   final double zoomScale;
   final int shapesRevision;
+  final List<Offset>? activePenPoints;
+  final List<PathNode>? activePenNodes;
+  final Offset? activePenCursor;
+  final bool isPenHoveringStart;
 
   VectorCanvasPainter({
     required this.shapes,
@@ -44,6 +48,10 @@ class VectorCanvasPainter extends CustomPainter {
     required this.colorScheme,
     this.editingShapeId,
     this.zoomScale = 1.0,
+    this.activePenPoints,
+    this.activePenNodes,
+    this.activePenCursor,
+    this.isPenHoveringStart = false,
     int? shapesRevision,
   }) : shapesRevision = shapesRevision ?? _computeShapesRevision(shapes);
 
@@ -153,6 +161,208 @@ class VectorCanvasPainter extends CustomPainter {
         Offset(size.width, snapGuidelineY!.dy),
         snapPaint,
       );
+    }
+
+    // 6. Draw active Pen Tool live preview & anchor nodes (Figma / Illustrator style)
+    if (activePenNodes != null && activePenNodes!.isNotEmpty) {
+      final nodes = activePenNodes!;
+
+      // 6a. Placed segments (Cubic Bézier)
+      if (nodes.length > 1) {
+        final penPath = CanvasGeometry.nodesToPath(nodes);
+        final penStroke = Paint()
+          ..color = colorScheme.primary
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0 * s
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round;
+        canvas.drawPath(penPath, penStroke);
+      }
+
+      // 6b. Prospective rubber-band curve to cursor / closing start
+      if (activePenCursor != null) {
+        final prospective = CanvasGeometry.calculateProspectiveCurve(
+          nodes.last,
+          activePenCursor!,
+          firstNode: isPenHoveringStart && nodes.length >= 2 ? nodes.first : null,
+        );
+        final guidePaint = Paint()
+          ..color = colorScheme.primary.withValues(alpha: 0.75)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.4 * s;
+        final dashedGuide = CanvasGeometry.dashPath(
+          prospective,
+          dashLength: 4.0 * s,
+          dashGap: 4.0 * s,
+        );
+        canvas.drawPath(dashedGuide, guidePaint);
+      }
+
+      // 6c. Control handle arms & knob circles
+      final armPaint = Paint()
+        ..color = colorScheme.primary.withValues(alpha: 0.85)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0 * s;
+
+      for (int i = 0; i < nodes.length; i++) {
+        final node = nodes[i];
+
+        // Inbound handle
+        if (node.handleIn != null) {
+          canvas.drawLine(node.position, node.handleIn!, armPaint);
+          canvas.drawCircle(
+            node.handleIn!,
+            3.5 * s,
+            Paint()..color = Colors.white..style = PaintingStyle.fill,
+          );
+          canvas.drawCircle(
+            node.handleIn!,
+            3.5 * s,
+            Paint()
+              ..color = colorScheme.primary
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.4 * s,
+          );
+        }
+
+        // Outbound handle
+        if (node.handleOut != null) {
+          canvas.drawLine(node.position, node.handleOut!, armPaint);
+          canvas.drawCircle(
+            node.handleOut!,
+            3.5 * s,
+            Paint()..color = Colors.white..style = PaintingStyle.fill,
+          );
+          canvas.drawCircle(
+            node.handleOut!,
+            3.5 * s,
+            Paint()
+              ..color = colorScheme.primary
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.4 * s,
+          );
+        }
+      }
+
+      // 6d. Vector anchor point squares & closing glyph
+      for (int i = 0; i < nodes.length; i++) {
+        final node = nodes[i];
+        final isStart = i == 0;
+        final isLast = i == nodes.length - 1;
+
+        // If hovering near start point to close, draw ring
+        if (isStart && isPenHoveringStart && nodes.length >= 2) {
+          canvas.drawCircle(
+            node.position,
+            9.0 * s,
+            Paint()
+              ..color = colorScheme.tertiary
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2.0 * s,
+          );
+        }
+
+        // Anchor square (Figma / Illustrator precision)
+        final half = 3.5 * s;
+        final squareRect = Rect.fromCenter(
+          center: node.position,
+          width: half * 2,
+          height: half * 2,
+        );
+
+        canvas.drawRect(
+          squareRect,
+          Paint()
+            ..color = isLast ? colorScheme.primary : Colors.white
+            ..style = PaintingStyle.fill,
+        );
+        canvas.drawRect(
+          squareRect,
+          Paint()
+            ..color = colorScheme.primary
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5 * s,
+        );
+      }
+
+      // If hovering near start to close, also draw small circle indicator near cursor
+      if (isPenHoveringStart && activePenCursor != null) {
+        canvas.drawCircle(
+          activePenCursor! + Offset(12.0 * s, 12.0 * s),
+          3.5 * s,
+          Paint()
+            ..color = colorScheme.tertiary
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5 * s,
+        );
+      }
+    } else if (activePenPoints != null && activePenPoints!.isNotEmpty) {
+      // Fallback simple points renderer
+      if (activePenPoints!.length > 1) {
+        final penPath = CanvasGeometry.createSmoothPathFromPoints(
+          activePenPoints!,
+        );
+        final penStroke = Paint()
+          ..color = colorScheme.primary
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0 * s
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round;
+        canvas.drawPath(penPath, penStroke);
+      }
+
+      if (activePenCursor != null) {
+        final lastPoint = activePenPoints!.last;
+        final guideLine = Path()
+          ..moveTo(lastPoint.dx, lastPoint.dy)
+          ..lineTo(activePenCursor!.dx, activePenCursor!.dy);
+        final dashedGuide = CanvasGeometry.dashPath(
+          guideLine,
+          dashLength: 4.0 * s,
+          dashGap: 4.0 * s,
+        );
+        final guidePaint = Paint()
+          ..color = colorScheme.primary.withValues(alpha: 0.65)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2 * s;
+        canvas.drawPath(dashedGuide, guidePaint);
+      }
+
+      for (int i = 0; i < activePenPoints!.length; i++) {
+        final p = activePenPoints![i];
+        final isStart = i == 0;
+        final isClosingHover = isStart &&
+            activePenCursor != null &&
+            activePenPoints!.length >= 3 &&
+            (activePenCursor! - p).distance <= 14.0 * s;
+
+        if (isClosingHover) {
+          canvas.drawCircle(
+            p,
+            8.0 * s,
+            Paint()
+              ..color = colorScheme.tertiary
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2.0 * s,
+          );
+        }
+
+        canvas.drawCircle(
+          p,
+          4.0 * s,
+          Paint()
+            ..color = Colors.white
+            ..style = PaintingStyle.fill,
+        );
+        canvas.drawCircle(
+          p,
+          4.0 * s,
+          Paint()
+            ..color = isStart ? colorScheme.tertiary : colorScheme.primary
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5 * s,
+        );
+      }
     }
   }
 
@@ -1073,6 +1283,10 @@ class VectorCanvasPainter extends CustomPainter {
     if (oldDelegate.zoomScale != zoomScale) return true;
     if (oldDelegate.colorScheme != colorScheme) return true;
     if (oldDelegate.shapesRevision != shapesRevision) return true;
+    if (oldDelegate.activePenPoints != activePenPoints) return true;
+    if (oldDelegate.activePenNodes != activePenNodes) return true;
+    if (oldDelegate.activePenCursor != activePenCursor) return true;
+    if (oldDelegate.isPenHoveringStart != isPenHoveringStart) return true;
     if (oldDelegate.shapes.length != shapes.length) return true;
     if (oldDelegate.selectedShapeIds.length != selectedShapeIds.length) return true;
     if (!setEquals(oldDelegate.selectedShapeIds, selectedShapeIds)) return true;

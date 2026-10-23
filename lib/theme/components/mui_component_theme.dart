@@ -25,43 +25,8 @@ class NixSvgMuiTheme {
       useMaterial3: true,
       brightness: brightness,
       colorScheme: m3eScheme,
-      shadowColor: Colors.transparent,
-      filledButtonTheme: mui.FilledButtonThemeData(
-        style: mui.FilledButton.styleFrom(
-          elevation: 0,
-          shadowColor: Colors.transparent,
-          backgroundColor: m3eScheme.primary,
-          foregroundColor: m3eScheme.onPrimary,
-        ),
-      ),
-      elevatedButtonTheme: mui.ElevatedButtonThemeData(
-        style: mui.ElevatedButton.styleFrom(
-          elevation: 0,
-          shadowColor: Colors.transparent,
-          backgroundColor: m3eScheme.surfaceContainerHigh,
-          foregroundColor: m3eScheme.primary,
-        ),
-      ),
-      outlinedButtonTheme: mui.OutlinedButtonThemeData(
-        style: mui.OutlinedButton.styleFrom(
-          elevation: 0,
-          shadowColor: Colors.transparent,
-          foregroundColor: m3eScheme.primary,
-          side: mui.BorderSide(color: m3eScheme.outlineVariant),
-        ),
-      ),
-      textButtonTheme: mui.TextButtonThemeData(
-        style: mui.TextButton.styleFrom(
-          elevation: 0,
-          shadowColor: Colors.transparent,
-          foregroundColor: m3eScheme.primary,
-        ),
-      ),
-      iconButtonTheme: mui.IconButtonThemeData(
-        style: mui.IconButton.styleFrom(
-          foregroundColor: m3eScheme.onSurfaceVariant,
-          hoverColor: m3eScheme.surfaceContainerHighest,
-        ),
+      iconButtonTheme: const mui.IconButtonThemeData(
+        variant: mui.StyleVariant.material3Expressive,
       ),
     );
   }

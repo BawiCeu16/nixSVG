@@ -28,6 +28,7 @@ enum EditorMode {
   drawEllipse,
   drawLine,
   drawCurve,
+  drawPen,
   drawStar,
   drawPolygon,
   drawText,
@@ -84,6 +85,83 @@ enum PaintFillType { solid, linearGradient, radialGradient }
 enum StrokeStyle { solid, dashed, dotted }
 
 enum StrokeAlign { inside, center, outside }
+
+/// An anchor point node in a vector path with optional cubic Bézier handles,
+/// adhering to standard vector editing conventions (Figma, Adobe Illustrator).
+class PathNode {
+  /// The anchor point coordinate in canvas space.
+  final Offset position;
+
+  /// Inbound Bézier control point (tangent coming from previous anchor point).
+  Offset? handleIn;
+
+  /// Outbound Bézier control point (tangent heading to next anchor point).
+  Offset? handleOut;
+
+  /// Whether this is a sharp/corner vertex with disconnected handle tangents.
+  bool isCorner;
+
+  PathNode({
+    required this.position,
+    this.handleIn,
+    this.handleOut,
+    this.isCorner = false,
+  });
+
+  PathNode copyWith({
+    Offset? position,
+    Offset? handleIn,
+    Offset? handleOut,
+    bool? isCorner,
+    bool clearHandleIn = false,
+    bool clearHandleOut = false,
+  }) {
+    return PathNode(
+      position: position ?? this.position,
+      handleIn: clearHandleIn ? null : (handleIn ?? this.handleIn),
+      handleOut: clearHandleOut ? null : (handleOut ?? this.handleOut),
+      isCorner: isCorner ?? this.isCorner,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'x': position.dx,
+    'y': position.dy,
+    'inX': handleIn?.dx,
+    'inY': handleIn?.dy,
+    'outX': handleOut?.dx,
+    'outY': handleOut?.dy,
+    'corner': isCorner,
+  };
+
+  factory PathNode.fromJson(Map<String, dynamic> json) {
+    final x = (json['x'] as num).toDouble();
+    final y = (json['y'] as num).toDouble();
+    final inX = (json['inX'] as num?)?.toDouble();
+    final inY = (json['inY'] as num?)?.toDouble();
+    final outX = (json['outX'] as num?)?.toDouble();
+    final outY = (json['outY'] as num?)?.toDouble();
+    return PathNode(
+      position: Offset(x, y),
+      handleIn: inX != null && inY != null ? Offset(inX, inY) : null,
+      handleOut: outX != null && outY != null ? Offset(outX, outY) : null,
+      isCorner: json['corner'] as bool? ?? false,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PathNode &&
+          runtimeType == other.runtimeType &&
+          position == other.position &&
+          handleIn == other.handleIn &&
+          handleOut == other.handleOut &&
+          isCorner == other.isCorner;
+
+  @override
+  int get hashCode => Object.hash(position, handleIn, handleOut, isCorner);
+}
 
 class GradientColorStop {
   final double offset;

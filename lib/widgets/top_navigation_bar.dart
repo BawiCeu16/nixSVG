@@ -162,6 +162,7 @@ class TopNavigationBar extends ConsumerWidget {
                                   color: colorScheme.onSurface,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 0.3,
+                                  fontSize: 12.5,
                                 ),
                               ),
                               if (onGoToHome != null) ...[
@@ -316,6 +317,7 @@ class TopNavigationBar extends ConsumerWidget {
                                   style: textTheme.labelMedium?.copyWith(
                                     color: colorScheme.primary,
                                     fontWeight: FontWeight.bold,
+                                    fontSize: 11.0,
                                   ),
                                 ),
                                 const SizedBox(width: 2),
@@ -366,6 +368,7 @@ class TopNavigationBar extends ConsumerWidget {
                                       style: textTheme.labelMedium?.copyWith(
                                         color: colorScheme.onSurface,
                                         fontWeight: FontWeight.bold,
+                                        fontSize: 11.0,
                                         fontFeatures: const [
                                           FontFeature.tabularFigures(),
                                         ],
@@ -628,6 +631,7 @@ class TopNavigationBar extends ConsumerWidget {
                             'Import',
                             style: textTheme.labelMedium?.copyWith(
                               fontWeight: FontWeight.w600,
+                              fontSize: 11.0,
                             ),
                           ),
                         ),
@@ -653,6 +657,7 @@ class TopNavigationBar extends ConsumerWidget {
                             style: textTheme.labelMedium?.copyWith(
                               color: colorScheme.onPrimary,
                               fontWeight: FontWeight.w700,
+                              fontSize: 11.0,
                             ),
                           ),
                         ),
@@ -827,6 +832,7 @@ class _M3ETogglePill extends StatelessWidget {
                     ? colorScheme.onPrimaryContainer
                     : colorScheme.onSurfaceVariant,
                 fontWeight: selected ? FontWeight.bold : FontWeight.w600,
+                fontSize: 11.0,
               ),
             ),
           ],
@@ -888,6 +894,7 @@ class _M3EPanelToggleButton extends StatelessWidget {
                     ? colorScheme.onPrimaryContainer
                     : colorScheme.onSurfaceVariant,
                 fontWeight: active ? FontWeight.bold : FontWeight.w600,
+                fontSize: 11.0,
               ),
             ),
           ],
@@ -1036,6 +1043,7 @@ class _M3EDocumentCapsuleState extends State<_M3EDocumentCapsule> {
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurface,
                     fontWeight: FontWeight.w600,
+                    fontSize: 11.5,
                   ),
                   decoration: const InputDecoration(
                     isDense: true,
@@ -1058,6 +1066,7 @@ class _M3EDocumentCapsuleState extends State<_M3EDocumentCapsule> {
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: colorScheme.onPrimaryContainer,
                   fontWeight: FontWeight.bold,
+                  fontSize: 10.0,
                 ),
               ),
             ),

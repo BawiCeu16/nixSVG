@@ -1251,4 +1251,203 @@ class CanvasGeometry {
       strokeGradient: topShape.strokeGradient,
     );
   }
+
+  /// Creates a smooth, continuous Bézier [Path] from a sequence of sampled or clicked [points].
+  /// Uses midpoint quadratic Bézier curve interpolation for fluid, natural pen strokes.
+  static Path createSmoothPathFromPoints(
+    List<Offset> points, {
+    bool isClosed = false,
+  }) {
+    final path = Path();
+    if (points.isEmpty) return path;
+    if (points.length == 1) {
+      path.moveTo(points[0].dx, points[0].dy);
+      path.lineTo(points[0].dx + 0.1, points[0].dy + 0.1);
+      return path;
+    }
+    if (points.length == 2) {
+      path.moveTo(points[0].dx, points[0].dy);
+      path.lineTo(points[1].dx, points[1].dy);
+      if (isClosed) path.close();
+      return path;
+    }
+
+    path.moveTo(points[0].dx, points[0].dy);
+
+    for (int i = 1; i < points.length - 1; i++) {
+      final p0 = points[i];
+      final p1 = points[i + 1];
+      final mid = Offset((p0.dx + p1.dx) / 2.0, (p0.dy + p1.dy) / 2.0);
+      path.quadraticBezierTo(p0.dx, p0.dy, mid.dx, mid.dy);
+    }
+
+    path.lineTo(points.last.dx, points.last.dy);
+    if (isClosed) {
+      path.close();
+    }
+    return path;
+  }
+
+  /// Creates a polygonal [Path] connecting [points] directly with straight line segments.
+  static Path createPolylinePathFromPoints(
+    List<Offset> points, {
+    bool isClosed = false,
+  }) {
+    final path = Path();
+    if (points.isEmpty) return path;
+    path.moveTo(points[0].dx, points[0].dy);
+    for (int i = 1; i < points.length; i++) {
+      path.lineTo(points[i].dx, points[i].dy);
+    }
+    if (isClosed) {
+      path.close();
+    }
+    return path;
+  }
+
+  /// Converts a sequence of [PathNode] anchor points into a Flutter [Path],
+  /// creating straight lines where handles are absent and cubic Bézier curves where handles exist.
+  static Path nodesToPath(List<PathNode> nodes, {bool isClosed = false}) {
+    final path = Path();
+    if (nodes.isEmpty) return path;
+
+    path.moveTo(nodes[0].position.dx, nodes[0].position.dy);
+
+    for (int i = 0; i < nodes.length - 1; i++) {
+      final a = nodes[i];
+      final b = nodes[i + 1];
+      final cp1 = a.handleOut ?? a.position;
+      final cp2 = b.handleIn ?? b.position;
+
+      if (cp1 == a.position && cp2 == b.position) {
+        path.lineTo(b.position.dx, b.position.dy);
+      } else {
+        path.cubicTo(
+          cp1.dx,
+          cp1.dy,
+          cp2.dx,
+          cp2.dy,
+          b.position.dx,
+          b.position.dy,
+        );
+      }
+    }
+
+    if (isClosed && nodes.length >= 2) {
+      final a = nodes.last;
+      final b = nodes.first;
+      final cp1 = a.handleOut ?? a.position;
+      final cp2 = b.handleIn ?? b.position;
+
+      if (cp1 == a.position && cp2 == b.position) {
+        path.close();
+      } else {
+        path.cubicTo(
+          cp1.dx,
+          cp1.dy,
+          cp2.dx,
+          cp2.dy,
+          b.position.dx,
+          b.position.dy,
+        );
+        path.close();
+      }
+    }
+
+    return path;
+  }
+
+  /// Converts a sequence of [PathNode] anchor points into exact standards-compliant SVG path data.
+  static String nodesToSvgData(List<PathNode> nodes, {bool isClosed = false}) {
+    if (nodes.isEmpty) return '';
+    final buffer = StringBuffer();
+    buffer.write(
+      'M ${nodes[0].position.dx.toStringAsFixed(2)} ${nodes[0].position.dy.toStringAsFixed(2)}',
+    );
+
+    for (int i = 0; i < nodes.length - 1; i++) {
+      final a = nodes[i];
+      final b = nodes[i + 1];
+      final cp1 = a.handleOut ?? a.position;
+      final cp2 = b.handleIn ?? b.position;
+
+      if (cp1 == a.position && cp2 == b.position) {
+        buffer.write(
+          ' L ${b.position.dx.toStringAsFixed(2)} ${b.position.dy.toStringAsFixed(2)}',
+        );
+      } else {
+        buffer.write(
+          ' C ${cp1.dx.toStringAsFixed(2)} ${cp1.dy.toStringAsFixed(2)} '
+          '${cp2.dx.toStringAsFixed(2)} ${cp2.dy.toStringAsFixed(2)} '
+          '${b.position.dx.toStringAsFixed(2)} ${b.position.dy.toStringAsFixed(2)}',
+        );
+      }
+    }
+
+    if (isClosed && nodes.length >= 2) {
+      final a = nodes.last;
+      final b = nodes.first;
+      final cp1 = a.handleOut ?? a.position;
+      final cp2 = b.handleIn ?? b.position;
+
+      if (cp1 == a.position && cp2 == b.position) {
+        buffer.write(' Z');
+      } else {
+        buffer.write(
+          ' C ${cp1.dx.toStringAsFixed(2)} ${cp1.dy.toStringAsFixed(2)} '
+          '${cp2.dx.toStringAsFixed(2)} ${cp2.dy.toStringAsFixed(2)} '
+          '${b.position.dx.toStringAsFixed(2)} ${b.position.dy.toStringAsFixed(2)} Z',
+        );
+      }
+    }
+
+    return buffer.toString().trim();
+  }
+
+  /// Snaps a control handle offset around [anchor] to the nearest 45-degree angle increment,
+  /// preserving the exact drag distance (Illustrator / Figma Shift key constraint).
+  static Offset calculateHandleSnapAngle(
+    Offset anchor,
+    Offset handlePos, {
+    double stepRadians = math.pi / 4.0,
+  }) {
+    final delta = handlePos - anchor;
+    if (delta.distance == 0.0) return handlePos;
+    final angle = math.atan2(delta.dy, delta.dx);
+    final snappedAngle = (angle / stepRadians).round() * stepRadians;
+    return anchor +
+        Offset(
+          delta.distance * math.cos(snappedAngle),
+          delta.distance * math.sin(snappedAngle),
+        );
+  }
+
+  /// Generates the prospective rubber-band curve from [lastNode] to [cursorPos]
+  /// or connecting to [firstNode] when closing the path.
+  static Path calculateProspectiveCurve(
+    PathNode lastNode,
+    Offset cursorPos, {
+    PathNode? firstNode,
+  }) {
+    final path = Path();
+    final p1 = lastNode.position;
+    final cp1 = lastNode.handleOut ?? p1;
+
+    path.moveTo(p1.dx, p1.dy);
+    if (firstNode != null) {
+      final p2 = firstNode.position;
+      final cp2 = firstNode.handleIn ?? p2;
+      path.cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, p2.dx, p2.dy);
+    } else {
+      path.cubicTo(
+        cp1.dx,
+        cp1.dy,
+        cursorPos.dx,
+        cursorPos.dy,
+        cursorPos.dx,
+        cursorPos.dy,
+      );
+    }
+    return path;
+  }
 }

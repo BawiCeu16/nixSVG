@@ -159,6 +159,24 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   ShapeType? draftShapeType;
   int _shapeCounter = 1;
 
+  // Pen Tool Drawing State (Bézier nodes)
+  final List<PathNode> _penNodes = [];
+  bool _isPenDraggingHandle = false;
+  bool _isClosingNode = false;
+
+  bool get _isPenHoveringStart {
+    if (currentMode != EditorMode.drawPen ||
+        _penNodes.length < 2 ||
+        _lastMouseCanvasPosition == null) {
+      return false;
+    }
+    final zoomScale =
+        CanvasTransformHelper.getScale(_transformationController.value);
+    final closeThreshold = 14.0 / (zoomScale > 0 ? zoomScale : 1.0);
+    return (_lastMouseCanvasPosition! - _penNodes.first.position).distance <=
+        closeThreshold;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -363,6 +381,104 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     _workspaceFocusNode.requestFocus();
   }
 
+  void _handlePenPointerDown(Offset localPos) {
+    final zoomScale = CanvasTransformHelper.getScale(
+      _transformationController.value,
+    );
+    final closeThreshold = 14.0 / (zoomScale > 0 ? zoomScale : 1.0);
+
+    panStartOffset = localPos;
+    panCurrentOffset = localPos;
+    _lastMouseCanvasPosition = localPos;
+
+    if (_penNodes.isEmpty) {
+      _penNodes.add(PathNode(position: localPos));
+      _isPenDraggingHandle = true;
+      _isClosingNode = false;
+      setState(() {});
+      return;
+    }
+
+    // Check if clicked near start point to close path
+    if (_penNodes.length >= 2 &&
+        (localPos - _penNodes.first.position).distance <= closeThreshold) {
+      _isClosingNode = true;
+      _isPenDraggingHandle = true;
+      setState(() {});
+      return;
+    }
+
+    // Check click on last placed node to complete open path
+    if ((localPos - _penNodes.last.position).distance < 6.0) {
+      _commitPenPath(isClosed: false);
+      return;
+    }
+
+    // Add new anchor node
+    _penNodes.add(PathNode(position: localPos));
+    _isPenDraggingHandle = true;
+    _isClosingNode = false;
+    setState(() {});
+  }
+
+  void _commitPenPath({bool isClosed = false}) {
+    if (_penNodes.length < 2) {
+      setState(() {
+        _penNodes.clear();
+        _isPenDraggingHandle = false;
+        _isClosingNode = false;
+        panStartOffset = null;
+        panCurrentOffset = null;
+      });
+      return;
+    }
+
+    final path = CanvasGeometry.nodesToPath(
+      _penNodes,
+      isClosed: isClosed,
+    );
+    final bounds = path.getBounds();
+    final safeBounds = Rect.fromLTWH(
+      bounds.left,
+      bounds.top,
+      math.max(bounds.width, 4.0),
+      math.max(bounds.height, 4.0),
+    );
+    final svgData = CanvasGeometry.nodesToSvgData(
+      _penNodes,
+      isClosed: isClosed,
+    );
+    final appSettings = ref.read(appSettingsProvider);
+
+    final newShape = VectorShape(
+      id: 'shape-${DateTime.now().millisecondsSinceEpoch}',
+      name: 'Path $_shapeCounter',
+      type: ShapeType.path,
+      rect: safeBounds,
+      customPath: path,
+      pathData: svgData,
+      isStroked: true,
+      isFilled: isClosed,
+      strokeWidth: appSettings.defaultStrokeWidth,
+    );
+    _shapeCounter++;
+
+    setState(() {
+      shapes.add(newShape);
+      selectedShapeIds.clear();
+      selectedShapeIds.add(newShape.id);
+      _penNodes.clear();
+      _isPenDraggingHandle = false;
+      _isClosingNode = false;
+      panStartOffset = null;
+      panCurrentOffset = null;
+      if (appSettings.autoSwitchToSelect) {
+        currentMode = EditorMode.select;
+      }
+    });
+    _saveHistorySnapshot();
+  }
+
   // Pointer Down / Move / Up / Cancel Gestures
   void _onPointerDown(PointerDownEvent event) {
     FocusManager.instance.primaryFocus?.unfocus();
@@ -448,6 +564,11 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       }
       draftShapeType = ShapeType.text;
       setState(() {});
+      return;
+    }
+
+    if (currentMode == EditorMode.drawPen) {
+      _handlePenPointerDown(localPos);
       return;
     }
 
@@ -627,11 +748,56 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
 
     if (panStartOffset == null) {
       _lastMouseCanvasPosition = event.localPosition;
+      if (currentMode == EditorMode.drawPen && _penNodes.isNotEmpty) {
+        setState(() {});
+      }
       return;
     }
 
     final localPos = event.localPosition;
     _lastMouseCanvasPosition = localPos;
+    if (currentMode == EditorMode.drawPen) {
+      if (_penNodes.isNotEmpty && _isPenDraggingHandle) {
+        final targetIndex = _isClosingNode ? 0 : _penNodes.length - 1;
+        final targetNode = _penNodes[targetIndex];
+        final center = targetNode.position;
+        final isShiftPressed =
+            HardwareKeyboard.instance.logicalKeysPressed.contains(
+              LogicalKeyboardKey.shiftLeft,
+            ) ||
+            HardwareKeyboard.instance.logicalKeysPressed.contains(
+              LogicalKeyboardKey.shiftRight,
+            );
+        final isAltPressed = HardwareKeyboard.instance.isAltPressed;
+
+        Offset handleOutPos = localPos;
+        if (isShiftPressed) {
+          handleOutPos = CanvasGeometry.calculateHandleSnapAngle(
+            center,
+            localPos,
+          );
+        }
+
+        final dragDelta = handleOutPos - center;
+        if (dragDelta.distance >= 2.0) {
+          targetNode.isCorner = false;
+          targetNode.handleOut = handleOutPos;
+          if (!isAltPressed) {
+            // Symmetrical mirrored tangent handle
+            targetNode.handleIn = center - (handleOutPos - center);
+          }
+        } else {
+          // Sharp corner anchor point
+          targetNode.isCorner = true;
+          targetNode.handleOut = null;
+          if (!isAltPressed) {
+            targetNode.handleIn = null;
+          }
+        }
+        setState(() {});
+      }
+      return;
+    }
     final isShiftPressed =
         HardwareKeyboard.instance.logicalKeysPressed.contains(
           LogicalKeyboardKey.shiftLeft,
@@ -958,6 +1124,20 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     if (panStartOffset == null) return;
 
     final localPos = event.localPosition;
+
+    if (currentMode == EditorMode.drawPen) {
+      if (_isClosingNode && _penNodes.length >= 2) {
+        _commitPenPath(isClosed: true);
+        return;
+      }
+      setState(() {
+        panStartOffset = null;
+        panCurrentOffset = null;
+        _isPenDraggingHandle = false;
+        _isClosingNode = false;
+      });
+      return;
+    }
 
     if (currentMode != EditorMode.select && draftShapeType != null) {
       final isShiftPressed =
@@ -2700,6 +2880,31 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           return KeyEventResult.handled;
         }
       } else {
+        if (currentMode == EditorMode.drawPen && _penNodes.isNotEmpty) {
+          if (event.logicalKey == LogicalKeyboardKey.enter ||
+              event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+            _commitPenPath(isClosed: false);
+            return KeyEventResult.handled;
+          } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+            setState(() {
+              _penNodes.clear();
+              _isPenDraggingHandle = false;
+              _isClosingNode = false;
+            });
+            return KeyEventResult.handled;
+          } else if (event.logicalKey == LogicalKeyboardKey.delete ||
+              event.logicalKey == LogicalKeyboardKey.backspace) {
+            setState(() {
+              _penNodes.removeLast();
+              if (_penNodes.isEmpty) {
+                _isPenDraggingHandle = false;
+                _isClosingNode = false;
+              }
+            });
+            return KeyEventResult.handled;
+          }
+        }
+
         if (event.logicalKey == LogicalKeyboardKey.escape) {
           setState(() {
             selectedShapeIds.clear();
@@ -2793,9 +2998,11 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           setState(() => currentMode = EditorMode.drawLine);
           return KeyEventResult.handled;
         } else if (event.logicalKey == LogicalKeyboardKey.keyC ||
-            event.logicalKey == LogicalKeyboardKey.keyB ||
-            event.logicalKey == LogicalKeyboardKey.keyP) {
+            event.logicalKey == LogicalKeyboardKey.keyB) {
           setState(() => currentMode = EditorMode.drawCurve);
+          return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.keyP) {
+          setState(() => currentMode = EditorMode.drawPen);
           return KeyEventResult.handled;
         } else if (event.logicalKey == LogicalKeyboardKey.keyS) {
           setState(() => currentMode = EditorMode.drawStar);
@@ -3049,6 +3256,17 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                 canvasBackgroundColor:
                                     canvasBackgroundColor ??
                                     appSettings.defaultCanvasBgColor,
+                                activePenNodes:
+                                    currentMode == EditorMode.drawPen &&
+                                            _penNodes.isNotEmpty
+                                        ? List.unmodifiable(_penNodes)
+                                        : null,
+                                activePenCursor:
+                                    currentMode == EditorMode.drawPen &&
+                                            _penNodes.isNotEmpty
+                                        ? _lastMouseCanvasPosition
+                                        : null,
+                                isPenHoveringStart: _isPenHoveringStart,
                                 onInlineTextChanged: (text) {
                                   final editingId = _editingTextShapeId;
                                   if (editingId == null) return;
@@ -3357,6 +3575,14 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
                                       child: FloatingToolBar(
                                         currentMode: currentMode,
                                         onModeChanged: (mode) {
+                                          if (currentMode == EditorMode.drawPen &&
+                                              _penNodes.length >= 2) {
+                                            _commitPenPath(isClosed: false);
+                                          } else {
+                                            _penNodes.clear();
+                                            _isPenDraggingHandle = false;
+                                            _isClosingNode = false;
+                                          }
                                           setState(() => currentMode = mode);
                                         },
                                         onExportSvg: _openExportDialog,
@@ -3477,6 +3703,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       case EditorMode.drawLine:
       case EditorMode.drawCurve:
         return ShapeType.line;
+      case EditorMode.drawPen:
+        return ShapeType.path;
       case EditorMode.drawStar:
         return ShapeType.star;
       case EditorMode.drawPolygon:
@@ -3503,6 +3731,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         return 'Line';
       case EditorMode.drawCurve:
         return 'Curve';
+      case EditorMode.drawPen:
+        return 'Pen';
       case EditorMode.drawStar:
         return 'Star';
       case EditorMode.drawPolygon:

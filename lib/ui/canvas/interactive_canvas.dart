@@ -51,6 +51,10 @@ class InteractiveCanvas extends StatefulWidget {
   final bool invertZoom;
   final VoidCallback onMatrixChanged;
   final ValueChanged<bool>? onCanvasHoverChanged;
+  final List<Offset>? activePenPoints;
+  final List<PathNode>? activePenNodes;
+  final Offset? activePenCursor;
+  final bool isPenHoveringStart;
   final ValueChanged<Offset>? onPointerHover;
 
   const InteractiveCanvas({
@@ -82,6 +86,10 @@ class InteractiveCanvas extends StatefulWidget {
     this.isEditingNewText = false,
     this.selectAllText = false,
     this.canvasBackgroundColor,
+    this.activePenPoints,
+    this.activePenNodes,
+    this.activePenCursor,
+    this.isPenHoveringStart = false,
     this.onInlineTextChanged,
     this.onInlineTextCommit,
     this.onInlineTextCancel,
@@ -214,6 +222,7 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
         case EditorMode.drawEllipse:
         case EditorMode.drawLine:
         case EditorMode.drawCurve:
+        case EditorMode.drawPen:
         case EditorMode.drawStar:
         case EditorMode.drawPolygon:
           return SystemMouseCursors.precise;
@@ -586,6 +595,10 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
                       zoomScale: CanvasTransformHelper.getScale(
                         widget.transformationController.value,
                       ),
+                      activePenPoints: widget.activePenPoints,
+                      activePenNodes: widget.activePenNodes,
+                      activePenCursor: widget.activePenCursor,
+                      isPenHoveringStart: widget.isPenHoveringStart,
                     ),
                   ),
                 ),

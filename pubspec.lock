@@ -473,10 +473,10 @@ packages:
     dependency: "direct main"
     description:
       name: material_ui
-      sha256: "98ab9eda579ecae623e4b376c603035c5def78ce706f735f30bd632af5814695"
+      sha256: e4031746f96c8316864d9b92bce375f1320a36ed56e166307e1e1bda9d90b4ab
       url: "https://pub.dev"
     source: hosted
-    version: "1.6.0"
+    version: "1.8.0"
   meta:
     dependency: transitive
     description:
@@ -489,10 +489,10 @@ packages:
     dependency: "direct main"
     description:
       name: morph_expressive
-      sha256: ced163307bd97b8a56c0c7ec16e05ff2d48087c1d15c93fad43a5d160a4d65d9
+      sha256: aa4721d2ba4ff3e8110aa6396210943c30cf0ea0c8bc8cacb6d382cada2810eb
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.1"
+    version: "0.4.1"
   motor:
     dependency: "direct main"
     description:

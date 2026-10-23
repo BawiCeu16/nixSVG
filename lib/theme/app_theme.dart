@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart' as mui;
 import 'package:nixsvg/theme/color_schemes.dart';
 import 'package:nixsvg/theme/components/buttons_theme.dart';
 import 'package:nixsvg/theme/components/cards_and_chips_theme.dart';
@@ -62,6 +63,17 @@ class AppTheme {
       chipTheme: AppCardsAndChipsTheme.chip(colorScheme, textTheme),
       dialogTheme: AppDialogsTheme.dialog(colorScheme),
       popupMenuTheme: AppDialogsTheme.popupMenu(colorScheme),
+    );
+  }
+
+  /// Builds Material UI Expressive [mui.IconButtonThemeData] with [mui.StyleVariant.material3Expressive].
+  static mui.IconButtonThemeData muiIconButtonTheme({
+    mui.StyleVariant variant = mui.StyleVariant.material3Expressive,
+    mui.ButtonStyle? style,
+  }) {
+    return mui.IconButtonThemeData(
+      variant: variant,
+      style: style,
     );
   }
 }

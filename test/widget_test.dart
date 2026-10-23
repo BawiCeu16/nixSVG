@@ -58,7 +58,10 @@ void main() {
 
     final rootMuiTheme = tester.widget<mui.Theme>(muiThemes.first);
     expect(rootMuiTheme.data.brightness, Brightness.dark);
-    expect(rootMuiTheme.data.shadowColor, Colors.transparent);
+    expect(
+      rootMuiTheme.data.iconButtonTheme.variant,
+      mui.StyleVariant.material3Expressive,
+    );
   });
 
   testWidgets('Select and move shapes on interactive canvas', (

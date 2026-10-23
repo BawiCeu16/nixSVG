@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:m3e_segmented_list/m3e_segmented_list.dart';
@@ -104,9 +105,9 @@ class _LayersSidebarState extends State<LayersSidebar> {
       // Toggle selection (Figma style)
       final targetIds = (shape.groupId != null)
           ? items
-              .where((s) => s.groupId == shape.groupId)
-              .map((s) => s.id)
-              .toSet()
+                .where((s) => s.groupId == shape.groupId)
+                .map((s) => s.id)
+                .toSet()
           : {shape.id};
       if (newSelection.containsAll(targetIds)) {
         newSelection.removeAll(targetIds);
@@ -170,9 +171,9 @@ class _LayersSidebarState extends State<LayersSidebar> {
     if (!widget.selectedShapeIds.contains(shape.id)) {
       final newSelection = (shape.groupId != null)
           ? widget.shapes
-              .where((s) => s.groupId == shape.groupId)
-              .map((s) => s.id)
-              .toSet()
+                .where((s) => s.groupId == shape.groupId)
+                .map((s) => s.id)
+                .toSet()
           : {shape.id};
       widget.onSelectShapes?.call(newSelection);
       widget.onSelectShape(shape.id);
@@ -384,6 +385,7 @@ class _LayersSidebarState extends State<LayersSidebar> {
                             color: colorScheme.onSurface,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.2,
+                            fontSize: 12.0,
                           ),
                         ),
                       ),
@@ -412,6 +414,7 @@ class _LayersSidebarState extends State<LayersSidebar> {
                               style: theme.textTheme.labelSmall?.copyWith(
                                 color: colorScheme.onSecondaryContainer,
                                 fontWeight: FontWeight.bold,
+                                fontSize: 10.0,
                               ),
                             ),
                           ),
@@ -421,7 +424,8 @@ class _LayersSidebarState extends State<LayersSidebar> {
 
                       // Selection Tool Quick Actions (Select All, Clear, Bring Forward, Send Backward)
                       if (items.isNotEmpty &&
-                          (!isVeryNarrow || widget.selectedShapeIds.isEmpty)) ...[
+                          (!isVeryNarrow ||
+                              widget.selectedShapeIds.isEmpty)) ...[
                         _M3EHeaderAction(
                           icon: RemixIcons.checkbox_multiple_line,
                           tooltip: 'Select All Layers (⌘A)',
@@ -541,16 +545,18 @@ class _LayersSidebarState extends State<LayersSidebar> {
                             horizontal: 4.0,
                             vertical: 1.0,
                           ),
-                          hoverColor: colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.08),
+                          hoverColor: colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.08,
+                          ),
                           dragPlaceholderColor:
                               colorScheme.surfaceContainerHighest,
                           color: isDark
                               ? colorScheme.surfaceContainerHigh.withValues(
                                   alpha: 0.3,
                                 )
-                              : colorScheme.surfaceContainerHighest
-                                    .withValues(alpha: 0.25),
+                              : colorScheme.surfaceContainerHighest.withValues(
+                                  alpha: 0.25,
+                                ),
                           selectedColor: colorScheme.primaryContainer
                               .withValues(alpha: 0.65),
                         ),
@@ -567,7 +573,11 @@ class _LayersSidebarState extends State<LayersSidebar> {
                         },
                         itemBuilder: (context, index) {
                           return _buildListItem(
-                              context, items[index], index, items);
+                            context,
+                            items[index],
+                            index,
+                            items,
+                          );
                         },
                       ),
                     ),
@@ -712,8 +722,10 @@ class _LayersSidebarState extends State<LayersSidebar> {
                         color: isSelected
                             ? colorScheme.onPrimaryContainer
                             : colorScheme.onSurface,
-                        fontWeight:
-                            isSelected ? FontWeight.w700 : FontWeight.w500,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        fontSize: 12.0,
                       ),
                     ),
                   ),
@@ -756,8 +768,8 @@ class _LayersSidebarState extends State<LayersSidebar> {
                 : RemixIcons.eye_off_line,
             iconColor: shape.isVisible
                 ? (isSelected
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant.withValues(alpha: 0.7))
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant.withValues(alpha: 0.7))
                 : colorScheme.outline.withValues(alpha: 0.35),
             onTap: () => widget.onToggleVisibility(shape.id),
           ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart' as mui;
 
 /// Material 3 Expressive button styles for nixSVG Studio.
 class AppButtonsTheme {
@@ -85,6 +86,13 @@ class AppButtonsTheme {
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
+    );
+  }
+
+  /// Material UI M3 Expressive icon button theme using [mui.StyleVariant.material3Expressive].
+  static mui.IconButtonThemeData iconMui(mui.ColorScheme scheme) {
+    return mui.IconButtonThemeData(
+      variant: mui.StyleVariant.material3Expressive,
     );
   }
 

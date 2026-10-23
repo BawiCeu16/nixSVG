@@ -151,6 +151,7 @@ class PropertiesSidebar extends StatelessWidget {
                                   style: theme.textTheme.titleMedium?.copyWith(
                                     color: colorScheme.onSurface,
                                     fontWeight: FontWeight.bold,
+                                    fontSize: 12.5,
                                   ),
                                 ),
                               ),
@@ -2905,8 +2906,13 @@ class PropertiesSidebar extends StatelessWidget {
           color: theme.colorScheme.primary,
           fontWeight: FontWeight.w900,
           letterSpacing: 1.2,
+          fontSize: 10.0,
         ) ??
-        const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.2);
+        const TextStyle(
+          fontWeight: FontWeight.w900,
+          letterSpacing: 1.2,
+          fontSize: 10.0,
+        );
   }
 
   Widget _buildHeaderActionButtons(BuildContext context) {
@@ -3260,6 +3266,7 @@ class PropertiesSidebar extends StatelessWidget {
                         color: colorScheme.onSurface,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.2,
+                        fontSize: 12.0,
                       ),
                     ),
                     Text(
@@ -3270,6 +3277,7 @@ class PropertiesSidebar extends StatelessWidget {
                         color: colorScheme.onSurfaceVariant.withValues(
                           alpha: 0.75,
                         ),
+                        fontSize: 10.5,
                       ),
                     ),
                   ],

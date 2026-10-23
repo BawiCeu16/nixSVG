@@ -30,8 +30,17 @@ class CanvasHitTester {
     final bottom = math.max(shape.rect.top, shape.rect.bottom) + padding;
 
     if (shape.rotation == 0.0 && shape.type != ShapeType.line) {
-      if (shape.type == ShapeType.polygon || shape.type == ShapeType.path) {
+      if (shape.type == ShapeType.polygon) {
         return shape.getPath().contains(point);
+      }
+      if (shape.type == ShapeType.path) {
+        if (shape.isFilled && shape.getPath().contains(point)) {
+          return true;
+        }
+        return point.dx >= left &&
+            point.dx <= right &&
+            point.dy >= top &&
+            point.dy <= bottom;
       }
       return point.dx >= left &&
           point.dx <= right &&
@@ -73,8 +82,17 @@ class CanvasHitTester {
       return distance <= padding;
     }
 
-    if (shape.type == ShapeType.polygon || shape.type == ShapeType.path) {
+    if (shape.type == ShapeType.polygon) {
       return shape.getPath().contains(unrotatedPoint);
+    }
+    if (shape.type == ShapeType.path) {
+      if (shape.isFilled && shape.getPath().contains(unrotatedPoint)) {
+        return true;
+      }
+      return unrotatedPoint.dx >= left &&
+          unrotatedPoint.dx <= right &&
+          unrotatedPoint.dy >= top &&
+          unrotatedPoint.dy <= bottom;
     }
 
     return unrotatedPoint.dx >= left &&
