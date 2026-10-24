@@ -305,6 +305,8 @@ class PreferencesService {
   static const String _keyInvertZoom = 'nixsvg_invert_zoom';
   static const String _keyDefaultStrokeWidth = 'nixsvg_default_stroke_width';
   static const String _keyDefaultCornerRadius = 'nixsvg_default_corner_radius';
+  static const String _keyDefaultCornerSmoothing =
+      'nixsvg_default_corner_smoothing';
   static const String _keyAutoSwitchToSelect = 'nixsvg_auto_switch_to_select';
   static const String _keySvgPrettyPrint = 'nixsvg_svg_pretty_print';
   static const String _keySvgIncludeXml = 'nixsvg_svg_include_xml';
@@ -415,6 +417,22 @@ class PreferencesService {
       await _prefs.setDouble(_keyDefaultCornerRadius, radius);
     } else {
       _inMemory[_keyDefaultCornerRadius] = radius;
+    }
+  }
+
+  // --- Default Corner Smoothing (Squircle) ---
+  double getDefaultCornerSmoothing() {
+    if (_prefs != null) {
+      return _prefs.getDouble(_keyDefaultCornerSmoothing) ?? 0.0;
+    }
+    return (_inMemory[_keyDefaultCornerSmoothing] as double?) ?? 0.0;
+  }
+
+  Future<void> setDefaultCornerSmoothing(double smoothing) async {
+    if (_prefs != null) {
+      await _prefs.setDouble(_keyDefaultCornerSmoothing, smoothing);
+    } else {
+      _inMemory[_keyDefaultCornerSmoothing] = smoothing;
     }
   }
 
@@ -569,6 +587,7 @@ class PreferencesService {
       'propertiesSidebarWidth': getPropertiesSidebarWidth(),
       'defaultStrokeWidth': getDefaultStrokeWidth(),
       'defaultCornerRadius': getDefaultCornerRadius(),
+      'defaultCornerSmoothing': getDefaultCornerSmoothing(),
       'autoSwitchToSelect': getAutoSwitchToSelect(),
       'svgPrettyPrint': getSvgPrettyPrint(),
       'svgIncludeXml': getSvgIncludeXml(),
@@ -624,6 +643,11 @@ class PreferencesService {
     if (map['defaultCornerRadius'] is num) {
       await setDefaultCornerRadius(
         (map['defaultCornerRadius'] as num).toDouble(),
+      );
+    }
+    if (map['defaultCornerSmoothing'] is num) {
+      await setDefaultCornerSmoothing(
+        (map['defaultCornerSmoothing'] as num).toDouble(),
       );
     }
     if (map['autoSwitchToSelect'] is bool) {

@@ -492,56 +492,50 @@ class _FloatingToolBarState extends State<FloatingToolBar> {
         child: GestureDetector(
           onLongPress: _toggleShapesPopup,
           onSecondaryTap: _toggleShapesPopup,
-          child: Container(
-            decoration: BoxDecoration(
-              color: isAnyShapeActive
-                  ? colorScheme.primary
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: M3EButton(
-              onPressed: () {
-                if (widget.currentMode == currentShapeItem.mode) {
-                  _toggleShapesPopup();
-                } else {
-                  widget.onModeChanged(currentShapeItem.mode);
-                }
-              },
-              style: isAnyShapeActive
-                  ? M3EButtonStyle.filled
-                  : M3EButtonStyle.text,
-              size: M3EButtonSize.sm,
-              shape: M3EButtonShape.round,
-              decoration: M3EButtonDecoration(
-                elevation: const WidgetStatePropertyAll(0),
-                backgroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (isAnyShapeActive) return colorScheme.primary;
-                  return Colors.transparent;
-                }),
-                foregroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (isAnyShapeActive) return colorScheme.onPrimary;
-                  return colorScheme.onSurfaceVariant;
-                }),
+          child: Stack(
+            children: [
+              M3EButton(
+                onPressed: () {
+                  if (widget.currentMode == currentShapeItem.mode) {
+                    _toggleShapesPopup();
+                  } else {
+                    widget.onModeChanged(currentShapeItem.mode);
+                  }
+                },
+                style: isAnyShapeActive
+                    ? M3EButtonStyle.filled
+                    : M3EButtonStyle.text,
+                size: M3EButtonSize.sm,
+                shape: M3EButtonShape.round,
+                decoration: M3EButtonDecoration(
+                  elevation: const WidgetStatePropertyAll(0),
+                  backgroundColor: WidgetStateProperty.resolveWith((states) {
+                    if (isAnyShapeActive) return colorScheme.primary;
+                    return Colors.transparent;
+                  }),
+                  foregroundColor: WidgetStateProperty.resolveWith((states) {
+                    if (isAnyShapeActive) return colorScheme.onPrimary;
+                    return colorScheme.onSurfaceVariant;
+                  }),
+                ),
+                child: Icon(
+                  currentShapeItem.icon,
+                  size: 17,
+                  color: isAnyShapeActive ? colorScheme.onPrimary : null,
+                ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    currentShapeItem.icon,
-                    size: 17,
-                    color: isAnyShapeActive ? colorScheme.onPrimary : null,
-                  ),
-                  const SizedBox(width: 2),
-                  Icon(
-                    RemixIcons.arrow_down_s_fill,
-                    size: 11,
-                    color: isAnyShapeActive
-                        ? colorScheme.onPrimary
-                        : colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                  ),
-                ],
+              Positioned(
+                right: 6,
+                top: 6,
+                child: Icon(
+                  RemixIcons.arrow_down_s_fill,
+                  size: 12,
+                  color: isAnyShapeActive
+                      ? colorScheme.onPrimary
+                      : colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),

@@ -689,23 +689,185 @@ class PropertiesSidebar extends StatelessWidget {
                               ],
                             ),
                           ],
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildNumberField(
-                                  context,
-                                  '°',
-                                  selectedShape!.rotation,
-                                  (val) {
-                                    final updated = selectedShape!.copyWith(
-                                      rotation: val % 360,
-                                    );
-                                    onShapeChanged(updated);
-                                    onShapeChangeEnd?.call(updated);
-                                  },
+                          if ((width ?? 280) < 220 &&
+                              (selectedShape!.type == ShapeType.rectangle ||
+                                  selectedShape!.type ==
+                                      ShapeType.roundedRectangle ||
+                                  selectedShape!.type == ShapeType.image)) ...[
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildNumberField(
+                                    context,
+                                    '°',
+                                    selectedShape!.rotation,
+                                    (val) {
+                                      final updated = selectedShape!.copyWith(
+                                        rotation: val % 360,
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                  ),
                                 ),
-                              ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildNumberField(
+                                    context,
+                                    'R',
+                                    selectedShape!.cornerRadius,
+                                    (val) {
+                                      final updated = selectedShape!.copyWith(
+                                        cornerRadius: val.clamp(0, 200),
+                                        clearIndependentCorners: true,
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Tooltip(
+                                  message: selectedShape!.hasIndependentCorners
+                                      ? 'Link Corner Radii'
+                                      : 'Independent Corner Radii',
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(8),
+                                    onTap: () {
+                                      FocusManager.instance.primaryFocus
+                                          ?.unfocus();
+                                      if (selectedShape!
+                                          .hasIndependentCorners) {
+                                        final updated = selectedShape!.copyWith(
+                                          clearIndependentCorners: true,
+                                        );
+                                        onShapeChanged(updated);
+                                        onShapeChangeEnd?.call(updated);
+                                      } else {
+                                        final cur = selectedShape!.cornerRadius;
+                                        final updated = selectedShape!.copyWith(
+                                          topLeftRadius: cur,
+                                          topRightRadius: cur,
+                                          bottomRightRadius: cur,
+                                          bottomLeftRadius: cur,
+                                        );
+                                        onShapeChanged(updated);
+                                        onShapeChangeEnd?.call(updated);
+                                      }
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: selectedShape!
+                                                .hasIndependentCorners
+                                            ? colorScheme.primary.withValues(
+                                                alpha: 0.16,
+                                              )
+                                            : colorScheme
+                                                .surfaceContainerHighest,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: selectedShape!
+                                                  .hasIndependentCorners
+                                              ? colorScheme.primary
+                                              : colorScheme.outlineVariant
+                                                  .withValues(alpha: 0.5),
+                                        ),
+                                      ),
+                                      child: Icon(
+                                        RemixIcons.corner_up_left_line,
+                                        size: 15,
+                                        color: selectedShape!
+                                                .hasIndependentCorners
+                                            ? colorScheme.primary
+                                            : colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Tooltip(
+                                  message: selectedShape!.cornerSmoothing > 0
+                                      ? 'Disable Corner Smoothing'
+                                      : 'Enable Corner Smoothing (Squircle)',
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(8),
+                                    onTap: () {
+                                      FocusManager.instance.primaryFocus
+                                          ?.unfocus();
+                                      final isCurrentlySmooth =
+                                          selectedShape!.cornerSmoothing > 0;
+                                      final newSmoothing =
+                                          isCurrentlySmooth ? 0.0 : 0.6;
+                                      final needsDefaultRadius =
+                                          !isCurrentlySmooth &&
+                                          selectedShape!.cornerRadius == 0 &&
+                                          !selectedShape!
+                                              .hasIndependentCorners;
+                                      final updated = selectedShape!.copyWith(
+                                        cornerSmoothing: newSmoothing,
+                                        cornerRadius: needsDefaultRadius
+                                            ? 16.0
+                                            : null,
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            selectedShape!.cornerSmoothing > 0
+                                            ? colorScheme.primary.withValues(
+                                                alpha: 0.16,
+                                              )
+                                            : colorScheme
+                                                .surfaceContainerHighest,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color:
+                                              selectedShape!.cornerSmoothing > 0
+                                              ? colorScheme.primary
+                                              : colorScheme.outlineVariant
+                                                  .withValues(alpha: 0.5),
+                                        ),
+                                      ),
+                                      child: Icon(
+                                        LucideIcons.squircle,
+                                        size: 15,
+                                        color:
+                                            selectedShape!.cornerSmoothing > 0
+                                            ? colorScheme.primary
+                                            : colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ] else ...[
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildNumberField(
+                                    context,
+                                    '°',
+                                    selectedShape!.rotation,
+                                    (val) {
+                                      final updated = selectedShape!.copyWith(
+                                        rotation: val % 360,
+                                      );
+                                      onShapeChanged(updated);
+                                      onShapeChangeEnd?.call(updated);
+                                    },
+                                  ),
+                                ),
                               if (selectedShape!.type ==
                                       ShapeType.roundedRectangle ||
                                   selectedShape!.type == ShapeType.rectangle ||
@@ -801,10 +963,73 @@ class PropertiesSidebar extends StatelessWidget {
                                       ),
                                     ),
                                   ),
+                                  const SizedBox(width: 4),
+                                  Tooltip(
+                                    message:
+                                        selectedShape!.cornerSmoothing > 0
+                                        ? 'Disable Corner Smoothing'
+                                        : 'Enable Corner Smoothing (Squircle)',
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(8),
+                                      onTap: () {
+                                        FocusManager.instance.primaryFocus
+                                            ?.unfocus();
+                                        final isCurrentlySmooth =
+                                            selectedShape!.cornerSmoothing > 0;
+                                        final newSmoothing =
+                                            isCurrentlySmooth ? 0.0 : 0.6;
+                                        final needsDefaultRadius =
+                                            !isCurrentlySmooth &&
+                                            selectedShape!.cornerRadius == 0 &&
+                                            !selectedShape!
+                                                .hasIndependentCorners;
+                                        final updated = selectedShape!.copyWith(
+                                          cornerSmoothing: newSmoothing,
+                                          cornerRadius: needsDefaultRadius
+                                              ? 16.0
+                                              : null,
+                                        );
+                                        onShapeChanged(updated);
+                                        onShapeChangeEnd?.call(updated);
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              selectedShape!.cornerSmoothing > 0
+                                              ? colorScheme.primary.withValues(
+                                                  alpha: 0.16,
+                                                )
+                                              : colorScheme
+                                                    .surfaceContainerHighest,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          border: Border.all(
+                                            color:
+                                                selectedShape!.cornerSmoothing >
+                                                        0
+                                                ? colorScheme.primary
+                                                : colorScheme.outlineVariant
+                                                      .withValues(alpha: 0.5),
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          LucideIcons.squircle,
+                                          size: 15,
+                                          color:
+                                              selectedShape!.cornerSmoothing > 0
+                                              ? colorScheme.primary
+                                              : colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 ],
                               ],
                             ],
                           ),
+                        ],
                           if ((selectedShape!.type == ShapeType.rectangle ||
                                   selectedShape!.type ==
                                       ShapeType.roundedRectangle ||
@@ -877,6 +1102,141 @@ class PropertiesSidebar extends StatelessWidget {
                                   ),
                                 ),
                               ],
+                            ),
+                          ],
+                          if ((selectedShape!.type == ShapeType.rectangle ||
+                                  selectedShape!.type ==
+                                      ShapeType.roundedRectangle ||
+                                  selectedShape!.type == ShapeType.image) &&
+                              selectedShape!.cornerSmoothing > 0) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colorScheme.surfaceContainerHigh
+                                    .withValues(alpha: 0.55),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: colorScheme.outlineVariant
+                                      .withValues(alpha: 0.35),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        LucideIcons.squircle,
+                                        size: 14,
+                                        color: colorScheme.primary,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Corner Smoothing',
+                                        style: theme.textTheme.labelMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                              color: colorScheme.onSurface,
+                                            ),
+                                      ),
+                                      const Spacer(),
+                                      Text(
+                                        '${(selectedShape!.cornerSmoothing * 100).round()}%',
+                                        style: theme.textTheme.labelSmall
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              color: colorScheme.primary,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: NixSlider(
+                                          value:
+                                              selectedShape!.cornerSmoothing,
+                                          min: 0.0,
+                                          max: 1.0,
+                                          onChanged: (val) {
+                                            final updated = selectedShape!
+                                                .copyWith(
+                                                  cornerSmoothing: val,
+                                                );
+                                            onShapeChanged(updated);
+                                          },
+                                          onChangeEnd: (val) {
+                                            final updated = selectedShape!
+                                                .copyWith(
+                                                  cornerSmoothing: val,
+                                                );
+                                            onShapeChangeEnd?.call(updated);
+                                          },
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      SizedBox(
+                                        width: 58,
+                                        child: _buildNumberField(
+                                          context,
+                                          '%',
+                                          (selectedShape!.cornerSmoothing *
+                                                  100)
+                                              .roundToDouble(),
+                                          (val) {
+                                            final updated = selectedShape!
+                                                .copyWith(
+                                                  cornerSmoothing:
+                                                      (val / 100.0).clamp(
+                                                        0.0,
+                                                        1.0,
+                                                      ),
+                                                );
+                                            onShapeChanged(updated);
+                                            onShapeChangeEnd?.call(updated);
+                                          },
+                                          min: 0,
+                                          max: 100,
+                                          isInteger: true,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      _buildSquirclePresetChip(
+                                        context,
+                                        label: 'Round (0%)',
+                                        value: 0.0,
+                                        currentValue:
+                                            selectedShape!.cornerSmoothing,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      _buildSquirclePresetChip(
+                                        context,
+                                        label: 'iOS (60%)',
+                                        value: 0.6,
+                                        currentValue:
+                                            selectedShape!.cornerSmoothing,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      _buildSquirclePresetChip(
+                                        context,
+                                        label: 'Smooth (100%)',
+                                        value: 1.0,
+                                        currentValue:
+                                            selectedShape!.cornerSmoothing,
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                           const SizedBox(height: 8),
@@ -4011,6 +4371,56 @@ class PropertiesSidebar extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSquirclePresetChip(
+    BuildContext context, {
+    required String label,
+    required double value,
+    required double currentValue,
+  }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isSelected = (currentValue - value).abs() < 0.02;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          FocusManager.instance.primaryFocus?.unfocus();
+          final updated = selectedShape!.copyWith(
+            cornerSmoothing: value,
+          );
+          onShapeChanged(updated);
+          onShapeChangeEnd?.call(updated);
+        },
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isSelected
+                ? colorScheme.primary.withValues(alpha: 0.16)
+                : colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: isSelected
+                  ? colorScheme.primary
+                  : colorScheme.outlineVariant.withValues(alpha: 0.35),
+              width: isSelected ? 1.2 : 0.8,
+            ),
+          ),
+          child: Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontSize: 10.5,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              color: isSelected
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ),
     );
   }
 

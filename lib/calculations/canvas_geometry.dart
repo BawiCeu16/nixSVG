@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/services.dart';
+import 'package:flutter_m3shapes_extended/flutter_m3shapes_extended.dart';
 import 'package:nixsvg/calculations/svg_path_parser.dart';
 import 'package:nixsvg/models/vector_shape.dart';
 
@@ -688,6 +689,123 @@ class CanvasGeometry {
       }
     }
     return dest;
+  }
+
+  /// Creates a mathematically smooth squircle / continuous corner-rounded rectangle [Path]
+  /// using [RoundedPolygon.rectangle] with Material 3 Expressive and iOS/Figma-grade
+  /// continuous curvature (G2 continuity).
+  static Path createSquircleRectPath(
+    Rect rect, {
+    required double cornerRadius,
+    required double cornerSmoothing,
+    double? topLeftRadius,
+    double? topRightRadius,
+    double? bottomRightRadius,
+    double? bottomLeftRadius,
+  }) {
+    if (rect.width <= 0 || rect.height <= 0) return Path();
+    final maxR = math.min(rect.width, rect.height) / 2.0;
+    final smoothing = cornerSmoothing.clamp(0.0, 1.0);
+
+    final bool hasIndependent = topLeftRadius != null ||
+        topRightRadius != null ||
+        bottomRightRadius != null ||
+        bottomLeftRadius != null;
+
+    final brR = (bottomRightRadius ?? cornerRadius).clamp(0.0, maxR);
+    final blR = (bottomLeftRadius ?? cornerRadius).clamp(0.0, maxR);
+    final tlR = (topLeftRadius ?? cornerRadius).clamp(0.0, maxR);
+    final trR = (topRightRadius ?? cornerRadius).clamp(0.0, maxR);
+
+    if (tlR <= 0 && trR <= 0 && brR <= 0 && blR <= 0) {
+      return Path()..addRect(rect);
+    }
+
+    if (smoothing <= 0.0) {
+      final path = Path();
+      if (hasIndependent) {
+        path.addRRect(
+          RRect.fromRectAndCorners(
+            rect,
+            topLeft: Radius.circular(tlR),
+            topRight: Radius.circular(trR),
+            bottomRight: Radius.circular(brR),
+            bottomLeft: Radius.circular(blR),
+          ),
+        );
+      } else {
+        path.addRRect(
+          RRect.fromRectAndRadius(rect, Radius.circular(brR)),
+        );
+      }
+      return path;
+    }
+
+    // Vertex order for RoundedPolygon.rectangle is:
+    // 0: bottomRight (right, bottom)
+    // 1: bottomLeft (left, bottom)
+    // 2: topLeft (left, top)
+    // 3: topRight (right, top)
+    final poly = RoundedPolygon.rectangle(
+      width: rect.width,
+      height: rect.height,
+      centerX: rect.center.dx,
+      centerY: rect.center.dy,
+      perVertexRounding: [
+        CornerRounding(radius: brR, smoothing: smoothing),
+        CornerRounding(radius: blR, smoothing: smoothing),
+        CornerRounding(radius: tlR, smoothing: smoothing),
+        CornerRounding(radius: trR, smoothing: smoothing),
+      ],
+    );
+
+    return poly.toPath();
+  }
+
+  /// Generates SVG cubic Bézier path commands for a smooth squircle rectangle.
+  static String generateSquircleSvgPathData(
+    Rect rect, {
+    required double cornerRadius,
+    required double cornerSmoothing,
+    double? topLeftRadius,
+    double? topRightRadius,
+    double? bottomRightRadius,
+    double? bottomLeftRadius,
+  }) {
+    if (rect.width <= 0 || rect.height <= 0) return '';
+    final maxR = math.min(rect.width, rect.height) / 2.0;
+    final smoothing = cornerSmoothing.clamp(0.0, 1.0);
+
+    final brR = (bottomRightRadius ?? cornerRadius).clamp(0.0, maxR);
+    final blR = (bottomLeftRadius ?? cornerRadius).clamp(0.0, maxR);
+    final tlR = (topLeftRadius ?? cornerRadius).clamp(0.0, maxR);
+    final trR = (topRightRadius ?? cornerRadius).clamp(0.0, maxR);
+
+    final poly = RoundedPolygon.rectangle(
+      width: rect.width,
+      height: rect.height,
+      centerX: rect.center.dx,
+      centerY: rect.center.dy,
+      perVertexRounding: [
+        CornerRounding(radius: brR, smoothing: smoothing),
+        CornerRounding(radius: blR, smoothing: smoothing),
+        CornerRounding(radius: tlR, smoothing: smoothing),
+        CornerRounding(radius: trR, smoothing: smoothing),
+      ],
+    );
+
+    final sb = StringBuffer();
+    for (int i = 0; i < poly.cubics.length; i++) {
+      final c = poly.cubics[i];
+      if (i == 0) {
+        sb.write('M ${c.anchor0X.toStringAsFixed(2)} ${c.anchor0Y.toStringAsFixed(2)} ');
+      }
+      sb.write('C ${c.control0X.toStringAsFixed(2)} ${c.control0Y.toStringAsFixed(2)}, '
+          '${c.control1X.toStringAsFixed(2)} ${c.control1Y.toStringAsFixed(2)}, '
+          '${c.anchor1X.toStringAsFixed(2)} ${c.anchor1Y.toStringAsFixed(2)} ');
+    }
+    sb.write('Z');
+    return sb.toString();
   }
 
   /// Generates a geometric star [Path] fitted within [rect], supporting custom [points],

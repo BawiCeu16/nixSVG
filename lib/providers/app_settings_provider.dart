@@ -26,6 +26,7 @@ class AppSettingsState {
 
   final double defaultStrokeWidth;
   final double defaultCornerRadius;
+  final double defaultCornerSmoothing;
   final bool autoSwitchToSelect;
 
   final bool svgPrettyPrint;
@@ -50,6 +51,7 @@ class AppSettingsState {
     required this.toolbarPosition,
     required this.defaultStrokeWidth,
     required this.defaultCornerRadius,
+    required this.defaultCornerSmoothing,
     required this.autoSwitchToSelect,
     required this.svgPrettyPrint,
     required this.svgIncludeXml,
@@ -74,6 +76,7 @@ class AppSettingsState {
     String? toolbarPosition,
     double? defaultStrokeWidth,
     double? defaultCornerRadius,
+    double? defaultCornerSmoothing,
     bool? autoSwitchToSelect,
     bool? svgPrettyPrint,
     bool? svgIncludeXml,
@@ -101,6 +104,8 @@ class AppSettingsState {
       toolbarPosition: toolbarPosition ?? this.toolbarPosition,
       defaultStrokeWidth: defaultStrokeWidth ?? this.defaultStrokeWidth,
       defaultCornerRadius: defaultCornerRadius ?? this.defaultCornerRadius,
+      defaultCornerSmoothing:
+          defaultCornerSmoothing ?? this.defaultCornerSmoothing,
       autoSwitchToSelect: autoSwitchToSelect ?? this.autoSwitchToSelect,
       svgPrettyPrint: svgPrettyPrint ?? this.svgPrettyPrint,
       svgIncludeXml: svgIncludeXml ?? this.svgIncludeXml,
@@ -132,6 +137,7 @@ class AppSettingsNotifier extends Notifier<AppSettingsState> {
       toolbarPosition: prefs.getToolbarPosition(),
       defaultStrokeWidth: prefs.getDefaultStrokeWidth(),
       defaultCornerRadius: prefs.getDefaultCornerRadius(),
+      defaultCornerSmoothing: prefs.getDefaultCornerSmoothing(),
       autoSwitchToSelect: prefs.getAutoSwitchToSelect(),
       svgPrettyPrint: prefs.getSvgPrettyPrint(),
       svgIncludeXml: prefs.getSvgIncludeXml(),
@@ -236,6 +242,11 @@ class AppSettingsNotifier extends Notifier<AppSettingsState> {
   void setDefaultCornerRadius(double radius) {
     state = state.copyWith(defaultCornerRadius: radius);
     ref.read(preferencesServiceProvider).setDefaultCornerRadius(radius);
+  }
+
+  void setDefaultCornerSmoothing(double smoothing) {
+    state = state.copyWith(defaultCornerSmoothing: smoothing);
+    ref.read(preferencesServiceProvider).setDefaultCornerSmoothing(smoothing);
   }
 
   void setAutoSwitchToSelect(bool value) {

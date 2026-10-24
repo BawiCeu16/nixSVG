@@ -664,6 +664,57 @@ class VectorCanvasPainter extends CustomPainter {
         final maxR = math.min(shape.rect.width, shape.rect.height) / 2;
         final hasRadius = shape.cornerRadius > 0 || shape.hasIndependentCorners;
         if (hasRadius) {
+          if (shape.cornerSmoothing > 0.0) {
+            final path = shape.getPath();
+            if (shape.isFilled) canvas.drawPath(path, fillPaint);
+            if (shape.isStroked) {
+              drawStrokedPath(path, shapeBoundary: path);
+            }
+          } else {
+            final rrect = shape.hasIndependentCorners
+                ? RRect.fromRectAndCorners(
+                    shape.rect,
+                    topLeft: Radius.circular(
+                      shape.effectiveTopLeftRadius.clamp(0.0, maxR),
+                    ),
+                    topRight: Radius.circular(
+                      shape.effectiveTopRightRadius.clamp(0.0, maxR),
+                    ),
+                    bottomRight: Radius.circular(
+                      shape.effectiveBottomRightRadius.clamp(0.0, maxR),
+                    ),
+                    bottomLeft: Radius.circular(
+                      shape.effectiveBottomLeftRadius.clamp(0.0, maxR),
+                    ),
+                  )
+                : RRect.fromRectAndRadius(
+                    shape.rect,
+                    Radius.circular(shape.cornerRadius.clamp(0.0, maxR)),
+                  );
+            if (shape.isFilled) canvas.drawRRect(rrect, fillPaint);
+            if (shape.isStroked) {
+              final path = shape.getPath();
+              drawStrokedPath(path, shapeBoundary: path);
+            }
+          }
+        } else {
+          if (shape.isFilled) canvas.drawRect(shape.rect, fillPaint);
+          if (shape.isStroked) {
+            final path = shape.getPath();
+            drawStrokedPath(path, shapeBoundary: path);
+          }
+        }
+        break;
+
+      case ShapeType.roundedRectangle:
+        final maxR = math.min(shape.rect.width, shape.rect.height) / 2;
+        if (shape.cornerSmoothing > 0.0) {
+          final path = shape.getPath();
+          if (shape.isFilled) canvas.drawPath(path, fillPaint);
+          if (shape.isStroked) {
+            drawStrokedPath(path, shapeBoundary: path);
+          }
+        } else {
           final rrect = shape.hasIndependentCorners
               ? RRect.fromRectAndCorners(
                   shape.rect,
@@ -689,41 +740,6 @@ class VectorCanvasPainter extends CustomPainter {
             final path = shape.getPath();
             drawStrokedPath(path, shapeBoundary: path);
           }
-        } else {
-          if (shape.isFilled) canvas.drawRect(shape.rect, fillPaint);
-          if (shape.isStroked) {
-            final path = shape.getPath();
-            drawStrokedPath(path, shapeBoundary: path);
-          }
-        }
-        break;
-
-      case ShapeType.roundedRectangle:
-        final maxR = math.min(shape.rect.width, shape.rect.height) / 2;
-        final rrect = shape.hasIndependentCorners
-            ? RRect.fromRectAndCorners(
-                shape.rect,
-                topLeft: Radius.circular(
-                  shape.effectiveTopLeftRadius.clamp(0.0, maxR),
-                ),
-                topRight: Radius.circular(
-                  shape.effectiveTopRightRadius.clamp(0.0, maxR),
-                ),
-                bottomRight: Radius.circular(
-                  shape.effectiveBottomRightRadius.clamp(0.0, maxR),
-                ),
-                bottomLeft: Radius.circular(
-                  shape.effectiveBottomLeftRadius.clamp(0.0, maxR),
-                ),
-              )
-            : RRect.fromRectAndRadius(
-                shape.rect,
-                Radius.circular(shape.cornerRadius.clamp(0.0, maxR)),
-              );
-        if (shape.isFilled) canvas.drawRRect(rrect, fillPaint);
-        if (shape.isStroked) {
-          final path = shape.getPath();
-          drawStrokedPath(path, shapeBoundary: path);
         }
         break;
 
@@ -897,7 +913,17 @@ class VectorCanvasPainter extends CustomPainter {
             shape.decodedImage!.width.toDouble(),
             shape.decodedImage!.height.toDouble(),
           );
-          if (rrect != null) {
+          if (shape.cornerSmoothing > 0.0 && hasRadius) {
+            canvas.save();
+            canvas.clipPath(shape.getPath());
+            canvas.drawImageRect(
+              shape.decodedImage!,
+              srcRect,
+              shape.rect,
+              Paint(),
+            );
+            canvas.restore();
+          } else if (rrect != null) {
             canvas.save();
             canvas.clipRRect(rrect);
             canvas.drawImageRect(
@@ -916,14 +942,16 @@ class VectorCanvasPainter extends CustomPainter {
             );
           }
         } else {
-          if (rrect != null) {
+          if (shape.cornerSmoothing > 0.0 && hasRadius) {
+            canvas.drawPath(shape.getPath(), fillPaint);
+          } else if (rrect != null) {
             canvas.drawRRect(rrect, fillPaint);
           } else {
             canvas.drawRect(shape.rect, fillPaint);
           }
         }
         if (shape.isStroked) {
-          if (rrect != null) {
+          if (hasRadius) {
             final path = shape.getPath();
             drawStrokedPath(path, shapeBoundary: path);
           } else {

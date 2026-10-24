@@ -1518,6 +1518,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
           cornerRadius: draftShapeType == ShapeType.roundedRectangle
               ? appSettings.defaultCornerRadius
               : 0.0,
+          cornerSmoothing: draftShapeType == ShapeType.roundedRectangle
+              ? appSettings.defaultCornerSmoothing
+              : 0.0,
           isCurved: isCurveMode,
           curvature: isCurveMode ? 35.0 : 0.0,
           pointCount: draftShapeType == ShapeType.polygon ? 6 : 5,
@@ -1912,6 +1915,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
       strokeWidth: appSettings.defaultStrokeWidth,
       cornerRadius: type == ShapeType.roundedRectangle
           ? appSettings.defaultCornerRadius
+          : 0.0,
+      cornerSmoothing: type == ShapeType.roundedRectangle
+          ? appSettings.defaultCornerSmoothing
           : 0.0,
       pointCount: 5,
       innerRadiusRatio: 0.4,

@@ -272,6 +272,7 @@ class VectorShape {
   bool isFilled;
   bool isStroked;
   double cornerRadius;
+  double cornerSmoothing;
   double? topLeftRadius;
   double? topRightRadius;
   double? bottomRightRadius;
@@ -320,6 +321,7 @@ class VectorShape {
   Path? _cachedPath;
   Rect? _lastPathRect;
   double? _lastPathRadius;
+  double? _lastCornerSmoothing;
   double? _lastTlRadius;
   double? _lastTrRadius;
   double? _lastBrRadius;
@@ -401,6 +403,7 @@ class VectorShape {
     this.isFilled = true,
     this.isStroked = false,
     double? cornerRadius,
+    this.cornerSmoothing = 0.0,
     this.topLeftRadius,
     this.topRightRadius,
     this.bottomRightRadius,
@@ -463,6 +466,7 @@ class VectorShape {
     bool? isFilled,
     bool? isStroked,
     double? cornerRadius,
+    double? cornerSmoothing,
     double? topLeftRadius,
     double? topRightRadius,
     double? bottomRightRadius,
@@ -533,6 +537,7 @@ class VectorShape {
       isFilled: isFilled ?? this.isFilled,
       isStroked: isStroked ?? this.isStroked,
       cornerRadius: cornerRadius ?? this.cornerRadius,
+      cornerSmoothing: cornerSmoothing ?? this.cornerSmoothing,
       topLeftRadius: clearIndependentCorners
           ? null
           : (topLeftRadius ?? this.topLeftRadius),
@@ -610,6 +615,7 @@ class VectorShape {
       'isFilled': isFilled,
       'isStroked': isStroked,
       'cornerRadius': cornerRadius,
+      'cornerSmoothing': cornerSmoothing,
       'topLeftRadius': topLeftRadius,
       'topRightRadius': topRightRadius,
       'bottomRightRadius': bottomRightRadius,
@@ -784,6 +790,7 @@ class VectorShape {
       isFilled: json['isFilled'] as bool? ?? true,
       isStroked: json['isStroked'] as bool? ?? false,
       cornerRadius: (json['cornerRadius'] as num?)?.toDouble() ?? 12.0,
+      cornerSmoothing: (json['cornerSmoothing'] as num?)?.toDouble() ?? 0.0,
       topLeftRadius: (json['topLeftRadius'] as num?)?.toDouble(),
       topRightRadius: (json['topRightRadius'] as num?)?.toDouble(),
       bottomRightRadius: (json['bottomRightRadius'] as num?)?.toDouble(),
@@ -931,6 +938,18 @@ class VectorShape {
       case ShapeType.rectangle:
         if (hasIndependentCorners || cornerRadius > 0) {
           final maxR = math.min(rect.width, rect.height) / 2;
+          if (cornerSmoothing > 0.0) {
+            final d = CanvasGeometry.generateSquircleSvgPathData(
+              rect,
+              cornerRadius: cornerRadius,
+              cornerSmoothing: cornerSmoothing,
+              topLeftRadius: topLeftRadius,
+              topRightRadius: topRightRadius,
+              bottomRightRadius: bottomRightRadius,
+              bottomLeftRadius: bottomLeftRadius,
+            );
+            return '  <path d="$d" $fillAttr $strokeAttr$transformAttr />';
+          }
           if (hasIndependentCorners) {
             final tl = effectiveTopLeftRadius.clamp(0.0, maxR);
             final tr = effectiveTopRightRadius.clamp(0.0, maxR);
@@ -953,6 +972,18 @@ class VectorShape {
         }
         return '  <rect x="${rect.left}" y="${rect.top}" width="${rect.width}" height="${rect.height}" $fillAttr $strokeAttr$transformAttr />';
       case ShapeType.roundedRectangle:
+        if (cornerSmoothing > 0.0 && (hasIndependentCorners || cornerRadius > 0)) {
+          final d = CanvasGeometry.generateSquircleSvgPathData(
+            rect,
+            cornerRadius: cornerRadius,
+            cornerSmoothing: cornerSmoothing,
+            topLeftRadius: topLeftRadius,
+            topRightRadius: topRightRadius,
+            bottomRightRadius: bottomRightRadius,
+            bottomLeftRadius: bottomLeftRadius,
+          );
+          return '  <path d="$d" $fillAttr $strokeAttr$transformAttr />';
+        }
         if (hasIndependentCorners) {
           final maxR = math.min(rect.width, rect.height) / 2;
           final tl = effectiveTopLeftRadius.clamp(0.0, maxR);
@@ -1132,6 +1163,7 @@ class VectorShape {
     if (_cachedPath != null &&
         _lastPathRect == rect &&
         _lastPathRadius == cornerRadius &&
+        _lastCornerSmoothing == cornerSmoothing &&
         _lastTlRadius == topLeftRadius &&
         _lastTrRadius == topRightRadius &&
         _lastBrRadius == bottomRightRadius &&
@@ -1149,7 +1181,20 @@ class VectorShape {
       case ShapeType.rectangle:
       case ShapeType.image:
         final maxR = math.min(rect.width, rect.height) / 2;
-        if (hasIndependentCorners) {
+        if (cornerSmoothing > 0.0 && (hasIndependentCorners || cornerRadius > 0)) {
+          path.addPath(
+            CanvasGeometry.createSquircleRectPath(
+              rect,
+              cornerRadius: cornerRadius,
+              cornerSmoothing: cornerSmoothing,
+              topLeftRadius: topLeftRadius,
+              topRightRadius: topRightRadius,
+              bottomRightRadius: bottomRightRadius,
+              bottomLeftRadius: bottomLeftRadius,
+            ),
+            Offset.zero,
+          );
+        } else if (hasIndependentCorners) {
           path.addRRect(
             RRect.fromRectAndCorners(
               rect,
@@ -1172,7 +1217,20 @@ class VectorShape {
         break;
       case ShapeType.roundedRectangle:
         final maxR = math.min(rect.width, rect.height) / 2;
-        if (hasIndependentCorners) {
+        if (cornerSmoothing > 0.0 && (hasIndependentCorners || cornerRadius > 0)) {
+          path.addPath(
+            CanvasGeometry.createSquircleRectPath(
+              rect,
+              cornerRadius: cornerRadius,
+              cornerSmoothing: cornerSmoothing,
+              topLeftRadius: topLeftRadius,
+              topRightRadius: topRightRadius,
+              bottomRightRadius: bottomRightRadius,
+              bottomLeftRadius: bottomLeftRadius,
+            ),
+            Offset.zero,
+          );
+        } else if (hasIndependentCorners) {
           path.addRRect(
             RRect.fromRectAndCorners(
               rect,
@@ -1264,6 +1322,7 @@ class VectorShape {
     _cachedPath = path;
     _lastPathRect = rect;
     _lastPathRadius = cornerRadius;
+    _lastCornerSmoothing = cornerSmoothing;
     _lastTlRadius = topLeftRadius;
     _lastTrRadius = topRightRadius;
     _lastBrRadius = bottomRightRadius;

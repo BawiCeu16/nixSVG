@@ -96,8 +96,50 @@ class _MiniCanvasPainter extends CustomPainter {
       switch (shape.type) {
         case ShapeType.rectangle:
           final maxR = math.min(shape.rect.width, shape.rect.height) / 2;
-          final hasRadius = shape.cornerRadius > 0 || shape.hasIndependentCorners;
+          final hasRadius =
+              shape.cornerRadius > 0 || shape.hasIndependentCorners;
           if (hasRadius) {
+            if (shape.cornerSmoothing > 0.0) {
+              final path = shape.getPath();
+              if (shape.isFilled) canvas.drawPath(path, fillPaint);
+              if (shape.isStroked) canvas.drawPath(path, strokePaint);
+            } else {
+              final rrect = shape.hasIndependentCorners
+                  ? RRect.fromRectAndCorners(
+                      shape.rect,
+                      topLeft: Radius.circular(
+                        shape.effectiveTopLeftRadius.clamp(0.0, maxR),
+                      ),
+                      topRight: Radius.circular(
+                        shape.effectiveTopRightRadius.clamp(0.0, maxR),
+                      ),
+                      bottomRight: Radius.circular(
+                        shape.effectiveBottomRightRadius.clamp(0.0, maxR),
+                      ),
+                      bottomLeft: Radius.circular(
+                        shape.effectiveBottomLeftRadius.clamp(0.0, maxR),
+                      ),
+                    )
+                  : RRect.fromRectAndRadius(
+                      shape.rect,
+                      Radius.circular(shape.cornerRadius.clamp(0.0, maxR)),
+                    );
+              if (shape.isFilled) canvas.drawRRect(rrect, fillPaint);
+              if (shape.isStroked) canvas.drawRRect(rrect, strokePaint);
+            }
+          } else {
+            if (shape.isFilled) canvas.drawRect(shape.rect, fillPaint);
+            if (shape.isStroked) canvas.drawRect(shape.rect, strokePaint);
+          }
+          break;
+
+        case ShapeType.roundedRectangle:
+          final maxR = math.min(shape.rect.width, shape.rect.height) / 2;
+          if (shape.cornerSmoothing > 0.0) {
+            final path = shape.getPath();
+            if (shape.isFilled) canvas.drawPath(path, fillPaint);
+            if (shape.isStroked) canvas.drawPath(path, strokePaint);
+          } else {
             final rrect = shape.hasIndependentCorners
                 ? RRect.fromRectAndCorners(
                     shape.rect,
@@ -120,36 +162,7 @@ class _MiniCanvasPainter extends CustomPainter {
                   );
             if (shape.isFilled) canvas.drawRRect(rrect, fillPaint);
             if (shape.isStroked) canvas.drawRRect(rrect, strokePaint);
-          } else {
-            if (shape.isFilled) canvas.drawRect(shape.rect, fillPaint);
-            if (shape.isStroked) canvas.drawRect(shape.rect, strokePaint);
           }
-          break;
-
-        case ShapeType.roundedRectangle:
-          final maxR = math.min(shape.rect.width, shape.rect.height) / 2;
-          final rrect = shape.hasIndependentCorners
-              ? RRect.fromRectAndCorners(
-                  shape.rect,
-                  topLeft: Radius.circular(
-                    shape.effectiveTopLeftRadius.clamp(0.0, maxR),
-                  ),
-                  topRight: Radius.circular(
-                    shape.effectiveTopRightRadius.clamp(0.0, maxR),
-                  ),
-                  bottomRight: Radius.circular(
-                    shape.effectiveBottomRightRadius.clamp(0.0, maxR),
-                  ),
-                  bottomLeft: Radius.circular(
-                    shape.effectiveBottomLeftRadius.clamp(0.0, maxR),
-                  ),
-                )
-              : RRect.fromRectAndRadius(
-                  shape.rect,
-                  Radius.circular(shape.cornerRadius.clamp(0.0, maxR)),
-                );
-          if (shape.isFilled) canvas.drawRRect(rrect, fillPaint);
-          if (shape.isStroked) canvas.drawRRect(rrect, strokePaint);
           break;
 
         case ShapeType.ellipse:

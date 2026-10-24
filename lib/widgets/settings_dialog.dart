@@ -7,6 +7,7 @@ import 'package:nixsvg/controllers/theme_controller.dart';
 import 'package:nixsvg/providers/app_settings_provider.dart';
 import 'package:nixsvg/providers/project_provider.dart';
 import 'package:nixsvg/theme/physics/m3e_physics_spring.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nixsvg/widgets/color_picker/nix_color_picker_presenter.dart';
 import 'package:nixsvg/widgets/nix_slider.dart';
 import 'package:remixicon/remixicon.dart';
@@ -1089,6 +1090,42 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                       width: 46,
                       child: Text(
                         '${settings.defaultCornerRadius.toInt()}px',
+                        textAlign: TextAlign.end,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+
+            // Default Corner Smoothing (Squircle)
+            _buildSettingRow(
+              icon: LucideIcons.squircle,
+              colorScheme: colorScheme,
+              title: 'Default Corner Smoothing (Squircle)',
+              subtitle:
+                  'Continuous curvature smoothing for rounded rectangles (0% round, 60% iOS squircle, 100% max)',
+              trailing: SizedBox(
+                width: 230,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: NixSlider(
+                        value: settings.defaultCornerSmoothing,
+                        min: 0.0,
+                        max: 1.0,
+                        divisions: 20,
+                        onChanged: notifier.setDefaultCornerSmoothing,
+                      ),
+                    ),
+                    SizedBox(
+                      width: 46,
+                      child: Text(
+                        '${(settings.defaultCornerSmoothing * 100).toInt()}%',
                         textAlign: TextAlign.end,
                         style: theme.textTheme.labelMedium?.copyWith(
                           fontWeight: FontWeight.bold,
