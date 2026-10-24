@@ -4,7 +4,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:m3e_buttons/m3e_buttons.dart';
+import 'package:m3e_buttons/m3e_buttons.dart' hide M3EHapticFeedback, M3EMotion;
+import 'package:m3e_dropdown_menu/m3e_dropdown_menu.dart';
 import 'package:m3e_segmented_list/m3e_segmented_list.dart';
 import 'package:nixsvg/models/vector_shape.dart';
 import 'package:nixsvg/widgets/color_picker_dialog.dart';
@@ -763,27 +764,28 @@ class PropertiesSidebar extends StatelessWidget {
                                     child: Container(
                                       padding: const EdgeInsets.all(6),
                                       decoration: BoxDecoration(
-                                        color: selectedShape!
-                                                .hasIndependentCorners
+                                        color:
+                                            selectedShape!.hasIndependentCorners
                                             ? colorScheme.primary.withValues(
                                                 alpha: 0.16,
                                               )
                                             : colorScheme
-                                                .surfaceContainerHighest,
+                                                  .surfaceContainerHighest,
                                         borderRadius: BorderRadius.circular(8),
                                         border: Border.all(
-                                          color: selectedShape!
+                                          color:
+                                              selectedShape!
                                                   .hasIndependentCorners
                                               ? colorScheme.primary
                                               : colorScheme.outlineVariant
-                                                  .withValues(alpha: 0.5),
+                                                    .withValues(alpha: 0.5),
                                         ),
                                       ),
                                       child: Icon(
                                         RemixIcons.corner_up_left_line,
                                         size: 15,
-                                        color: selectedShape!
-                                                .hasIndependentCorners
+                                        color:
+                                            selectedShape!.hasIndependentCorners
                                             ? colorScheme.primary
                                             : colorScheme.onSurfaceVariant,
                                       ),
@@ -802,13 +804,13 @@ class PropertiesSidebar extends StatelessWidget {
                                           ?.unfocus();
                                       final isCurrentlySmooth =
                                           selectedShape!.cornerSmoothing > 0;
-                                      final newSmoothing =
-                                          isCurrentlySmooth ? 0.0 : 0.6;
+                                      final newSmoothing = isCurrentlySmooth
+                                          ? 0.0
+                                          : 0.6;
                                       final needsDefaultRadius =
                                           !isCurrentlySmooth &&
                                           selectedShape!.cornerRadius == 0 &&
-                                          !selectedShape!
-                                              .hasIndependentCorners;
+                                          !selectedShape!.hasIndependentCorners;
                                       final updated = selectedShape!.copyWith(
                                         cornerSmoothing: newSmoothing,
                                         cornerRadius: needsDefaultRadius
@@ -827,14 +829,14 @@ class PropertiesSidebar extends StatelessWidget {
                                                 alpha: 0.16,
                                               )
                                             : colorScheme
-                                                .surfaceContainerHighest,
+                                                  .surfaceContainerHighest,
                                         borderRadius: BorderRadius.circular(8),
                                         border: Border.all(
                                           color:
                                               selectedShape!.cornerSmoothing > 0
                                               ? colorScheme.primary
                                               : colorScheme.outlineVariant
-                                                  .withValues(alpha: 0.5),
+                                                    .withValues(alpha: 0.5),
                                         ),
                                       ),
                                       child: Icon(
@@ -868,168 +870,175 @@ class PropertiesSidebar extends StatelessWidget {
                                     },
                                   ),
                                 ),
-                              if (selectedShape!.type ==
-                                      ShapeType.roundedRectangle ||
-                                  selectedShape!.type == ShapeType.rectangle ||
-                                  selectedShape!.type == ShapeType.star ||
-                                  selectedShape!.type == ShapeType.polygon ||
-                                  selectedShape!.type == ShapeType.image) ...[
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _buildNumberField(
-                                    context,
-                                    'R',
-                                    selectedShape!.cornerRadius,
-                                    (val) {
-                                      final updated = selectedShape!.copyWith(
-                                        cornerRadius: val.clamp(0, 200),
-                                        clearIndependentCorners: true,
-                                      );
-                                      onShapeChanged(updated);
-                                      onShapeChangeEnd?.call(updated);
-                                    },
-                                  ),
-                                ),
                                 if (selectedShape!.type ==
-                                        ShapeType.rectangle ||
-                                    selectedShape!.type ==
                                         ShapeType.roundedRectangle ||
+                                    selectedShape!.type ==
+                                        ShapeType.rectangle ||
+                                    selectedShape!.type == ShapeType.star ||
+                                    selectedShape!.type == ShapeType.polygon ||
                                     selectedShape!.type == ShapeType.image) ...[
-                                  const SizedBox(width: 4),
-                                  Tooltip(
-                                    message:
-                                        selectedShape!.hasIndependentCorners
-                                        ? 'Link Corner Radii'
-                                        : 'Independent Corner Radii',
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(8),
-                                      onTap: () {
-                                        FocusManager.instance.primaryFocus
-                                            ?.unfocus();
-                                        if (selectedShape!
-                                            .hasIndependentCorners) {
-                                          final updated = selectedShape!
-                                              .copyWith(
-                                                clearIndependentCorners: true,
-                                              );
-                                          onShapeChanged(updated);
-                                          onShapeChangeEnd?.call(updated);
-                                        } else {
-                                          final cur =
-                                              selectedShape!.cornerRadius;
-                                          final updated = selectedShape!
-                                              .copyWith(
-                                                topLeftRadius: cur,
-                                                topRightRadius: cur,
-                                                bottomRightRadius: cur,
-                                                bottomLeftRadius: cur,
-                                              );
-                                          onShapeChanged(updated);
-                                          onShapeChangeEnd?.call(updated);
-                                        }
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.all(6),
-                                        decoration: BoxDecoration(
-                                          color:
-                                              selectedShape!
-                                                  .hasIndependentCorners
-                                              ? colorScheme.primary.withValues(
-                                                  alpha: 0.16,
-                                                )
-                                              : colorScheme
-                                                    .surfaceContainerHighest,
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                          border: Border.all(
-                                            color:
-                                                selectedShape!
-                                                    .hasIndependentCorners
-                                                ? colorScheme.primary
-                                                : colorScheme.outlineVariant
-                                                      .withValues(alpha: 0.5),
-                                          ),
-                                        ),
-                                        child: Icon(
-                                          RemixIcons.corner_up_left_line,
-                                          size: 15,
-                                          color:
-                                              selectedShape!
-                                                  .hasIndependentCorners
-                                              ? colorScheme.primary
-                                              : colorScheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Tooltip(
-                                    message:
-                                        selectedShape!.cornerSmoothing > 0
-                                        ? 'Disable Corner Smoothing'
-                                        : 'Enable Corner Smoothing (Squircle)',
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(8),
-                                      onTap: () {
-                                        FocusManager.instance.primaryFocus
-                                            ?.unfocus();
-                                        final isCurrentlySmooth =
-                                            selectedShape!.cornerSmoothing > 0;
-                                        final newSmoothing =
-                                            isCurrentlySmooth ? 0.0 : 0.6;
-                                        final needsDefaultRadius =
-                                            !isCurrentlySmooth &&
-                                            selectedShape!.cornerRadius == 0 &&
-                                            !selectedShape!
-                                                .hasIndependentCorners;
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _buildNumberField(
+                                      context,
+                                      'R',
+                                      selectedShape!.cornerRadius,
+                                      (val) {
                                         final updated = selectedShape!.copyWith(
-                                          cornerSmoothing: newSmoothing,
-                                          cornerRadius: needsDefaultRadius
-                                              ? 16.0
-                                              : null,
+                                          cornerRadius: val.clamp(0, 200),
+                                          clearIndependentCorners: true,
                                         );
                                         onShapeChanged(updated);
                                         onShapeChangeEnd?.call(updated);
                                       },
-                                      child: Container(
-                                        padding: const EdgeInsets.all(6),
-                                        decoration: BoxDecoration(
-                                          color:
-                                              selectedShape!.cornerSmoothing > 0
-                                              ? colorScheme.primary.withValues(
-                                                  alpha: 0.16,
-                                                )
-                                              : colorScheme
-                                                    .surfaceContainerHighest,
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                          border: Border.all(
+                                    ),
+                                  ),
+                                  if (selectedShape!.type ==
+                                          ShapeType.rectangle ||
+                                      selectedShape!.type ==
+                                          ShapeType.roundedRectangle ||
+                                      selectedShape!.type ==
+                                          ShapeType.image) ...[
+                                    const SizedBox(width: 4),
+                                    Tooltip(
+                                      message:
+                                          selectedShape!.hasIndependentCorners
+                                          ? 'Link Corner Radii'
+                                          : 'Independent Corner Radii',
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(8),
+                                        onTap: () {
+                                          FocusManager.instance.primaryFocus
+                                              ?.unfocus();
+                                          if (selectedShape!
+                                              .hasIndependentCorners) {
+                                            final updated = selectedShape!
+                                                .copyWith(
+                                                  clearIndependentCorners: true,
+                                                );
+                                            onShapeChanged(updated);
+                                            onShapeChangeEnd?.call(updated);
+                                          } else {
+                                            final cur =
+                                                selectedShape!.cornerRadius;
+                                            final updated = selectedShape!
+                                                .copyWith(
+                                                  topLeftRadius: cur,
+                                                  topRightRadius: cur,
+                                                  bottomRightRadius: cur,
+                                                  bottomLeftRadius: cur,
+                                                );
+                                            onShapeChanged(updated);
+                                            onShapeChangeEnd?.call(updated);
+                                          }
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
                                             color:
-                                                selectedShape!.cornerSmoothing >
-                                                        0
+                                                selectedShape!
+                                                    .hasIndependentCorners
                                                 ? colorScheme.primary
-                                                : colorScheme.outlineVariant
-                                                      .withValues(alpha: 0.5),
+                                                      .withValues(alpha: 0.16)
+                                                : colorScheme
+                                                      .surfaceContainerHighest,
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color:
+                                                  selectedShape!
+                                                      .hasIndependentCorners
+                                                  ? colorScheme.primary
+                                                  : colorScheme.outlineVariant
+                                                        .withValues(alpha: 0.5),
+                                            ),
                                           ),
-                                        ),
-                                        child: Icon(
-                                          LucideIcons.squircle,
-                                          size: 15,
-                                          color:
-                                              selectedShape!.cornerSmoothing > 0
-                                              ? colorScheme.primary
-                                              : colorScheme.onSurfaceVariant,
+                                          child: Icon(
+                                            RemixIcons.corner_up_left_line,
+                                            size: 15,
+                                            color:
+                                                selectedShape!
+                                                    .hasIndependentCorners
+                                                ? colorScheme.primary
+                                                : colorScheme.onSurfaceVariant,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
+                                    const SizedBox(width: 4),
+                                    Tooltip(
+                                      message:
+                                          selectedShape!.cornerSmoothing > 0
+                                          ? 'Disable Corner Smoothing'
+                                          : 'Enable Corner Smoothing (Squircle)',
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(8),
+                                        onTap: () {
+                                          FocusManager.instance.primaryFocus
+                                              ?.unfocus();
+                                          final isCurrentlySmooth =
+                                              selectedShape!.cornerSmoothing >
+                                              0;
+                                          final newSmoothing = isCurrentlySmooth
+                                              ? 0.0
+                                              : 0.6;
+                                          final needsDefaultRadius =
+                                              !isCurrentlySmooth &&
+                                              selectedShape!.cornerRadius ==
+                                                  0 &&
+                                              !selectedShape!
+                                                  .hasIndependentCorners;
+                                          final updated = selectedShape!
+                                              .copyWith(
+                                                cornerSmoothing: newSmoothing,
+                                                cornerRadius: needsDefaultRadius
+                                                    ? 16.0
+                                                    : null,
+                                              );
+                                          onShapeChanged(updated);
+                                          onShapeChangeEnd?.call(updated);
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                selectedShape!.cornerSmoothing >
+                                                    0
+                                                ? colorScheme.primary
+                                                      .withValues(alpha: 0.16)
+                                                : colorScheme
+                                                      .surfaceContainerHighest,
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color:
+                                                  selectedShape!
+                                                          .cornerSmoothing >
+                                                      0
+                                                  ? colorScheme.primary
+                                                  : colorScheme.outlineVariant
+                                                        .withValues(alpha: 0.5),
+                                            ),
+                                          ),
+                                          child: Icon(
+                                            LucideIcons.squircle,
+                                            size: 15,
+                                            color:
+                                                selectedShape!.cornerSmoothing >
+                                                    0
+                                                ? colorScheme.primary
+                                                : colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ],
-                            ],
-                          ),
-                        ],
+                            ),
+                          ],
                           if ((selectedShape!.type == ShapeType.rectangle ||
                                   selectedShape!.type ==
                                       ShapeType.roundedRectangle ||
@@ -1120,8 +1129,9 @@ class PropertiesSidebar extends StatelessWidget {
                                     .withValues(alpha: 0.55),
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
-                                  color: colorScheme.outlineVariant
-                                      .withValues(alpha: 0.35),
+                                  color: colorScheme.outlineVariant.withValues(
+                                    alpha: 0.35,
+                                  ),
                                 ),
                               ),
                               child: Column(
@@ -1159,22 +1169,17 @@ class PropertiesSidebar extends StatelessWidget {
                                     children: [
                                       Expanded(
                                         child: NixSlider(
-                                          value:
-                                              selectedShape!.cornerSmoothing,
+                                          value: selectedShape!.cornerSmoothing,
                                           min: 0.0,
                                           max: 1.0,
                                           onChanged: (val) {
                                             final updated = selectedShape!
-                                                .copyWith(
-                                                  cornerSmoothing: val,
-                                                );
+                                                .copyWith(cornerSmoothing: val);
                                             onShapeChanged(updated);
                                           },
                                           onChangeEnd: (val) {
                                             final updated = selectedShape!
-                                                .copyWith(
-                                                  cornerSmoothing: val,
-                                                );
+                                                .copyWith(cornerSmoothing: val);
                                             onShapeChangeEnd?.call(updated);
                                           },
                                         ),
@@ -1185,17 +1190,13 @@ class PropertiesSidebar extends StatelessWidget {
                                         child: _buildNumberField(
                                           context,
                                           '%',
-                                          (selectedShape!.cornerSmoothing *
-                                                  100)
+                                          (selectedShape!.cornerSmoothing * 100)
                                               .roundToDouble(),
                                           (val) {
                                             final updated = selectedShape!
                                                 .copyWith(
-                                                  cornerSmoothing:
-                                                      (val / 100.0).clamp(
-                                                        0.0,
-                                                        1.0,
-                                                      ),
+                                                  cornerSmoothing: (val / 100.0)
+                                                      .clamp(0.0, 1.0),
                                                 );
                                             onShapeChanged(updated);
                                             onShapeChangeEnd?.call(updated);
@@ -2279,136 +2280,47 @@ class PropertiesSidebar extends StatelessWidget {
                                               ),
                                         ),
                                         const SizedBox(height: 4),
-                                        Container(
-                                          height: 36,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
+                                        _buildM3EStyledDropdown<LineCapStyle>(
+                                          key: ValueKey(
+                                            'start_cap_${selectedShape!.id}_${selectedShape!.startCap}',
                                           ),
-                                          decoration: BoxDecoration(
-                                            color: colorScheme
-                                                .surfaceContainerHighest,
-                                            borderRadius: BorderRadius.circular(
-                                              10,
+                                          hintText: 'Start Cap',
+                                          items: [
+                                            M3EDropdownItem<LineCapStyle>(
+                                              value: LineCapStyle.none,
+                                              label: 'None',
+                                              selected:
+                                                  selectedShape!.startCap ==
+                                                  LineCapStyle.none,
                                             ),
-                                          ),
-                                          child: DropdownButtonHideUnderline(
-                                            child: DropdownButton<LineCapStyle>(
-                                              value: selectedShape!.startCap,
-                                              isExpanded: true,
-                                              isDense: true,
-                                              icon: const Icon(
-                                                LucideIcons.chevronDown,
-                                                size: 14,
-                                              ),
-                                              items: [
-                                                DropdownMenuItem(
-                                                  value: LineCapStyle.none,
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        LucideIcons.minus,
-                                                        size: 14,
-                                                      ),
-                                                      SizedBox(width: 4),
-                                                      Expanded(
-                                                        child: Text(
-                                                          'None',
-                                                          style: theme
-                                                              .textTheme
-                                                              .bodySmall,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                DropdownMenuItem(
-                                                  value: LineCapStyle.arrow,
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        LucideIcons.arrowLeft,
-                                                        size: 14,
-                                                      ),
-                                                      SizedBox(width: 4),
-                                                      Expanded(
-                                                        child: Text(
-                                                          'Arrow',
-                                                          style: theme
-                                                              .textTheme
-                                                              .bodySmall,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                DropdownMenuItem(
-                                                  value: LineCapStyle.circle,
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        LucideIcons.circle,
-                                                        size: 14,
-                                                      ),
-                                                      SizedBox(width: 4),
-                                                      Expanded(
-                                                        child: Text(
-                                                          'Circle',
-                                                          style: theme
-                                                              .textTheme
-                                                              .bodySmall,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                DropdownMenuItem(
-                                                  value: LineCapStyle.square,
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        LucideIcons.square,
-                                                        size: 14,
-                                                      ),
-                                                      SizedBox(width: 4),
-                                                      Expanded(
-                                                        child: Text(
-                                                          'Square',
-                                                          style: theme
-                                                              .textTheme
-                                                              .bodySmall,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ],
-                                              onChanged: (val) {
-                                                if (val != null) {
-                                                  onShapeChanged(
-                                                    selectedShape!.copyWith(
-                                                      startCap: val,
-                                                    ),
-                                                  );
-                                                }
-                                              },
+                                            M3EDropdownItem<LineCapStyle>(
+                                              value: LineCapStyle.arrow,
+                                              label: 'Arrow',
+                                              selected:
+                                                  selectedShape!.startCap ==
+                                                  LineCapStyle.arrow,
                                             ),
-                                          ),
+                                            M3EDropdownItem<LineCapStyle>(
+                                              value: LineCapStyle.circle,
+                                              label: 'Circle',
+                                              selected:
+                                                  selectedShape!.startCap ==
+                                                  LineCapStyle.circle,
+                                            ),
+                                            M3EDropdownItem<LineCapStyle>(
+                                              value: LineCapStyle.square,
+                                              label: 'Square',
+                                              selected:
+                                                  selectedShape!.startCap ==
+                                                  LineCapStyle.square,
+                                            ),
+                                          ],
+                                          onSelected: (val) {
+                                            final updated = selectedShape!
+                                                .copyWith(startCap: val);
+                                            onShapeChanged(updated);
+                                            onShapeChangeEnd?.call(updated);
+                                          },
                                         ),
                                       ],
                                     ),
@@ -2428,136 +2340,47 @@ class PropertiesSidebar extends StatelessWidget {
                                               ),
                                         ),
                                         const SizedBox(height: 4),
-                                        Container(
-                                          height: 36,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
+                                        _buildM3EStyledDropdown<LineCapStyle>(
+                                          key: ValueKey(
+                                            'end_cap_${selectedShape!.id}_${selectedShape!.endCap}',
                                           ),
-                                          decoration: BoxDecoration(
-                                            color: colorScheme
-                                                .surfaceContainerHighest,
-                                            borderRadius: BorderRadius.circular(
-                                              10,
+                                          hintText: 'End Cap',
+                                          items: [
+                                            M3EDropdownItem<LineCapStyle>(
+                                              value: LineCapStyle.none,
+                                              label: 'None',
+                                              selected:
+                                                  selectedShape!.endCap ==
+                                                  LineCapStyle.none,
                                             ),
-                                          ),
-                                          child: DropdownButtonHideUnderline(
-                                            child: DropdownButton<LineCapStyle>(
-                                              value: selectedShape!.endCap,
-                                              isExpanded: true,
-                                              isDense: true,
-                                              icon: const Icon(
-                                                LucideIcons.chevronDown,
-                                                size: 14,
-                                              ),
-                                              items: [
-                                                DropdownMenuItem(
-                                                  value: LineCapStyle.none,
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        LucideIcons.minus,
-                                                        size: 14,
-                                                      ),
-                                                      SizedBox(width: 4),
-                                                      Expanded(
-                                                        child: Text(
-                                                          'None',
-                                                          style: theme
-                                                              .textTheme
-                                                              .bodySmall,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                DropdownMenuItem(
-                                                  value: LineCapStyle.arrow,
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        LucideIcons.arrowRight,
-                                                        size: 14,
-                                                      ),
-                                                      SizedBox(width: 4),
-                                                      Expanded(
-                                                        child: Text(
-                                                          'Arrow',
-                                                          style: theme
-                                                              .textTheme
-                                                              .bodySmall,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                DropdownMenuItem(
-                                                  value: LineCapStyle.circle,
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        LucideIcons.circle,
-                                                        size: 14,
-                                                      ),
-                                                      SizedBox(width: 4),
-                                                      Expanded(
-                                                        child: Text(
-                                                          'Circle',
-                                                          style: theme
-                                                              .textTheme
-                                                              .bodySmall,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                DropdownMenuItem(
-                                                  value: LineCapStyle.square,
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        LucideIcons.square,
-                                                        size: 14,
-                                                      ),
-                                                      SizedBox(width: 4),
-                                                      Expanded(
-                                                        child: Text(
-                                                          'Square',
-                                                          style: theme
-                                                              .textTheme
-                                                              .bodySmall,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ],
-                                              onChanged: (val) {
-                                                if (val != null) {
-                                                  onShapeChanged(
-                                                    selectedShape!.copyWith(
-                                                      endCap: val,
-                                                    ),
-                                                  );
-                                                }
-                                              },
+                                            M3EDropdownItem<LineCapStyle>(
+                                              value: LineCapStyle.arrow,
+                                              label: 'Arrow',
+                                              selected:
+                                                  selectedShape!.endCap ==
+                                                  LineCapStyle.arrow,
                                             ),
-                                          ),
+                                            M3EDropdownItem<LineCapStyle>(
+                                              value: LineCapStyle.circle,
+                                              label: 'Circle',
+                                              selected:
+                                                  selectedShape!.endCap ==
+                                                  LineCapStyle.circle,
+                                            ),
+                                            M3EDropdownItem<LineCapStyle>(
+                                              value: LineCapStyle.square,
+                                              label: 'Square',
+                                              selected:
+                                                  selectedShape!.endCap ==
+                                                  LineCapStyle.square,
+                                            ),
+                                          ],
+                                          onSelected: (val) {
+                                            final updated = selectedShape!
+                                                .copyWith(endCap: val);
+                                            onShapeChanged(updated);
+                                            onShapeChangeEnd?.call(updated);
+                                          },
                                         ),
                                       ],
                                     ),
@@ -4387,9 +4210,7 @@ class PropertiesSidebar extends StatelessWidget {
       child: InkWell(
         onTap: () {
           FocusManager.instance.primaryFocus?.unfocus();
-          final updated = selectedShape!.copyWith(
-            cornerSmoothing: value,
-          );
+          final updated = selectedShape!.copyWith(cornerSmoothing: value);
           onShapeChanged(updated);
           onShapeChangeEnd?.call(updated);
         },
@@ -4588,6 +4409,97 @@ class _CanvasHexInputFieldState extends State<_CanvasHexInputField> {
   }
 }
 
+Widget _buildM3EStyledDropdown<T>({
+  Key? key,
+  required List<M3EDropdownItem<T>> items,
+  required String hintText,
+  required ValueChanged<T> onSelected,
+  bool searchEnabled = false,
+  String searchHint = 'Search…',
+}) {
+  return M3EDropdownMenu<T>(
+    key: key,
+    items: items,
+    singleSelect: true,
+    searchEnabled: searchEnabled,
+    showChipAnimation: false,
+    enabled: true,
+    containerRadius: 100.0,
+    haptic: M3EHapticFeedback.light,
+    openMotion: M3EMotion.custom(stiffness: 500.0, damping: 0.8),
+    closeMotion: M3EMotion.custom(stiffness: 500.0, damping: 0.8),
+    fieldStyle: M3EDropdownFieldStyle(
+      hintText: hintText,
+      showClearIcon: false,
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 7.0),
+      margin: EdgeInsets.zero,
+      borderRadius: BorderRadius.circular(100.0),
+      selectedBorderRadius: 100.0,
+      hoverRadius: 100.0,
+      pressedRadius: 100.0,
+      selectedTextStyle: const TextStyle(
+        fontSize: 12.0,
+        fontWeight: FontWeight.w500,
+      ),
+      hintStyle: const TextStyle(fontSize: 12.0),
+      pressedScale: 0.98,
+    ),
+    dropdownStyle: const M3EDropdownStyle(
+      elevation: 3.0,
+      maxHeight: 280.0,
+      marginTop: 4.0,
+      expandDirection: ExpandDirection.auto,
+      contentPadding: EdgeInsets.all(6.0),
+      containerRadius: 18.0,
+    ),
+    searchStyle: M3ESearchStyle(
+      hintText: searchHint,
+      filled: true,
+      autofocus: false,
+      showClearIcon: true,
+      searchDebounceMs: 0,
+      borderRadius: BorderRadius.circular(100.0),
+      textStyle: const TextStyle(fontSize: 12.0),
+      margin: EdgeInsets.only(top: 6.0, left: 6.0, right: 6.0),
+
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 4.0,
+        vertical: 2.0,
+      ),
+      mouseCursor: SystemMouseCursors.text,
+    ),
+    chipStyle: M3EChipStyle(
+      borderRadius: BorderRadius.circular(100.0),
+      spacing: 4.0,
+      runSpacing: 4.0,
+      wrap: true,
+      maxDisplayCount: 3,
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
+      openMotion: M3EMotion.custom(stiffness: 500.0, damping: 0.8),
+      closeMotion: M3EMotion.custom(stiffness: 500.0, damping: 0.8),
+      pressedScale: 0.98,
+    ),
+    itemStyle: const M3EDropdownItemStyle(
+      outerRadius: 12.0,
+      innerRadius: 6.0,
+      hoverRadius: 10.0,
+      pressedRadius: 6.0,
+      itemGap: 2.0,
+      itemPadding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 7.0),
+      textStyle: TextStyle(fontSize: 12.0),
+      selectedTextStyle: TextStyle(fontSize: 12.0, fontWeight: FontWeight.w600),
+      pressedScale: 0.98,
+      selectedIcon: Icon(Icons.check_rounded, size: 16.0),
+    ),
+    closeOnBackButton: false,
+    onSelectionChanged: (selectedItems) {
+      if (selectedItems.isNotEmpty) {
+        onSelected(selectedItems.first.value);
+      }
+    },
+  );
+}
+
 class _FontDropdown extends StatelessWidget {
   final VectorShape selectedShape;
   final ValueChanged<VectorShape> onShapeChanged;
@@ -4615,40 +4527,25 @@ class _FontDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return DropdownMenu<String>(
-          width: constraints.maxWidth,
-          initialSelection: selectedShape.fontFamily,
-          enableSearch: true,
-          enableFilter: true,
-          requestFocusOnTap: false,
-          textStyle: Theme.of(context).textTheme.bodyMedium,
-          inputDecorationTheme: InputDecorationTheme(
-            isDense: true,
-            filled: true,
-            fillColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 8,
-            ),
-          ),
-          dropdownMenuEntries: _allFonts.map((font) {
-            return DropdownMenuEntry<String>(value: font, label: font);
-          }).toList(),
-          onSelected: (newValue) {
-            FocusManager.instance.primaryFocus?.unfocus();
-            if (newValue != null && newValue != selectedShape.fontFamily) {
-              final updated = selectedShape.copyWith(fontFamily: newValue);
-              onShapeChanged(updated);
-              onShapeChangeEnd?.call(updated);
-            }
-          },
+    return _buildM3EStyledDropdown<String>(
+      key: ValueKey('font_${selectedShape.id}_${selectedShape.fontFamily}'),
+      hintText: selectedShape.fontFamily,
+      searchEnabled: true,
+      searchHint: 'Search fonts…',
+
+      items: _allFonts.map((font) {
+        return M3EDropdownItem<String>(
+          value: font,
+          label: font,
+          selected: font == selectedShape.fontFamily,
         );
+      }).toList(),
+      onSelected: (newValue) {
+        if (newValue != selectedShape.fontFamily) {
+          final updated = selectedShape.copyWith(fontFamily: newValue);
+          onShapeChanged(updated);
+          onShapeChangeEnd?.call(updated);
+        }
       },
     );
   }
@@ -4676,45 +4573,33 @@ class _FontWeightDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return DropdownMenu<FontWeight>(
-          width: constraints.maxWidth,
-          initialSelection: selectedShape.fontWeight,
-          requestFocusOnTap: false,
-          textStyle: Theme.of(context).textTheme.bodyMedium,
-          inputDecorationTheme: InputDecorationTheme(
-            isDense: true,
-            filled: true,
-            fillColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 8,
-            ),
-          ),
-          dropdownMenuEntries: _weights.map((entry) {
-            return DropdownMenuEntry<FontWeight>(
-              value: entry.$1,
-              label: entry.$2,
-            );
-          }).toList(),
-          onSelected: (newValue) {
-            FocusManager.instance.primaryFocus?.unfocus();
-            if (newValue != null && newValue != selectedShape.fontWeight) {
-              final isBold = newValue.value >= FontWeight.w700.value;
-              final updated = selectedShape.copyWith(
-                fontWeight: newValue,
-                isBold: isBold,
-              );
-              onShapeChanged(updated);
-              onShapeChangeEnd?.call(updated);
-            }
-          },
+    final currentWeightName = _weights
+        .firstWhere(
+          (w) => w.$1 == selectedShape.fontWeight,
+          orElse: () => (FontWeight.w400, 'Regular'),
+        )
+        .$2;
+
+    return _buildM3EStyledDropdown<FontWeight>(
+      key: ValueKey('weight_${selectedShape.id}_${selectedShape.fontWeight}'),
+      hintText: currentWeightName,
+      items: _weights.map((entry) {
+        return M3EDropdownItem<FontWeight>(
+          value: entry.$1,
+          label: entry.$2,
+          selected: entry.$1 == selectedShape.fontWeight,
         );
+      }).toList(),
+      onSelected: (newValue) {
+        if (newValue != selectedShape.fontWeight) {
+          final isBold = newValue.value >= FontWeight.w700.value;
+          final updated = selectedShape.copyWith(
+            fontWeight: newValue,
+            isBold: isBold,
+          );
+          onShapeChanged(updated);
+          onShapeChangeEnd?.call(updated);
+        }
       },
     );
   }
