@@ -164,7 +164,6 @@ class _ZenityMissingFallbackDialogState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
 
     final homeDir = io.Platform.environment['HOME'] ?? '';
     final shortcuts = <String, String>{
@@ -175,13 +174,11 @@ class _ZenityMissingFallbackDialogState
     };
 
     return Dialog(
+      elevation: 0,
       backgroundColor: colorScheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: colorScheme.outlineVariant.withValues(alpha: isDark ? 0.4 : 0.25),
-          width: 1,
-        ),
+        side: BorderSide.none,
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 580, maxHeight: 680),
@@ -243,10 +240,6 @@ class _ZenityMissingFallbackDialogState
                 decoration: BoxDecoration(
                   color: colorScheme.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                    width: 1,
-                  ),
                 ),
                 child: Row(
                   children: [
@@ -350,16 +343,12 @@ class _ZenityMissingFallbackDialogState
                   decoration: BoxDecoration(
                     color: colorScheme.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: colorScheme.outlineVariant.withValues(alpha: 0.25),
-                      width: 1,
-                    ),
                   ),
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: _filesInDirectory.length,
                     separatorBuilder: (context, index) =>
-                        Divider(height: 1, color: colorScheme.outlineVariant.withValues(alpha: 0.2)),
+                        const SizedBox(height: 1),
                     itemBuilder: (context, index) {
                       final item = _filesInDirectory[index];
                       final name = item.path.split('/').last;

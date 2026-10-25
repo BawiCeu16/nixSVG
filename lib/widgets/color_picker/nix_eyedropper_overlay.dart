@@ -326,19 +326,6 @@ class _EyedropperOverlayWidgetState extends State<_EyedropperOverlayWidget>
                         alpha: 0.96,
                       ),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: colorScheme.outlineVariant.withValues(
-                          alpha: 0.5,
-                        ),
-                        width: 1.0,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.22),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -385,14 +372,6 @@ class _EyedropperOverlayWidgetState extends State<_EyedropperOverlayWidget>
                               color: Colors.white,
                               width: 3.5,
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.45),
-                                blurRadius: 18,
-                                spreadRadius: 2,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
                           ),
                           child: ClipOval(
                             child: Stack(
@@ -440,17 +419,6 @@ class _EyedropperOverlayWidgetState extends State<_EyedropperOverlayWidget>
                           decoration: BoxDecoration(
                             color: Colors.black.withValues(alpha: 0.90),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.25),
-                              width: 0.9,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.38),
-                                blurRadius: 10,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -462,10 +430,6 @@ class _EyedropperOverlayWidgetState extends State<_EyedropperOverlayWidget>
                                 decoration: BoxDecoration(
                                   color: _hoverColor,
                                   borderRadius: BorderRadius.circular(3),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.5),
-                                    width: 1,
-                                  ),
                                 ),
                               ),
                               const SizedBox(width: 8),

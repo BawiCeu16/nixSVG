@@ -70,7 +70,6 @@ Future<void> showFigmaContextMenu({
   Future.microtask(() => _isMenuOpening = false);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
 
     final overlay = Overlay.maybeOf(context)?.context.findRenderObject() as RenderBox? ??
         Navigator.maybeOf(context)?.overlay?.context.findRenderObject() as RenderBox?;
@@ -107,17 +106,12 @@ Future<void> showFigmaContextMenu({
       context: context,
       position: relativeRect,
       items: popupItems,
-      elevation: 8,
-      shadowColor: Colors.black.withValues(alpha: 0.35),
+      elevation: 0,
+      shadowColor: Colors.transparent,
       color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.96),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
-        side: BorderSide(
-          color: colorScheme.outlineVariant.withValues(
-            alpha: isDark ? 0.35 : 0.45,
-          ),
-          width: 1.0,
-        ),
+        side: BorderSide.none,
       ),
     );
 
@@ -239,11 +233,10 @@ class _FigmaMenuDivider extends PopupMenuEntry<Never> {
 class _FigmaMenuDividerState extends State<_FigmaMenuDivider> {
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 3, horizontal: 4),
       height: 1,
-      color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+      color: Colors.transparent,
     );
   }
 }

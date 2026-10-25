@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:m3e_buttons/m3e_buttons.dart';
-import 'package:m3e_card_list/m3e_card_list.dart';
+import 'package:m3e_segmented_list/m3e_segmented_list.dart';
 import 'package:nixsvg/controllers/theme_controller.dart';
 import 'package:nixsvg/providers/app_settings_provider.dart';
 import 'package:nixsvg/providers/project_provider.dart';
-import 'package:nixsvg/theme/physics/m3e_physics_spring.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nixsvg/widgets/color_picker/nix_color_picker_presenter.dart';
 import 'package:nixsvg/widgets/nix_slider.dart';
@@ -238,46 +237,29 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     bool isWide,
     bool isCompact,
   ) {
-    final theme = Theme.of(context);
     return Container(
-      height: 46,
-      padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 12),
+      height: 55,
+      padding: EdgeInsets.symmetric(horizontal: isCompact ? 4 : 8),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainer.withValues(
           alpha: isDark ? 0.75 : 0.88,
         ),
-        border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.4),
-            width: 0.8,
-          ),
-        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.max,
+
         children: [
-          // Material 3 Expressive Close Button with physics spring feedback
-          M3PhysicsPressable(
+          // Standard Material 3 Close Button
+          IconButton(
             tooltip: 'Close Settings (Esc)',
-            onTap: () => Navigator.of(context).pop(),
-            child: Container(
-              padding: EdgeInsets.all(isCompact ? 4 : 5),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHigh,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.35),
-                  width: 1.0,
-                ),
-              ),
-              child: Icon(
-                RemixIcons.close_line,
-                size: isCompact ? 14 : 16,
-                color: colorScheme.onSurface,
-              ),
+            icon: Icon(
+              RemixIcons.close_line,
+              size: isCompact ? 16 : 18,
+              color: colorScheme.onSurface,
             ),
+            onPressed: () => Navigator.of(context).pop(),
           ),
-          SizedBox(width: isCompact ? 6 : 10),
+          SizedBox(width: isCompact ? 4 : 6),
 
           // Title with app badge
           if (!isCompact) ...[
@@ -300,9 +282,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
           // Search Field using Flutter native SearchBar
           Flexible(
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: isCompact ? 180 : 420),
+              constraints: BoxConstraints(maxWidth: isCompact ? 250 : 550),
               child: SizedBox(
-                height: 30,
+                height: 40,
                 child: SearchBar(
                   controller: _searchController,
                   hintText: isCompact
@@ -321,15 +303,15 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                   ),
                   leading: Icon(
                     RemixIcons.search_line,
-                    size: 14,
+                    size: 16,
                     color: colorScheme.onSurfaceVariant,
                   ),
                   trailing: [
                     if (_searchQuery.isNotEmpty)
                       IconButton(
                         icon: Icon(
-                          RemixIcons.close_circle_line,
-                          size: 14,
+                          RemixIcons.close_line,
+                          size: 16,
                           color: colorScheme.onSurfaceVariant,
                         ),
                         onPressed: () => _searchController.clear(),
@@ -339,57 +321,15 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                   backgroundColor: WidgetStatePropertyAll(
                     colorScheme.surfaceContainerHigh,
                   ),
-                  shape: WidgetStatePropertyAll(
-                    RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: BorderSide(
-                        color: colorScheme.outlineVariant.withValues(
-                          alpha: 0.35,
-                        ),
-                        width: 1.0,
-                      ),
-                    ),
-                  ),
                   padding: WidgetStatePropertyAll(
-                    EdgeInsets.symmetric(horizontal: isCompact ? 6 : 10),
+                    EdgeInsets.symmetric(horizontal: isCompact ? 8 : 12),
                   ),
                 ),
               ),
             ),
           ),
 
-          SizedBox(width: isCompact ? 6 : 16),
-
-          // Reset Defaults Button
-          if (!isCompact)
-            M3EButton.icon(
-              onPressed: () => _confirmResetDefaults(context, notifier),
-              style: M3EButtonStyle.text,
-              size: M3EButtonSize.sm,
-              icon: Icon(
-                RemixIcons.restart_line,
-                size: 15,
-                color: colorScheme.error,
-              ),
-              label: Text(
-                'Reset Defaults',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: colorScheme.error,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            )
-          else
-            IconButton(
-              tooltip: 'Reset Defaults',
-              icon: Icon(
-                RemixIcons.restart_line,
-                size: 16,
-                color: colorScheme.error,
-              ),
-              onPressed: () => _confirmResetDefaults(context, notifier),
-            ),
-          SizedBox(width: isCompact ? 4 : 8),
+          Spacer(),
 
           // Done Button
           M3EButton(
@@ -451,12 +391,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                               )
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: isSelected
-                              ? colorScheme.primary.withValues(alpha: 0.3)
-                              : Colors.transparent,
-                          width: 0.8,
-                        ),
                       ),
                       child: Row(
                         children: [
@@ -706,14 +640,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                                   : Colors.transparent,
                               width: 2.2,
                             ),
-                            boxShadow: [
-                              if (isSelected)
-                                BoxShadow(
-                                  color: col.withValues(alpha: 0.6),
-                                  blurRadius: 8,
-                                  spreadRadius: 1,
-                                ),
-                            ],
                           ),
                         ),
                       ),
@@ -1107,8 +1033,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               icon: LucideIcons.squircle,
               colorScheme: colorScheme,
               title: 'Default Corner Smoothing (Squircle)',
-              subtitle:
-                  'Continuous curvature smoothing for rounded rectangles (0% round, 60% iOS squircle, 100% max)',
+              subtitle: 'Continuous curvature smoothing for rounded rectangles (0% round, 60% iOS squircle, 100% max)',
               trailing: SizedBox(
                 width: 230,
                 child: Row(
@@ -1212,18 +1137,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                   'Pixel density multiplier for PNG/raster snapshots (${settings.exportScale.toInt()}x Retina)',
               trailing: SegmentedButton<double>(
                 segments: const [
-                  ButtonSegment(
-                    value: 1.0,
-                    label: Text('1x'),
-                  ),
-                  ButtonSegment(
-                    value: 2.0,
-                    label: Text('2x'),
-                  ),
-                  ButtonSegment(
-                    value: 3.0,
-                    label: Text('3x'),
-                  ),
+                  ButtonSegment(value: 1.0, label: Text('1x')),
+                  ButtonSegment(value: 2.0, label: Text('2x')),
+                  ButtonSegment(value: 3.0, label: Text('3x')),
                 ],
                 selected: {settings.exportScale},
                 onSelectionChanged: (set) => notifier.setExportScale(set.first),
@@ -1348,13 +1264,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: colorScheme.primary.withValues(alpha: 0.35),
-                          blurRadius: 14,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
                     ),
                     child: const Icon(
                       RemixIcons.shapes_line,
@@ -1559,19 +1468,37 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final validChildren = children.where((c) => c is! Divider).toList();
 
-    return M3ECardColumn(
+    final positionedChildren = List<Widget>.generate(validChildren.length, (
+      index,
+    ) {
+      final position = calculateSegmentedItemPosition(
+        index,
+        validChildren.length,
+      );
+      final radius = calculateSegmentedItemRadius(
+        position: position,
+        outerRadius: 16.0,
+        innerRadius: 5.0,
+      );
+      return _SegmentedItemRadiusScope(
+        radius: radius,
+        child: validChildren[index],
+      );
+    });
+
+    return M3ESegmentedColumn(
       outerRadius: 16.0,
-      innerRadius: 4.0,
+      innerRadius: 5.0,
       gap: 3.0,
       color: colorScheme.surfaceContainerHigh.withValues(
         alpha: isDark ? 0.7 : 0.9,
       ),
-      border: BorderSide(
-        color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-        width: 0.8,
+      hoverColor: colorScheme.surfaceContainerHigh.withValues(
+        alpha: isDark ? 0.7 : 0.9,
       ),
+      border: BorderSide.none,
       padding: EdgeInsets.zero,
-      children: validChildren,
+      children: positionedChildren,
     );
   }
 
@@ -1586,7 +1513,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       builder: (context, constraints) {
         final theme = Theme.of(context);
         final isNarrow = constraints.maxWidth < 460;
-        final isSwitchOnly = trailing is Switch || trailing is M3ESwitch || trailing is Checkbox;
+        final isSwitchOnly =
+            trailing is Switch || trailing is M3ESwitch || trailing is Checkbox;
 
         VoidCallback? onTileTap;
         if (trailing is M3ESwitch) {
@@ -1604,9 +1532,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         final iconContainer = Container(
           padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest.withValues(
-              alpha: 0.8,
-            ),
+            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.8),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, size: 16, color: colorScheme.primary),
@@ -1696,9 +1622,19 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         }
 
         if (onTileTap != null) {
-          return InkWell(
-            onTap: onTileTap,
-            child: content,
+          final splashRadius =
+              _SegmentedItemRadiusScope.of(context) ??
+              BorderRadius.circular(24.0);
+          return ClipRRect(
+            borderRadius: splashRadius,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onTileTap,
+                borderRadius: splashRadius,
+                child: content,
+              ),
+            ),
           );
         }
 
@@ -1774,4 +1710,20 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       ),
     );
   }
+}
+
+class _SegmentedItemRadiusScope extends InheritedWidget {
+  final BorderRadius radius;
+
+  const _SegmentedItemRadiusScope({required this.radius, required super.child});
+
+  static BorderRadius? of(BuildContext context) {
+    return context
+        .dependOnInheritedWidgetOfExactType<_SegmentedItemRadiusScope>()
+        ?.radius;
+  }
+
+  @override
+  bool updateShouldNotify(_SegmentedItemRadiusScope oldWidget) =>
+      radius != oldWidget.radius;
 }

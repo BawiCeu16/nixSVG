@@ -26,7 +26,7 @@ void main() {
       matching: find.byWidgetPredicate((widget) {
         if (widget is Container && widget.decoration is BoxDecoration) {
           final box = widget.decoration as BoxDecoration;
-          return box.border != null && box.boxShadow != null;
+          return box.color != null;
         }
         return false;
       }),

@@ -49,12 +49,7 @@ class AppButtonsTheme {
         shadowColor: Colors.transparent,
         foregroundColor: scheme.primary,
         disabledForegroundColor: scheme.onSurface.withValues(alpha: 0.38),
-        side: BorderSide(
-          color: scheme.outlineVariant.withValues(
-            alpha: scheme.brightness == Brightness.dark ? 0.8 : 0.4,
-          ),
-          width: scheme.brightness == Brightness.dark ? 1.2 : 1.0,
-        ),
+        side: BorderSide.none,
         textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
       ),
     );

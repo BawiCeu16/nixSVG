@@ -3938,10 +3938,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
                                       );
                                     },
                                     child: Material(
-                                      elevation: 12,
-                                      shadowColor: Colors.black.withValues(
-                                        alpha: 0.35,
-                                      ),
+                                      elevation: 0,
+                                      shadowColor: Colors.transparent,
                                       color: colorScheme.surfaceContainer,
                                       borderRadius:
                                           const BorderRadius.horizontal(
@@ -4050,10 +4048,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
                                       );
                                     },
                                     child: Material(
-                                      elevation: 12,
-                                      shadowColor: Colors.black.withValues(
-                                        alpha: 0.35,
-                                      ),
+                                      elevation: 0,
+                                      shadowColor: Colors.transparent,
                                       color: colorScheme.surfaceContainer,
                                       borderRadius:
                                           const BorderRadius.horizontal(
@@ -4207,8 +4203,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
                                   right: 0,
                                   child: Center(
                                     child: Material(
-                                      elevation: 6,
-                                      shadowColor: Colors.black38,
+                                      elevation: 0,
+                                      shadowColor: Colors.transparent,
                                       borderRadius: BorderRadius.circular(28),
                                       color: Theme.of(context)
                                           .colorScheme
@@ -4221,13 +4217,6 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
                                         decoration: BoxDecoration(
                                           borderRadius:
                                               BorderRadius.circular(28),
-                                          border: Border.all(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .primary
-                                                .withValues(alpha: 0.35),
-                                            width: 1.2,
-                                          ),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,

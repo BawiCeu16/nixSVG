@@ -10,7 +10,7 @@ class AppCardsAndChipsTheme {
       color: scheme.brightness == Brightness.dark
           ? scheme.surfaceContainer
           : scheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
     );
   }
 
@@ -29,12 +29,7 @@ class AppCardsAndChipsTheme {
       secondaryLabelStyle: textTheme.labelMedium?.copyWith(
         color: scheme.onPrimary,
       ),
-      side: BorderSide(
-        color: scheme.outlineVariant.withValues(
-          alpha: scheme.brightness == Brightness.dark ? 0.5 : 0.3,
-        ),
-        width: 1,
-      ),
+      side: BorderSide.none,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     );
   }

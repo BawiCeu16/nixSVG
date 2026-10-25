@@ -121,7 +121,11 @@ class _ExportDialogState extends State<ExportDialog> {
               color: colorScheme.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(RemixIcons.code_line, color: colorScheme.primary, size: 18),
+            child: Icon(
+              RemixIcons.code_line,
+              color: colorScheme.primary,
+              size: 18,
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -197,8 +201,12 @@ class _ExportDialogState extends State<ExportDialog> {
                       equalWidth: true,
                       gap: 2.0,
                       decoration: M3ESegmentedListDecoration(
-                        outerRadius: 10.0,
-                        innerRadius: 4.0,
+                        outerRadius: 8.0,
+                        innerRadius: 8.0,
+                        pressedRadius: 8.0,
+                        pressedScale: 1.0,
+                        border: BorderSide.none,
+                        elevation: 0.0,
                         gap: 2.0,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 4,
@@ -216,12 +224,11 @@ class _ExportDialogState extends State<ExportDialog> {
                                   style: theme.textTheme.labelSmall?.copyWith(
                                     fontWeight:
                                         _scope == SvgExportScope.selection
-                                            ? FontWeight.bold
-                                            : FontWeight.normal,
-                                    color:
-                                        _scope == SvgExportScope.selection
-                                            ? colorScheme.primary
-                                            : colorScheme.onSurfaceVariant,
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                    color: _scope == SvgExportScope.selection
+                                        ? colorScheme.primary
+                                        : colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ),
@@ -300,13 +307,7 @@ class _ExportDialogState extends State<ExportDialog> {
                     ),
                     decoration: BoxDecoration(
                       color: colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: colorScheme.outlineVariant.withValues(
-                          alpha: 0.3,
-                        ),
-                        width: 0.8,
-                      ),
+                      borderRadius: BorderRadius.circular(100.0),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -336,13 +337,7 @@ class _ExportDialogState extends State<ExportDialog> {
                     ),
                     decoration: BoxDecoration(
                       color: colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: colorScheme.outlineVariant.withValues(
-                          alpha: 0.3,
-                        ),
-                        width: 0.8,
-                      ),
+                      borderRadius: BorderRadius.circular(100.0),
                     ),
                     child: Text(
                       'ViewBox: ${scopeRect.left.round()} ${scopeRect.top.round()} ${scopeRect.width.round()} ${scopeRect.height.round()}',
@@ -379,8 +374,8 @@ class _ExportDialogState extends State<ExportDialog> {
                               style: theme.textTheme.labelSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: isSelected
-                                  ? colorScheme.onPrimary
-                                  : colorScheme.onSurfaceVariant,
+                                    ? colorScheme.onPrimary
+                                    : colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ),
@@ -400,12 +395,6 @@ class _ExportDialogState extends State<ExportDialog> {
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainerLowest,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: colorScheme.outlineVariant.withValues(
-                    alpha: isDark ? 0.3 : 0.2,
-                  ),
-                  width: 0.8,
-                ),
               ),
               child: SingleChildScrollView(
                 child: SelectableText(

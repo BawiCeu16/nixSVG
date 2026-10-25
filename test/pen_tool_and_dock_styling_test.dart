@@ -245,9 +245,9 @@ void main() {
       expect(segmentedListFinder, findsOneWidget);
 
       final segmentedList = tester.widget<M3ESegmentedList>(segmentedListFinder);
-      expect(segmentedList.selectedRadius, equals(12.0));
-      expect(segmentedList.selectedBorderRadius, equals(BorderRadius.circular(12.0)));
-      expect(segmentedList.decoration?.selectedRadius, equals(12.0));
+      expect(segmentedList.selectedRadius, equals(10.0));
+      expect(segmentedList.selectedBorderRadius, equals(BorderRadius.circular(10.0)));
+      expect(segmentedList.decoration?.selectedRadius, equals(10.0));
 
       // Verify parent container background card
       final parentContainer = tester.widget<Container>(
@@ -259,7 +259,6 @@ void main() {
       final box = parentContainer.decoration as BoxDecoration?;
       expect(box, isNotNull);
       expect(box!.color, isNotNull);
-      expect(box.boxShadow, isNotNull);
       expect(box.borderRadius, equals(BorderRadius.circular(14)));
 
       // Simulate mouse hover over an item

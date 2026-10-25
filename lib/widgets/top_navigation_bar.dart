@@ -78,23 +78,12 @@ class TopNavigationBar extends ConsumerWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
-    final isDark = themeState.isDarkMode;
     final barHeight = ResponsiveLayoutTokens.getTopBarHeight(context);
 
     return Container(
       width: double.infinity,
       height: barHeight,
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainer,
-        border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outlineVariant.withValues(
-              alpha: isDark ? 0.25 : 0.35,
-            ),
-            width: 1.0,
-          ),
-        ),
-      ),
+      decoration: BoxDecoration(color: colorScheme.surfaceContainer),
       child: LayoutBuilder(
         builder: (context, constraints) {
           return SingleChildScrollView(
@@ -125,46 +114,47 @@ class TopNavigationBar extends ConsumerWidget {
                             : 'nixSVG Vector Studio',
                         onTap: onGoToHome,
                         child: Container(
+                          height: 35,
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 3,
+                            horizontal: 8,
+                            vertical: 6,
                           ),
                           decoration: BoxDecoration(
                             color: colorScheme.surfaceContainerHigh,
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(100.0),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Container(
-                                width: 22,
-                                height: 22,
+                                width: 27,
+                                height: 27,
                                 decoration: BoxDecoration(
                                   color: colorScheme.primary,
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(100.0),
                                 ),
                                 alignment: Alignment.center,
                                 child: Icon(
                                   RemixIcons.shapes_line,
                                   color: colorScheme.onPrimary,
-                                  size: 13,
+                                  size: 15,
                                 ),
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 7),
                               Text(
                                 'nixSVG',
                                 style: textTheme.titleSmall?.copyWith(
                                   color: colorScheme.onSurface,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 0.3,
-                                  fontSize: 12.5,
+                                  fontSize: 13.5,
                                 ),
                               ),
                               if (onGoToHome != null) ...[
                                 const SizedBox(width: 4),
                                 Icon(
                                   RemixIcons.home_4_line,
-                                  size: 13,
+                                  size: 15,
                                   color: colorScheme.primary,
                                 ),
                               ],
@@ -228,14 +218,10 @@ class TopNavigationBar extends ConsumerWidget {
                             tooltip: 'Boolean Vector Operations',
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
-                              side: BorderSide(
-                                color: colorScheme.outlineVariant.withValues(
-                                  alpha: 0.35,
-                                ),
-                              ),
+                              side: BorderSide.none,
                             ),
                             color: colorScheme.surfaceContainerHigh,
-                            elevation: 3,
+                            elevation: 0,
                             onSelected: onBooleanOperation,
                             itemBuilder: (context) => [
                               PopupMenuItem(
@@ -297,28 +283,28 @@ class TopNavigationBar extends ConsumerWidget {
                             ],
                             child: _M3EPillContainer(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 5,
+                                horizontal: 10,
+                                vertical: 6,
                               ),
                               children: [
                                 Icon(
                                   RemixIcons.shape_line,
-                                  size: 14,
+                                  size: 16,
                                   color: colorScheme.primary,
                                 ),
-                                const SizedBox(width: 4),
+                                const SizedBox(width: 5),
                                 Text(
                                   'Boolean',
                                   style: textTheme.labelMedium?.copyWith(
                                     color: colorScheme.primary,
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 11.0,
+                                    fontSize: 12.0,
                                   ),
                                 ),
-                                const SizedBox(width: 2),
+                                const SizedBox(width: 3),
                                 Icon(
                                   RemixIcons.arrow_down_s_line,
-                                  size: 13,
+                                  size: 14,
                                   color: colorScheme.primary,
                                 ),
                               ],
@@ -342,18 +328,14 @@ class TopNavigationBar extends ConsumerWidget {
                               tooltip: 'Zoom Presets',
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
-                                side: BorderSide(
-                                  color: colorScheme.outlineVariant.withValues(
-                                    alpha: 0.35,
-                                  ),
-                                ),
+                                side: BorderSide.none,
                               ),
                               color: colorScheme.surfaceContainerHigh,
-                              elevation: 3,
+                              elevation: 0,
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
+                                  horizontal: 8,
+                                  vertical: 4,
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -363,6 +345,7 @@ class TopNavigationBar extends ConsumerWidget {
                                       style: textTheme.labelMedium?.copyWith(
                                         color: colorScheme.onSurface,
                                         fontWeight: FontWeight.bold,
+                                        decoration: TextDecoration.none,
                                         fontSize: 11.0,
                                         fontFeatures: const [
                                           FontFeature.tabularFigures(),
@@ -372,7 +355,7 @@ class TopNavigationBar extends ConsumerWidget {
                                     const SizedBox(width: 4),
                                     Icon(
                                       RemixIcons.arrow_down_s_line,
-                                      size: 13,
+                                      size: 14,
                                       color: colorScheme.onSurfaceVariant,
                                     ),
                                   ],
@@ -485,42 +468,16 @@ class TopNavigationBar extends ConsumerWidget {
                                 'Theme Accent: ${ThemeController.getColorName(themeState.seedColor)}',
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
-                              side: BorderSide(
-                                color: colorScheme.outlineVariant.withValues(
-                                  alpha: 0.35,
-                                ),
-                              ),
                             ),
                             color: colorScheme.surfaceContainerHigh,
+                            elevation: 0,
                             icon: SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  Icon(
-                                    RemixIcons.palette_line,
-                                    color: colorScheme.primary,
-                                    size: 16,
-                                  ),
-                                  Positioned(
-                                    right: 1,
-                                    bottom: 1,
-                                    child: Container(
-                                      width: 6,
-                                      height: 6,
-                                      decoration: BoxDecoration(
-                                        color: themeState.seedColor,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color:
-                                              colorScheme.surfaceContainerHigh,
-                                          width: 1,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                              width: 27,
+                              height: 27,
+                              child: Icon(
+                                RemixIcons.palette_line,
+                                color: colorScheme.primary,
+                                size: 18,
                               ),
                             ),
                             onSelected: (color) {
@@ -602,14 +559,13 @@ class TopNavigationBar extends ConsumerWidget {
                       const SizedBox(width: 6),
 
                       // --- Canvas Management Group ---
-                      _M3EIconButton(
-                        icon: RemixIcons.delete_bin_line,
-                        tooltip: 'Clear Canvas',
-                        enabled: true,
-                        color: colorScheme.error,
-                        onTap: onClearCanvas,
-                      ),
-
+                      // _M3EIconButton(
+                      //   icon: RemixIcons.delete_bin_line,
+                      //   tooltip: 'Clear Canvas',
+                      //   enabled: true,
+                      //   color: Colors.red,
+                      //   onTap: onClearCanvas,
+                      // ),
                       const SizedBox(width: 5),
 
                       // Import Image Button
@@ -674,7 +630,7 @@ class TopNavigationBar extends ConsumerWidget {
   static Widget _buildInnerDivider(ColorScheme colorScheme) {
     return Container(
       width: 1,
-      height: 18,
+      height: 23,
       color: colorScheme.outlineVariant.withValues(alpha: 0.35),
     );
   }
@@ -692,15 +648,13 @@ class _M3EPillContainer extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      height: 30,
-      padding: padding ?? const EdgeInsets.symmetric(horizontal: 2),
+      height: 35,
+      padding:
+          padding ?? const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(19),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.35),
-          width: 1.0,
-        ),
+
+        borderRadius: BorderRadius.circular(100.0),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -711,7 +665,7 @@ class _M3EPillContainer extends StatelessWidget {
   }
 }
 
-/// Material 3 Expressive Icon Button with spring physics.
+/// Standard Material 3 Icon Button in its default styles.
 class _M3EIconButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
@@ -729,28 +683,14 @@ class _M3EIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return M3PhysicsPressable(
+    return IconButton(
       tooltip: tooltip,
-      onTap: enabled ? onTap : null,
-      enableHoverHighlight: true,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        width: 26,
-        height: 26,
-        decoration: const BoxDecoration(
-          color: Colors.transparent,
-          shape: BoxShape.circle,
-        ),
-        alignment: Alignment.center,
-        child: Icon(
-          icon,
-          size: 15,
-          color: enabled
-              ? (color ?? colorScheme.onSurface)
-              : colorScheme.onSurface.withValues(alpha: 0.35),
-        ),
+      onPressed: enabled ? onTap : null,
+      icon: Icon(icon, size: 18, color: color),
+      style: IconButton.styleFrom(
+        minimumSize: const Size(31, 31),
+        padding: EdgeInsets.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
     );
   }
@@ -781,35 +721,29 @@ class _M3ETogglePill extends StatelessWidget {
       tooltip: tooltip,
       onTap: onTap,
       enableHoverHighlight: !selected,
-      borderRadius: BorderRadius.circular(19),
+      borderRadius: BorderRadius.circular(100.0),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.fastOutSlowIn,
-        height: 30,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        height: 35,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: selected
               ? colorScheme.primaryContainer
               : colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(19),
-          border: Border.all(
-            color: selected
-                ? colorScheme.primary.withValues(alpha: 0.5)
-                : colorScheme.outlineVariant.withValues(alpha: 0.35),
-            width: 1.0,
-          ),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              size: 14,
+              size: 16,
               color: selected
                   ? colorScheme.onPrimaryContainer
                   : colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 5),
             Text(
               label,
               style: theme.textTheme.labelMedium?.copyWith(
@@ -852,26 +786,26 @@ class _M3EPanelToggleButton extends StatelessWidget {
       tooltip: tooltip,
       onTap: onTap,
       enableHoverHighlight: !active,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(16),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.fastOutSlowIn,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
           color: active ? colorScheme.primaryContainer : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              size: 14,
+              size: 16,
               color: active
                   ? colorScheme.onPrimaryContainer
                   : colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 5),
             Text(
               label,
               style: theme.textTheme.labelMedium?.copyWith(
@@ -879,7 +813,7 @@ class _M3EPanelToggleButton extends StatelessWidget {
                     ? colorScheme.onPrimaryContainer
                     : colorScheme.onSurfaceVariant,
                 fontWeight: active ? FontWeight.bold : FontWeight.w600,
-                fontSize: 11.0,
+                fontSize: 12.0,
               ),
             ),
           ],
@@ -991,29 +925,23 @@ class _M3EDocumentCapsuleState extends State<_M3EDocumentCapsule> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.fastOutSlowIn,
-        height: 30,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        height: 35,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: _focusNode.hasFocus
-                ? colorScheme.primary
-                : colorScheme.outlineVariant.withValues(alpha: 0.35),
-            width: _focusNode.hasFocus ? 1.5 : 1.0,
-          ),
+          borderRadius: BorderRadius.circular(100.0),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               RemixIcons.file_edit_line,
-              size: 14,
+              size: 16,
               color: colorScheme.primary,
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 7),
             ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 70, maxWidth: 170),
+              constraints: const BoxConstraints(minWidth: 75, maxWidth: 180),
               child: IntrinsicWidth(
                 child: TextField(
                   controller: _controller,
@@ -1028,7 +956,7 @@ class _M3EDocumentCapsuleState extends State<_M3EDocumentCapsule> {
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurface,
                     fontWeight: FontWeight.w600,
-                    fontSize: 11.5,
+                    fontSize: 12.5,
                   ),
                   decoration: const InputDecoration(
                     isDense: true,
@@ -1039,9 +967,9 @@ class _M3EDocumentCapsuleState extends State<_M3EDocumentCapsule> {
                 ),
               ),
             ),
-            const SizedBox(width: 5),
+            const SizedBox(width: 6),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(6),
@@ -1051,7 +979,7 @@ class _M3EDocumentCapsuleState extends State<_M3EDocumentCapsule> {
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: colorScheme.onPrimaryContainer,
                   fontWeight: FontWeight.bold,
-                  fontSize: 10.0,
+                  fontSize: 10.5,
                 ),
               ),
             ),

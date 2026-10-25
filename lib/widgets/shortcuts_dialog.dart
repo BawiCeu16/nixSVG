@@ -14,12 +14,11 @@ class ShortcutsDialog extends StatelessWidget {
     final mod = isMac ? '⌘' : 'Ctrl';
 
     return AlertDialog(
+      elevation: 0,
       backgroundColor: colorScheme.surfaceContainerHigh,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(28),
-        side: BorderSide(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.4),
-        ),
+        side: BorderSide.none,
       ),
       title: Row(
         children: [
@@ -274,9 +273,6 @@ class ShortcutsDialog extends StatelessWidget {
             decoration: BoxDecoration(
               color: colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.4),
-              ),
             ),
             child: Text(
               key,

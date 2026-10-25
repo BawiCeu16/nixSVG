@@ -109,14 +109,6 @@ class PropertiesSidebar extends StatelessWidget {
             color: colorScheme.surfaceContainerLow.withValues(
               alpha: isDark ? 0.75 : 0.88,
             ),
-            border: Border(
-              left: BorderSide(
-                color: colorScheme.outlineVariant.withValues(
-                  alpha: isDark ? 0.25 : 0.35,
-                ),
-                width: 0.8,
-              ),
-            ),
           ),
           child: selectedShape == null
               ? _buildCanvasProperties(context, theme, colorScheme, isDark)
@@ -230,7 +222,7 @@ class PropertiesSidebar extends StatelessWidget {
                             gap: 1.5,
                             decoration: M3ESegmentedListDecoration(
                               outerRadius: 8.0,
-                              innerRadius: 3.0,
+                              innerRadius: 8.0,
                               gap: 1.5,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 6,
@@ -238,7 +230,7 @@ class PropertiesSidebar extends StatelessWidget {
                               ),
                               color: colorScheme.surfaceContainerHigh,
                               hoverColor: colorScheme.surfaceContainerHighest,
-                              pressedRadius: 6.0,
+                              pressedRadius: 8.0,
                               pressedScale: 1.0,
                             ),
                             children: [
@@ -286,7 +278,7 @@ class PropertiesSidebar extends StatelessWidget {
                             gap: 1.5,
                             decoration: M3ESegmentedListDecoration(
                               outerRadius: 8.0,
-                              innerRadius: 3.0,
+                              innerRadius: 8.0,
                               gap: 1.5,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 6,
@@ -294,7 +286,7 @@ class PropertiesSidebar extends StatelessWidget {
                               ),
                               color: colorScheme.surfaceContainerHigh,
                               hoverColor: colorScheme.surfaceContainerHighest,
-                              pressedRadius: 6.0,
+                              pressedRadius: 8.0,
                               pressedScale: 1.0,
                             ),
                             children: [
@@ -345,7 +337,7 @@ class PropertiesSidebar extends StatelessWidget {
                             gap: 1.5,
                             decoration: M3ESegmentedListDecoration(
                               outerRadius: 8.0,
-                              innerRadius: 3.0,
+                              innerRadius: 8.0,
                               gap: 1.5,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 6,
@@ -353,7 +345,7 @@ class PropertiesSidebar extends StatelessWidget {
                               ),
                               color: colorScheme.surfaceContainerHigh,
                               hoverColor: colorScheme.surfaceContainerHighest,
-                              pressedRadius: 6.0,
+                              pressedRadius: 8.0,
                               pressedScale: 1.0,
                             ),
                             children: [
@@ -403,7 +395,7 @@ class PropertiesSidebar extends StatelessWidget {
                               gap: 1.5,
                               decoration: M3ESegmentedListDecoration(
                                 outerRadius: 8.0,
-                                innerRadius: 3.0,
+                                innerRadius: 8.0,
                                 gap: 1.5,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 6,
@@ -411,7 +403,7 @@ class PropertiesSidebar extends StatelessWidget {
                                 ),
                                 color: colorScheme.surfaceContainerHigh,
                                 hoverColor: colorScheme.surfaceContainerHighest,
-                                pressedRadius: 6.0,
+                                pressedRadius: 8.0,
                                 pressedScale: 1.0,
                               ),
                               children: [
@@ -769,14 +761,6 @@ class PropertiesSidebar extends StatelessWidget {
                                             : colorScheme
                                                   .surfaceContainerHighest,
                                         borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color:
-                                              selectedShape!
-                                                  .hasIndependentCorners
-                                              ? colorScheme.primary
-                                              : colorScheme.outlineVariant
-                                                    .withValues(alpha: 0.5),
-                                        ),
                                       ),
                                       child: Icon(
                                         RemixIcons.corner_up_left_line,
@@ -828,13 +812,6 @@ class PropertiesSidebar extends StatelessWidget {
                                             : colorScheme
                                                   .surfaceContainerHighest,
                                         borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color:
-                                              selectedShape!.cornerSmoothing > 0
-                                              ? colorScheme.primary
-                                              : colorScheme.outlineVariant
-                                                    .withValues(alpha: 0.5),
-                                        ),
                                       ),
                                       child: Icon(
                                         LucideIcons.squircle,
@@ -942,14 +919,6 @@ class PropertiesSidebar extends StatelessWidget {
                                             borderRadius: BorderRadius.circular(
                                               8,
                                             ),
-                                            border: Border.all(
-                                              color:
-                                                  selectedShape!
-                                                      .hasIndependentCorners
-                                                  ? colorScheme.primary
-                                                  : colorScheme.outlineVariant
-                                                        .withValues(alpha: 0.5),
-                                            ),
                                           ),
                                           child: Icon(
                                             RemixIcons.corner_up_left_line,
@@ -1008,15 +977,6 @@ class PropertiesSidebar extends StatelessWidget {
                                                       .surfaceContainerHighest,
                                             borderRadius: BorderRadius.circular(
                                               8,
-                                            ),
-                                            border: Border.all(
-                                              color:
-                                                  selectedShape!
-                                                          .cornerSmoothing >
-                                                      0
-                                                  ? colorScheme.primary
-                                                  : colorScheme.outlineVariant
-                                                        .withValues(alpha: 0.5),
                                             ),
                                           ),
                                           child: Icon(
@@ -1125,11 +1085,6 @@ class PropertiesSidebar extends StatelessWidget {
                                 color: colorScheme.surfaceContainerHigh
                                     .withValues(alpha: 0.55),
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: colorScheme.outlineVariant.withValues(
-                                    alpha: 0.35,
-                                  ),
-                                ),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1672,12 +1627,6 @@ class PropertiesSidebar extends StatelessWidget {
                                                     .surfaceContainerHighest,
                                                 borderRadius:
                                                     BorderRadius.circular(8),
-                                                border: Border.all(
-                                                  color: colorScheme
-                                                      .outlineVariant
-                                                      .withValues(alpha: 0.3),
-                                                  width: 1.0,
-                                                ),
                                               ),
                                               child: Row(
                                                 children: [
@@ -1908,12 +1857,6 @@ class PropertiesSidebar extends StatelessWidget {
                                                     .surfaceContainerHighest,
                                                 borderRadius:
                                                     BorderRadius.circular(8),
-                                                border: Border.all(
-                                                  color: colorScheme
-                                                      .outlineVariant
-                                                      .withValues(alpha: 0.3),
-                                                  width: 1.0,
-                                                ),
                                               ),
                                               child: Row(
                                                 children: [
@@ -3644,7 +3587,7 @@ class PropertiesSidebar extends StatelessWidget {
                 gap: 2.0,
                 decoration: M3ESegmentedListDecoration(
                   outerRadius: 10.0,
-                  innerRadius: 4.0,
+                  innerRadius: 10.0,
                   gap: 2.0,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 2,
@@ -3652,7 +3595,7 @@ class PropertiesSidebar extends StatelessWidget {
                   ),
                   color: colorScheme.surfaceContainerHigh,
                   hoverColor: colorScheme.surfaceContainerHighest,
-                  pressedRadius: 8.0,
+                  pressedRadius: 10.0,
                   pressedScale: 1.0,
                 ),
                 children: [
@@ -3813,12 +3756,6 @@ class PropertiesSidebar extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: colorScheme.surfaceContainerHigh,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: colorScheme.outlineVariant.withValues(
-                                alpha: 0.3,
-                              ),
-                              width: 0.8,
-                            ),
                           ),
                           child: Text(
                             '${(zoomScale * 100).round()}%',
@@ -3871,7 +3808,7 @@ class PropertiesSidebar extends StatelessWidget {
                 gap: 2.0,
                 decoration: M3ESegmentedListDecoration(
                   outerRadius: 10.0,
-                  innerRadius: 4.0,
+                  innerRadius: 10.0,
                   gap: 2.0,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 4,
@@ -3980,10 +3917,6 @@ class PropertiesSidebar extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: colorScheme.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                    width: 0.8,
-                  ),
                 ),
                 child: Row(
                   children: [
@@ -4009,16 +3942,6 @@ class PropertiesSidebar extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: effectiveBg,
                           shape: BoxShape.circle,
-                          border: Border.all(
-                            color: colorScheme.outline.withValues(alpha: 0.4),
-                            width: 1.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 4,
-                            ),
-                          ],
                         ),
                       ),
                     ),
@@ -4347,12 +4270,6 @@ class PropertiesSidebar extends StatelessWidget {
                 ? colorScheme.primary.withValues(alpha: 0.16)
                 : colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: isSelected
-                  ? colorScheme.primary
-                  : colorScheme.outlineVariant.withValues(alpha: 0.35),
-              width: isSelected ? 1.2 : 0.8,
-            ),
           ),
           child: Text(
             label,
@@ -4389,12 +4306,6 @@ class PropertiesSidebar extends StatelessWidget {
               ? colorScheme.primary.withValues(alpha: 0.15)
               : colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: isSelected
-                ? colorScheme.primary
-                : colorScheme.outlineVariant.withValues(alpha: 0.3),
-            width: isSelected ? 1.2 : 0.8,
-          ),
         ),
         child: Text(
           label,
@@ -4521,16 +4432,12 @@ class _HexColorInputFieldState extends State<_HexColorInputField> {
           height: 28,
           padding: const EdgeInsets.symmetric(horizontal: 6),
           decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest,
+            color: _focusNode.hasFocus
+                ? colorScheme.primary.withValues(alpha: 0.14)
+                : (_isHovered
+                    ? colorScheme.primary.withValues(alpha: 0.08)
+                    : colorScheme.surfaceContainerHighest),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: _focusNode.hasFocus
-                  ? colorScheme.primary
-                  : (_isHovered
-                        ? colorScheme.outlineVariant.withValues(alpha: 0.6)
-                        : colorScheme.outlineVariant.withValues(alpha: 0.3)),
-              width: _focusNode.hasFocus ? 1.5 : 1.0,
-            ),
           ),
           child: Row(
             children: [
@@ -4742,10 +4649,10 @@ Widget _buildM3EStyledDropdown<T>({
         fontWeight: FontWeight.w500,
       ),
       hintStyle: const TextStyle(fontSize: 12.0),
-      pressedScale: 0.98,
+      pressedScale: 1.0,
     ),
     dropdownStyle: const M3EDropdownStyle(
-      elevation: 3.0,
+      elevation: 0.0,
       maxHeight: 280.0,
       marginTop: 4.0,
       expandDirection: ExpandDirection.auto,
@@ -4777,18 +4684,18 @@ Widget _buildM3EStyledDropdown<T>({
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
       openMotion: M3EMotion.custom(stiffness: 500.0, damping: 0.8),
       closeMotion: M3EMotion.custom(stiffness: 500.0, damping: 0.8),
-      pressedScale: 0.98,
+      pressedScale: 1.0,
     ),
     itemStyle: const M3EDropdownItemStyle(
-      outerRadius: 12.0,
-      innerRadius: 6.0,
+      outerRadius: 10.0,
+      innerRadius: 10.0,
       hoverRadius: 10.0,
-      pressedRadius: 6.0,
+      pressedRadius: 10.0,
       itemGap: 2.0,
       itemPadding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 7.0),
       textStyle: TextStyle(fontSize: 12.0),
       selectedTextStyle: TextStyle(fontSize: 12.0, fontWeight: FontWeight.w600),
-      pressedScale: 0.98,
+      pressedScale: 1.0,
       selectedIcon: SizedBox.shrink(),
     ),
     itemBuilder: itemBuilder,
@@ -5217,16 +5124,10 @@ class _NumberInputFieldState extends State<_NumberInputField> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3.5),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
+        color: (_focusNode.hasFocus || _isScrubbing)
+            ? colorScheme.primary.withValues(alpha: 0.14)
+            : colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: _isScrubbing
-              ? colorScheme.primary
-              : (_focusNode.hasFocus
-                    ? colorScheme.primary
-                    : colorScheme.outlineVariant.withValues(alpha: 0.4)),
-          width: (_focusNode.hasFocus || _isScrubbing) ? 1.5 : 1.0,
-        ),
       ),
       child: Row(
         children: [
@@ -5264,14 +5165,6 @@ class _NumberInputFieldState extends State<_NumberInputField> {
                               ? colorScheme.primary.withValues(alpha: 0.10)
                               : Colors.transparent),
                     borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                      color: _isScrubbing
-                          ? colorScheme.primary.withValues(alpha: 0.5)
-                          : (_isHovered
-                                ? colorScheme.primary.withValues(alpha: 0.25)
-                                : Colors.transparent),
-                      width: 1,
-                    ),
                   ),
                   child: Text(
                     widget.label,
@@ -5471,14 +5364,6 @@ class _ScrubbableLabelState extends State<_ScrubbableLabel> {
                         ? colorScheme.primary.withValues(alpha: 0.10)
                         : Colors.transparent),
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: _isScrubbing
-                    ? colorScheme.primary.withValues(alpha: 0.6)
-                    : (_isHovered
-                          ? colorScheme.primary.withValues(alpha: 0.25)
-                          : Colors.transparent),
-                width: 1,
-              ),
             ),
             child: Text(
               widget.label,

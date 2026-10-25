@@ -58,9 +58,9 @@ class AppTheme {
       textTheme: textTheme,
       splashFactory: NoSplash.splashFactory,
       shadowColor: Colors.transparent,
-      dividerTheme: DividerThemeData(
-        color: colorScheme.outlineVariant.withValues(alpha: isDark ? 0.3 : 0.3),
-        thickness: 1,
+      dividerTheme: const DividerThemeData(
+        color: Colors.transparent,
+        thickness: 0,
       ),
       iconTheme: IconThemeData(color: colorScheme.onSurfaceVariant, size: 20),
       primaryIconTheme: IconThemeData(color: colorScheme.primary, size: 20),

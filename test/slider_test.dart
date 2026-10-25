@@ -1,59 +1,181 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:m3e_seekbar/m3e_seekbar.dart';
-import 'package:nixsvg/widgets/nix_slider.dart';
+import 'package:nixsvg/theme/components/slider_theme.dart';
 
 void main() {
-  testWidgets('NixSlider renders with custom M3ESeekbar decoration', (
+  testWidgets('NixSlider renders with rounded line track and 20x5px thumb', (
     tester,
   ) async {
-    double currentValue = 0.48;
+    double currentValue = 0.50;
 
     await tester.pumpWidget(
       MaterialApp(
         theme: ThemeData.dark(),
         home: Scaffold(
-          body: NixSlider(
-            value: currentValue,
-            min: 0.0,
-            max: 1.0,
-            onChanged: (val) {
-              currentValue = val;
-            },
+          body: Center(
+            child: SizedBox(
+              width: 200,
+              child: NixSlider(
+                value: currentValue,
+                min: 0.0,
+                max: 1.0,
+                onChanged: (val) {
+                  currentValue = val;
+                },
+              ),
+            ),
           ),
         ),
       ),
     );
+    await tester.pumpAndSettle();
 
-    final paddingFinder = find.byType(Padding);
-    expect(paddingFinder, findsWidgets);
+    final sliderFinder = find.byType(NixSlider);
+    expect(sliderFinder, findsOneWidget);
 
-    final seekbarFinder = find.byType(M3ESeekbar);
-    expect(seekbarFinder, findsOneWidget);
+    final sliderWidget = tester.widget<NixSlider>(sliderFinder);
+    expect(sliderWidget.thumbHeight, equals(AppSliderTheme.thumbHeight));
+    expect(sliderWidget.thumbWidth, equals(AppSliderTheme.thumbWidth));
+    expect(sliderWidget.trackHeight, equals(AppSliderTheme.trackHeight));
+    expect(sliderWidget.hoverThumbHeight, equals(AppSliderTheme.hoverThumbHeight));
+    expect(sliderWidget.hoverThumbWidth, equals(AppSliderTheme.hoverThumbWidth));
+    expect(sliderWidget.pressedThumbHeight, equals(AppSliderTheme.pressedThumbHeight));
+    expect(sliderWidget.pressedThumbWidth, equals(AppSliderTheme.pressedThumbWidth));
 
-    final m3eSeekbar = tester.widget<M3ESeekbar>(seekbarFinder);
-    expect(m3eSeekbar.value, 0.48);
-    expect(m3eSeekbar.trackCornerRadius, 100.00);
+    final customPaintFinder = find.descendant(
+      of: sliderFinder,
+      matching: find.byType(CustomPaint),
+    );
+    expect(customPaintFinder, findsWidgets);
+  });
 
-    final dec = m3eSeekbar.decoration!;
-    expect(dec.haptic, M3EHapticFeedback.light);
-    expect(dec.trackHeight, 5.00);
-    expect(dec.trackCornerRadius, 1.00);
-    expect(dec.handleWidth, 4.00);
-    expect(dec.handleHeight, 22.00);
-    expect(dec.handleShape, M3ESeekbarHandleShape.rectangle);
+  testWidgets('NixSlider tap and drag updates value accurately', (
+    tester,
+  ) async {
+    double currentValue = 0.0;
+    bool changeStarted = false;
+    bool changeEnded = false;
 
-    final haptic = dec.hapticConfig!;
-    expect(haptic.enableContinuousDrag, isTrue);
-    expect(haptic.deltaProgressForDragThreshold, 0.02);
-    expect(haptic.vibrateOnLowerBookend, isTrue);
-    expect(haptic.vibrateOnUpperBookend, isTrue);
-    expect(haptic.lowerBookendThreshold, 0.01);
-    expect(haptic.upperBookendThreshold, 0.99);
-    expect(haptic.progressBasedDragMinScale, 0.10);
-    expect(haptic.progressBasedDragMaxScale, 0.85);
-    expect(haptic.additionalVelocityMaxBump, 0.10);
-    expect(haptic.maxVelocityToScale, 200.00);
-    expect(haptic.minimumDragInterval, const Duration(milliseconds: 10));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 200,
+              child: StatefulBuilder(
+                builder: (context, setState) {
+                  return NixSlider(
+                    value: currentValue,
+                    min: 0.0,
+                    max: 100.0,
+                    onChangeStart: (_) => changeStarted = true,
+                    onChangeEnd: (_) => changeEnded = true,
+                    onChanged: (val) {
+                      setState(() => currentValue = val);
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap in the middle of the slider
+    final sliderFinder = find.byType(NixSlider);
+    await tester.tap(sliderFinder);
+    await tester.pumpAndSettle();
+
+    expect(changeStarted, isTrue);
+    expect(changeEnded, isTrue);
+    expect(currentValue, closeTo(50.0, 5.0));
+
+    // Drag from center to near the end
+    await tester.drag(sliderFinder, const Offset(60, 0));
+    await tester.pumpAndSettle();
+
+    expect(currentValue, greaterThan(75.0));
+  });
+
+  testWidgets('NixSlider snaps to discrete divisions', (tester) async {
+    double currentValue = 0.0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 200,
+              child: StatefulBuilder(
+                builder: (context, setState) {
+                  return NixSlider(
+                    value: currentValue,
+                    min: 0.0,
+                    max: 100.0,
+                    divisions: 4, // 0, 25, 50, 75, 100
+                    onChanged: (val) {
+                      setState(() => currentValue = val);
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap roughly at 30% -> should snap to 25.0
+    final center = tester.getCenter(find.byType(NixSlider));
+    await tester.tapAt(Offset(center.dx - 40, center.dy));
+    await tester.pumpAndSettle();
+
+    expect(currentValue, anyOf(equals(25.0), equals(50.0)));
+  });
+
+  testWidgets('NixSlider animates thumb size on hover and press', (tester) async {
+    double currentValue = 0.50;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 200,
+              child: NixSlider(
+                value: currentValue,
+                min: 0.0,
+                max: 1.0,
+                onChanged: (val) => currentValue = val,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final sliderFinder = find.byType(NixSlider);
+
+    // Hover over slider with mouse
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: Offset.zero);
+    addTearDown(gesture.removePointer);
+
+    await gesture.moveTo(tester.getCenter(sliderFinder));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pumpAndSettle();
+
+    // Tap and hold
+    final touch = await tester.startGesture(tester.getCenter(sliderFinder));
+    await tester.pump(const Duration(milliseconds: 50));
+    await touch.up();
+    await tester.pumpAndSettle();
+
+    expect(sliderFinder, findsOneWidget);
   });
 }

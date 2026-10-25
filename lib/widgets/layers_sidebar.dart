@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:m3e_segmented_list/m3e_segmented_list.dart';
 import 'package:nixsvg/models/vector_shape.dart';
-import 'package:nixsvg/theme/physics/m3e_physics_spring.dart';
 import 'package:nixsvg/widgets/context_menu/figma_context_menu.dart';
 import 'package:nixsvg/widgets/settings_dialog.dart';
 import 'package:remixicon/remixicon.dart';
@@ -340,14 +339,6 @@ class _LayersSidebarState extends State<LayersSidebar> {
         width: widget.width ?? 270,
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerLow,
-          border: Border(
-            right: BorderSide(
-              color: colorScheme.outlineVariant.withValues(
-                alpha: isDark ? 0.35 : 0.45,
-              ),
-              width: 1.0,
-            ),
-          ),
         ),
         child: Column(
           children: [
@@ -356,14 +347,6 @@ class _LayersSidebarState extends State<LayersSidebar> {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainer,
-                border: Border(
-                  bottom: BorderSide(
-                    color: colorScheme.outlineVariant.withValues(
-                      alpha: isDark ? 0.25 : 0.35,
-                    ),
-                    width: 1.0,
-                  ),
-                ),
               ),
               child: LayoutBuilder(
                 builder: (context, headerConstraints) {
@@ -571,12 +554,12 @@ class _LayersSidebarState extends State<LayersSidebar> {
                         onTap: (index) => _handleLayerTap(index, items),
                         decoration: M3ESegmentedListDecoration(
                           outerRadius: 8.0,
-                          innerRadius: 4.0,
-                          pressedRadius: 6.0,
+                          innerRadius: 8.0,
+                          pressedRadius: 8.0,
                           pressedScale: 1.0,
                           hoveredRadius: 8.0,
                           dragRadius: 8.0,
-                          dragElevation: 3.0,
+                          dragElevation: 0.0,
                           dragScale: 1.0,
                           gap: 1.5,
                           padding: const EdgeInsets.symmetric(
@@ -631,14 +614,6 @@ class _LayersSidebarState extends State<LayersSidebar> {
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainer,
-                border: Border(
-                  top: BorderSide(
-                    color: colorScheme.outlineVariant.withValues(
-                      alpha: isDark ? 0.25 : 0.35,
-                    ),
-                    width: 1.0,
-                  ),
-                ),
               ),
               child: _M3ESettingsTile(
                 onTap: () {
@@ -865,18 +840,14 @@ class _M3EHeaderAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return M3PhysicsPressable(
+    return IconButton(
       tooltip: tooltip,
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(3.5),
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(5),
-        ),
-        child: Icon(icon, size: 14, color: colorScheme.onSurfaceVariant),
+      onPressed: onTap,
+      icon: Icon(icon, size: 14),
+      style: IconButton.styleFrom(
+        minimumSize: const Size(20, 20),
+        padding: EdgeInsets.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
     );
   }
@@ -897,12 +868,14 @@ class _M3ELayerActionBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return M3PhysicsPressable(
+    return IconButton(
       tooltip: tooltip,
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(2.5),
-        child: Icon(icon, size: 14, color: iconColor),
+      onPressed: onTap,
+      icon: Icon(icon, size: 14, color: iconColor),
+      style: IconButton.styleFrom(
+        minimumSize: const Size(18, 18),
+        padding: EdgeInsets.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
     );
   }
@@ -932,7 +905,7 @@ class _M3ESettingsTile extends StatelessWidget {
         gap: 0.0,
         color: Colors.transparent,
         hoverColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
-        pressedScale: 0.98,
+        pressedScale: 1.0,
         decoration: M3ESegmentedListDecoration(
           outerRadius: 6.0,
           innerRadius: 6.0,
@@ -942,7 +915,7 @@ class _M3ESettingsTile extends StatelessWidget {
           color: Colors.transparent,
           hoverColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
           pressedRadius: 6.0,
-          pressedScale: 0.98,
+          pressedScale: 1.0,
           border: BorderSide.none,
           elevation: 0.0,
         ),

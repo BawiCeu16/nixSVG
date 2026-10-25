@@ -550,20 +550,6 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
               height: widget.canvasSize.height,
               decoration: BoxDecoration(
                 color: effectiveCanvasBg,
-                border: Border.all(
-                  color: colorScheme.outlineVariant.withValues(
-                    alpha: isDark ? 0.35 : 0.25,
-                  ),
-                  width: 1.0,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.08),
-                    blurRadius: 24,
-                    spreadRadius: 2,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
               ),
               child: Stack(
                 clipBehavior: Clip.none,

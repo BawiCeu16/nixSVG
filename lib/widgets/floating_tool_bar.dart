@@ -609,21 +609,6 @@ class _ShapesPopupOverlayWidgetState extends State<_ShapesPopupOverlayWidget>
                     alpha: isDark ? 0.98 : 0.96,
                   ),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: colorScheme.outlineVariant.withValues(
-                      alpha: isDark ? 0.35 : 0.45,
-                    ),
-                    width: 1.0,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(
-                        alpha: isDark ? 0.45 : 0.15,
-                      ),
-                      blurRadius: 18,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
                 ),
                 padding: const EdgeInsets.all(4.0),
                 child: SingleChildScrollView(
@@ -631,9 +616,10 @@ class _ShapesPopupOverlayWidgetState extends State<_ShapesPopupOverlayWidget>
                   child: M3ESegmentedList(
                     itemCount: kShapeTools.length,
                     outerRadius: 10.0,
-                    innerRadius: 4.0,
-                    selectedRadius: 12.0,
-                    selectedBorderRadius: BorderRadius.circular(12.0),
+                    innerRadius: 10.0,
+                    selectedRadius: 10.0,
+                    selectedBorderRadius: BorderRadius.circular(10.0),
+                    pressedScale: 1.0,
                     gap: 2.0,
                     color: Colors.transparent,
                     selectedColor: colorScheme.primary.withValues(alpha: 0.14),
@@ -643,9 +629,11 @@ class _ShapesPopupOverlayWidgetState extends State<_ShapesPopupOverlayWidget>
                     ),
                     decoration: M3ESegmentedListDecoration(
                       outerRadius: 10.0,
-                      innerRadius: 4.0,
-                      selectedRadius: 12.0,
+                      innerRadius: 10.0,
+                      selectedRadius: 10.0,
                       selectedBorderRadius: BorderRadius.circular(10.0),
+                      pressedRadius: 10.0,
+                      pressedScale: 1.0,
                       gap: 2.0,
                       border: BorderSide.none,
                       selectedBorder: BorderSide.none,

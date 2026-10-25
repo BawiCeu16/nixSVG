@@ -529,18 +529,6 @@ class _NixColorPickerState extends State<NixColorPicker> {
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.28),
-                blurRadius: 28,
-                spreadRadius: 2,
-                offset: const Offset(0, 10),
-              ),
-            ],
-            border: Border.all(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.35),
-              width: 0.8,
-            ),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
@@ -857,12 +845,6 @@ class _NixColorPickerState extends State<NixColorPicker> {
                         child: Container(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(7),
-                            border: Border.all(
-                              color: colorScheme.outlineVariant.withValues(
-                                alpha: 0.6,
-                              ),
-                              width: 0.8,
-                            ),
                             gradient: LinearGradient(
                               colors: sortedForBar.map((s) => s.color).toList(),
                               stops: sortedForBar.map((s) => s.offset).toList(),
@@ -921,18 +903,6 @@ class _NixColorPickerState extends State<NixColorPicker> {
                                         : Colors.white,
                                     width: isSelected ? 3.0 : 2.0,
                                   ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: isSelected
-                                          ? colorScheme.primary.withValues(
-                                              alpha: 0.5,
-                                            )
-                                          : Colors.black.withValues(alpha: 0.35),
-                                      blurRadius: isSelected ? 6 : 4,
-                                      spreadRadius: isSelected ? 1 : 0,
-                                      offset: const Offset(0, 1.5),
-                                    ),
-                                  ],
                                 ),
                               ),
                             ),
@@ -1201,13 +1171,6 @@ class _NixColorPickerState extends State<NixColorPicker> {
                                   color: Colors.white,
                                   width: 2.5,
                                 ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.35),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
                               ),
                             ),
                           ),
@@ -1729,13 +1692,6 @@ class _NixColorPickerState extends State<NixColorPicker> {
                 color: color,
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.35),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
               ),
             ),
           ),
@@ -1767,15 +1723,6 @@ class _NixColorPickerState extends State<NixColorPicker> {
                                   : Colors.transparent)),
                   width: isHovered ? 2.5 : (isSelected ? 2.2 : 1.0),
                 ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: colorScheme.primary.withValues(alpha: 0.4),
-                          blurRadius: 6,
-                          spreadRadius: 1,
-                        ),
-                      ]
-                    : null,
               ),
             ),
           ),

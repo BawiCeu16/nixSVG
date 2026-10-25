@@ -56,7 +56,7 @@ class _SidebarResizeHandleState extends State<SidebarResizeHandle> {
                         ? colorScheme.primary
                         : _isHovered
                         ? colorScheme.primary.withValues(alpha: 0.7)
-                        : colorScheme.outlineVariant.withValues(alpha: 0.3),
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(1),
                   ),
                 ),
@@ -72,12 +72,6 @@ class _SidebarResizeHandleState extends State<SidebarResizeHandle> {
                     decoration: BoxDecoration(
                       color: colorScheme.primary,
                       borderRadius: BorderRadius.circular(2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: colorScheme.primary.withValues(alpha: 0.4),
-                          blurRadius: 4,
-                        ),
-                      ],
                     ),
                   ),
                 ),

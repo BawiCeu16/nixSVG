@@ -52,8 +52,8 @@ class M3PhysicsPressable extends StatefulWidget {
     this.onTap,
     this.onLongPress,
     this.tooltip,
-    this.pressedScale = 0.98,
-    this.hoverScale = 1.015,
+    this.pressedScale = 1.0,
+    this.hoverScale = 1.0,
     this.spring = M3PhysicsSpring.responsive,
     this.behavior = HitTestBehavior.opaque,
     this.enableHoverHighlight = false,
@@ -99,15 +99,18 @@ class _M3PhysicsPressableState extends State<M3PhysicsPressable>
   }
 
   double get _targetDelta {
-    if (_isPressed) return widget.pressedScale - 1.0;
-    if (_isHovered) return widget.hoverScale - 1.0;
+    // Zero press shrink / smaller animations
+    if (_isPressed)
+      return (widget.pressedScale > 1.0) ? widget.pressedScale - 1.0 : 0.0;
+    if (_isHovered)
+      return (widget.hoverScale > 1.0) ? widget.hoverScale - 1.0 : 0.0;
     return 0.0;
   }
 
   @override
   Widget build(BuildContext context) {
     final isInteractive = widget.onTap != null || widget.onLongPress != null;
-    final hasScale = widget.pressedScale != 1.0 || widget.hoverScale != 1.0;
+    final hasScale = widget.pressedScale > 1.0 || widget.hoverScale > 1.0;
 
     Widget content = MouseRegion(
       cursor: isInteractive
@@ -159,10 +162,11 @@ class _M3PhysicsPressableState extends State<M3PhysicsPressable>
               final colorScheme = Theme.of(context).colorScheme;
               result = DecoratedBox(
                 decoration: BoxDecoration(
-                  color: widget.hoverColor ??
+                  color:
+                      widget.hoverColor ??
                       colorScheme.onSurface.withValues(alpha: 0.08),
-                  borderRadius: widget.borderRadius ??
-                      BorderRadius.circular(8),
+                  borderRadius:
+                      widget.borderRadius ?? BorderRadius.circular(100.0),
                 ),
                 child: result,
               );
@@ -170,10 +174,7 @@ class _M3PhysicsPressableState extends State<M3PhysicsPressable>
             if (hasScale) {
               final scale = (1.0 + _controller.value).clamp(0.85, 1.25);
               if ((scale - 1.0).abs() > 0.0001) {
-                return Transform.scale(
-                  scale: scale,
-                  child: result,
-                );
+                return Transform.scale(scale: scale, child: result);
               }
             }
             return result;

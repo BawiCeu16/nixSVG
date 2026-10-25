@@ -140,7 +140,6 @@ void main() {
       // Check header bar
       expect(find.text('Settings & Preferences'), findsOneWidget);
       expect(find.byType(TextField), findsOneWidget); // Search box
-      expect(find.text('Reset Defaults'), findsOneWidget);
       expect(find.text('Done'), findsOneWidget);
 
       // Check wide-screen left navigation tabs
@@ -200,6 +199,7 @@ void main() {
 
       expect(find.text('nixSVG Studio'), findsOneWidget);
       expect(find.text('Version 1.0.0 (Material 3 Expressive & macOS Studio)'), findsOneWidget);
+      expect(find.text('Reset Defaults'), findsOneWidget);
     });
 
     testWidgets('Toggling switch updates setting in real time', (

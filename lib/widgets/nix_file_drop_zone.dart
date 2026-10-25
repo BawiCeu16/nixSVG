@@ -211,33 +211,7 @@ class _M3EDropZoneOverlayState extends State<_M3EDropZoneOverlay>
           ),
         ),
 
-        // 2. High-precision glowing perimeter guide
-        Positioned.fill(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: colorScheme.primary.withValues(alpha: 0.70),
-                  width: 2.0,
-                  strokeAlign: BorderSide.strokeAlignInside,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: colorScheme.primary.withValues(
-                      alpha: isDark ? 0.18 : 0.12,
-                    ),
-                    blurRadius: 24,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-
-        // 3. Central Translucent Glass Card (Animated scale & fade)
+        // 2. Central Translucent Card (Animated scale & fade)
         Center(
           child: AnimatedBuilder(
             animation: _controller,
@@ -271,26 +245,6 @@ class _M3EDropZoneOverlayState extends State<_M3EDropZoneOverlay>
                   ],
                 ),
                 borderRadius: BorderRadius.circular(28),
-                border: Border.all(
-                  color: colorScheme.primary.withValues(
-                    alpha: isDark ? 0.35 : 0.45,
-                  ),
-                  width: 1.2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.24 : 0.08),
-                    blurRadius: 32,
-                    offset: const Offset(0, 12),
-                  ),
-                  BoxShadow(
-                    color: colorScheme.primary.withValues(
-                      alpha: isDark ? 0.14 : 0.08,
-                    ),
-                    blurRadius: 18,
-                    spreadRadius: -2,
-                  ),
-                ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -354,12 +308,6 @@ class _M3EDropZoneOverlayState extends State<_M3EDropZoneOverlay>
                             alpha: isDark ? 0.12 : 0.08,
                           ),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: colorScheme.primary.withValues(
-                              alpha: isDark ? 0.28 : 0.32,
-                            ),
-                            width: 0.8,
-                          ),
                         ),
                         child: Text(
                           badge,

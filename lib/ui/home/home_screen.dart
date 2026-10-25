@@ -11,7 +11,6 @@ import 'package:nixsvg/models/project_model.dart';
 import 'package:nixsvg/models/vector_shape.dart';
 import 'package:nixsvg/providers/project_provider.dart';
 import 'package:nixsvg/providers/theme_provider.dart';
-import 'package:nixsvg/theme/physics/m3e_physics_spring.dart';
 import 'package:nixsvg/ui/home/widgets/mini_project_preview.dart';
 import 'package:nixsvg/ui/workspace/figma_workspace.dart';
 import 'package:nixsvg/widgets/settings_dialog.dart';
@@ -332,12 +331,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         color: colorScheme.surfaceContainer.withValues(
           alpha: isDark ? 0.75 : 0.88,
         ),
-        border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.25),
-            width: 0.8,
-          ),
-        ),
       ),
       child: Row(
         children: [
@@ -352,13 +345,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(10),
-              boxShadow: [
-                BoxShadow(
-                  color: colorScheme.primary.withValues(alpha: 0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
             ),
             alignment: Alignment.center,
             child: Icon(
@@ -457,11 +443,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             tooltip:
                 'Theme Accent: ${ThemeController.getColorName(themeState.seedColor)}',
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.35),
-                width: 1.0,
-              ),
+              borderRadius: BorderRadius.circular(24),
+              side: BorderSide.none,
             ),
             color: colorScheme.surfaceContainerHigh,
             icon: SizedBox(
@@ -565,9 +548,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(width: 8),
 
           // Primary "New Project" Button
-          M3PhysicsPressable(
-            tooltip: 'Create New Vector File',
-            onTap: () => _handleCreateNew(),
+          Tooltip(
+            message: 'Create New Vector File',
             child: M3EButton.icon(
               onPressed: () => _handleCreateNew(),
               style: M3EButtonStyle.filled,
@@ -603,11 +585,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
       decoration: BoxDecoration(
         color: colorScheme.primaryContainer.withValues(alpha: 0.25),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colorScheme.primary.withValues(alpha: 0.35),
-          width: 1.2,
-        ),
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
         children: [
@@ -1064,7 +1042,7 @@ class _HomeScreenActionCardState extends State<_HomeScreenActionCard> {
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       cursor: SystemMouseCursors.click,
-      child: M3PhysicsPressable(
+      child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
@@ -1081,34 +1059,7 @@ class _HomeScreenActionCardState extends State<_HomeScreenActionCard> {
                 : colorScheme.surfaceContainerHighest.withValues(
                     alpha: isDark ? 0.35 : 0.45,
                   ),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: _isHovered
-                  ? widget.iconColor.withValues(alpha: 0.6)
-                  : colorScheme.outlineVariant.withValues(
-                      alpha: isDark ? 0.35 : 0.45,
-                    ),
-              width: _isHovered ? 1.4 : 1.0,
-            ),
-            boxShadow: _isHovered
-                ? [
-                    BoxShadow(
-                      color: widget.iconColor.withValues(
-                        alpha: isDark ? 0.22 : 0.15,
-                      ),
-                      blurRadius: 14,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : [
-                    BoxShadow(
-                      color: Colors.black.withValues(
-                        alpha: isDark ? 0.12 : 0.03,
-                      ),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
+            borderRadius: BorderRadius.circular(24),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1130,10 +1081,6 @@ class _HomeScreenActionCardState extends State<_HomeScreenActionCard> {
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: widget.iconColor.withValues(alpha: 0.25),
-                        width: 1.0,
-                      ),
                     ),
                     alignment: Alignment.center,
                     child: Icon(widget.icon, color: widget.iconColor, size: 20),
@@ -1215,7 +1162,7 @@ class _HomeScreenProjectCardState extends State<_HomeScreenProjectCard> {
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       cursor: SystemMouseCursors.click,
-      child: M3PhysicsPressable(
+      child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
@@ -1225,26 +1172,7 @@ class _HomeScreenProjectCardState extends State<_HomeScreenProjectCard> {
             color: colorScheme.surfaceContainerHighest.withValues(
               alpha: isDark ? 0.35 : 0.45,
             ),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: _isHovered
-                  ? colorScheme.primary.withValues(alpha: 0.55)
-                  : colorScheme.outlineVariant.withValues(
-                      alpha: isDark ? 0.3 : 0.4,
-                    ),
-              width: _isHovered ? 1.3 : 1.0,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(
-                  alpha: isDark
-                      ? (_isHovered ? 0.3 : 0.15)
-                      : (_isHovered ? 0.12 : 0.04),
-                ),
-                blurRadius: _isHovered ? 14 : 6,
-                offset: Offset(0, _isHovered ? 4 : 2),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(24),
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
@@ -1257,12 +1185,6 @@ class _HomeScreenProjectCardState extends State<_HomeScreenProjectCard> {
                   decoration: BoxDecoration(
                     color: colorScheme.surfaceContainer.withValues(
                       alpha: isDark ? 0.5 : 0.3,
-                    ),
-                    border: Border(
-                      bottom: BorderSide(
-                        color: colorScheme.outlineVariant.withValues(alpha: 0.2),
-                        width: 0.8,
-                      ),
                     ),
                   ),
                   child: Stack(
@@ -1286,12 +1208,6 @@ class _HomeScreenProjectCardState extends State<_HomeScreenProjectCard> {
                                 alpha: 0.88,
                               ),
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: colorScheme.outlineVariant.withValues(
-                                  alpha: 0.3,
-                                ),
-                                width: 0.8,
-                              ),
                             ),
                             child: Text(
                               'OPEN',
