@@ -124,8 +124,20 @@ class ProjectModel {
     };
   }
 
+  /// Ensures all image shapes within this project have their [decodedImage] decoded.
+  Future<void> ensureAllImagesDecoded({VoidCallback? onImageDecoded}) async {
+    for (final shape in shapes) {
+      if (shape.type == ShapeType.image &&
+          shape.decodedImage == null &&
+          shape.imageBytes != null &&
+          shape.imageBytes!.isNotEmpty) {
+        await shape.ensureImageDecoded(onDecoded: onImageDecoded);
+      }
+    }
+  }
+
   factory ProjectModel.fromJson(Map<String, dynamic> json) {
-    return ProjectModel(
+    final project = ProjectModel(
       id:
           json['id'] as String? ??
           'proj-${DateTime.now().millisecondsSinceEpoch}',
@@ -149,5 +161,7 @@ class ProjectModel {
               .toList() ??
           [],
     );
+    project.ensureAllImagesDecoded();
+    return project;
   }
 }

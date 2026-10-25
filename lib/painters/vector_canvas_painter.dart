@@ -913,6 +913,7 @@ class VectorCanvasPainter extends CustomPainter {
             shape.decodedImage!.width.toDouble(),
             shape.decodedImage!.height.toDouble(),
           );
+          final imagePaint = Paint()..filterQuality = FilterQuality.medium;
           if (shape.cornerSmoothing > 0.0 && hasRadius) {
             canvas.save();
             canvas.clipPath(shape.getPath());
@@ -920,7 +921,7 @@ class VectorCanvasPainter extends CustomPainter {
               shape.decodedImage!,
               srcRect,
               shape.rect,
-              Paint(),
+              imagePaint,
             );
             canvas.restore();
           } else if (rrect != null) {
@@ -930,7 +931,7 @@ class VectorCanvasPainter extends CustomPainter {
               shape.decodedImage!,
               srcRect,
               shape.rect,
-              Paint(),
+              imagePaint,
             );
             canvas.restore();
           } else {
@@ -938,16 +939,22 @@ class VectorCanvasPainter extends CustomPainter {
               shape.decodedImage!,
               srcRect,
               shape.rect,
-              Paint(),
+              imagePaint,
             );
           }
         } else {
+          if (shape.imageBytes != null && shape.imageBytes!.isNotEmpty) {
+            shape.ensureImageDecoded();
+          }
+          final placeholderPaint = Paint()
+            ..color = const Color(0xFF64748B).withValues(alpha: 0.12)
+            ..style = PaintingStyle.fill;
           if (shape.cornerSmoothing > 0.0 && hasRadius) {
-            canvas.drawPath(shape.getPath(), fillPaint);
+            canvas.drawPath(shape.getPath(), placeholderPaint);
           } else if (rrect != null) {
-            canvas.drawRRect(rrect, fillPaint);
+            canvas.drawRRect(rrect, placeholderPaint);
           } else {
-            canvas.drawRect(shape.rect, fillPaint);
+            canvas.drawRect(shape.rect, placeholderPaint);
           }
         }
         if (shape.isStroked) {

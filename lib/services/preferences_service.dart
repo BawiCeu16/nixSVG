@@ -25,6 +25,7 @@ class PreferencesService {
   static const String _keyShowProperties = 'nixsvg_show_properties';
   static const String _keyRecentProjects = 'nixsvg_recent_projects';
   static const String _keyActiveProjectId = 'nixsvg_active_project_id';
+  static const String _keyActiveProjectData = 'nixsvg_active_project_data';
   static const String _keyHasActiveSession = 'nixsvg_has_active_session';
 
   /// Factory to asynchronously instantiate [PreferencesService].
@@ -252,22 +253,56 @@ class PreferencesService {
       rawList = _inMemory[_keyRecentProjects] as List<String>?;
     }
 
-    if (rawList == null || rawList.isEmpty) {
-      return [];
+    final list = <ProjectModel>[];
+    if (rawList != null && rawList.isNotEmpty) {
+      for (final jsonStr in rawList) {
+        try {
+          final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+          list.add(ProjectModel.fromJson(map));
+        } catch (_) {}
+      }
     }
 
-    final list = <ProjectModel>[];
-    for (final jsonStr in rawList) {
+    // Check if the dedicated active project backup is available and newer or missing
+    String? activeJson;
+    if (_prefs != null) {
+      activeJson = _prefs.getString(_keyActiveProjectData);
+    } else {
+      activeJson = _inMemory[_keyActiveProjectData] as String?;
+    }
+    if (activeJson != null && activeJson.isNotEmpty) {
       try {
-        final map = jsonDecode(jsonStr) as Map<String, dynamic>;
-        list.add(ProjectModel.fromJson(map));
+        final activeMap = jsonDecode(activeJson) as Map<String, dynamic>;
+        final activeProject = ProjectModel.fromJson(activeMap);
+        final existingIdx = list.indexWhere((p) => p.id == activeProject.id);
+        if (existingIdx >= 0) {
+          if (activeProject.lastModified.isAfter(list[existingIdx].lastModified)) {
+            list[existingIdx] = activeProject;
+          }
+        } else {
+          list.insert(0, activeProject);
+        }
       } catch (_) {}
     }
+
     list.sort((a, b) => b.lastModified.compareTo(a.lastModified));
     return list;
   }
 
   Future<void> saveRecentProject(ProjectModel project) async {
+    // 1. Dedicatedly persist active project content so it is never lost
+    try {
+      final activeJson = jsonEncode(project.toJson());
+      if (_prefs != null) {
+        await _prefs.setString(_keyActiveProjectData, activeJson);
+      } else {
+        _inMemory[_keyActiveProjectData] = activeJson;
+      }
+    } catch (e) {
+      debugPrint('PreferencesService: failed to write active project backup: $e');
+    }
+
+    // 2. Update recent projects list
     final list = getRecentProjects();
     final index = list.indexWhere((p) => p.id == project.id);
     if (index >= 0) {
@@ -280,11 +315,22 @@ class PreferencesService {
       list.removeRange(25, list.length);
     }
 
-    final rawList = list.map((p) => jsonEncode(p.toJson())).toList();
-    if (_prefs != null) {
-      await _prefs.setStringList(_keyRecentProjects, rawList);
-    } else {
-      _inMemory[_keyRecentProjects] = rawList;
+    // Safe write with fallback truncation if quota exceeded
+    int keepCount = list.length;
+    while (keepCount >= 1) {
+      try {
+        final sublist = list.take(keepCount).toList();
+        final rawList = sublist.map((p) => jsonEncode(p.toJson())).toList();
+        if (_prefs != null) {
+          await _prefs.setStringList(_keyRecentProjects, rawList);
+        } else {
+          _inMemory[_keyRecentProjects] = rawList;
+        }
+        break;
+      } catch (e) {
+        debugPrint('PreferencesService: storage quota exceeded saving recents ($keepCount), trimming: $e');
+        keepCount = (keepCount / 2).floor();
+      }
     }
   }
 

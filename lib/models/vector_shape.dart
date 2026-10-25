@@ -309,6 +309,41 @@ class VectorShape {
   bool isLocked;
   Uint8List? imageBytes;
   ui.Image? decodedImage;
+  Future<ui.Image?>? _decodingFuture;
+
+  /// Ensures the raster [decodedImage] is decoded and ready for painting.
+  Future<ui.Image?> ensureImageDecoded({VoidCallback? onDecoded}) async {
+    if (decodedImage != null) {
+      onDecoded?.call();
+      return decodedImage;
+    }
+    if (imageBytes == null || imageBytes!.isEmpty) return null;
+    if (_decodingFuture != null) {
+      final img = await _decodingFuture;
+      if (img != null) onDecoded?.call();
+      return img;
+    }
+
+    _decodingFuture = () async {
+      try {
+        final codec = await ui.instantiateImageCodec(imageBytes!);
+        final frame = await codec.getNextFrame();
+        decodedImage = frame.image;
+        return decodedImage;
+      } catch (e) {
+        debugPrint('VectorShape: Error decoding imageBytes: $e');
+        return null;
+      } finally {
+        _decodingFuture = null;
+      }
+    }();
+
+    final result = await _decodingFuture;
+    if (result != null) {
+      onDecoded?.call();
+    }
+    return result;
+  }
   String? groupId;
   String? groupName;
   String? pathData;
@@ -343,6 +378,8 @@ class VectorShape {
   double? _lastBBStrokeWidth;
   bool? _lastBBIsStroked;
   ShapeType? _lastBBType;
+  double? _lastBBCurvature;
+  bool? _lastBBIsCurved;
 
   TextPainter? _cachedTextPainter;
   String? _lastTextContent;
@@ -755,7 +792,7 @@ class VectorShape {
         .toList();
     final isClosed = json['isClosed'] as bool? ?? false;
 
-    return VectorShape(
+    final shape = VectorShape(
       id:
           json['id'] as String? ??
           'shape-${DateTime.now().millisecondsSinceEpoch}',
@@ -818,6 +855,10 @@ class VectorShape {
       pathNodes: pathNodes,
       isClosed: isClosed,
     );
+    if (shape.type == ShapeType.image && shape.imageBytes != null && shape.imageBytes!.isNotEmpty) {
+      shape.ensureImageDecoded();
+    }
+    return shape;
   }
 
   /// Returns SVG `<defs>` elements if this shape utilizes gradients for fill or stroke.
@@ -1363,16 +1404,34 @@ class VectorShape {
         _lastBBRotation == rotation &&
         _lastBBStrokeWidth == strokeWidth &&
         _lastBBIsStroked == isStroked &&
-        _lastBBType == type) {
+        _lastBBType == type &&
+        _lastBBCurvature == curvature &&
+        _lastBBIsCurved == isCurved) {
       return _cachedBoundingBox!;
     }
 
-    final rawRect = Rect.fromLTRB(
+    Rect rawRect = Rect.fromLTRB(
       math.min(rect.left, rect.right),
       math.min(rect.top, rect.bottom),
       math.max(rect.left, rect.right),
       math.max(rect.top, rect.bottom),
     );
+
+    if (type == ShapeType.line && (isCurved || curvature != 0.0)) {
+      final p1 = rect.topLeft;
+      final p2 = rect.bottomRight;
+      final mid = Offset((p1.dx + p2.dx) / 2, (p1.dy + p2.dy) / 2);
+      final dx = p2.dx - p1.dx;
+      final dy = p2.dy - p1.dy;
+      final len = math.sqrt(dx * dx + dy * dy);
+      if (len > 0) {
+        final perp = Offset(-dy / len, dx / len);
+        final controlPt = mid + perp * curvature;
+        rawRect = rawRect.expandToInclude(
+          Rect.fromCenter(center: controlPt, width: 2.0, height: 2.0),
+        );
+      }
+    }
 
     final strokePadding = type == ShapeType.line
         ? math.max(3.0, strokeWidth / 2)
@@ -1386,6 +1445,8 @@ class VectorShape {
       _lastBBStrokeWidth = strokeWidth;
       _lastBBIsStroked = isStroked;
       _lastBBType = type;
+      _lastBBCurvature = curvature;
+      _lastBBIsCurved = isCurved;
       return paddedRect;
     }
 
@@ -1426,6 +1487,8 @@ class VectorShape {
     _lastBBStrokeWidth = strokeWidth;
     _lastBBIsStroked = isStroked;
     _lastBBType = type;
+    _lastBBCurvature = curvature;
+    _lastBBIsCurved = isCurved;
     return computed;
   }
 

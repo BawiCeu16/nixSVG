@@ -5,6 +5,7 @@ import 'package:nixsvg/services/safe_file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nixsvg/calculations/canvas_geometry.dart';
@@ -74,7 +75,8 @@ class FigmaWorkspace extends ConsumerStatefulWidget {
   ConsumerState<FigmaWorkspace> createState() => FigmaWorkspaceState();
 }
 
-class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
+class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
+    with WidgetsBindingObserver {
   // Canvas State
   final TransformationController _transformationController =
       TransformationController();
@@ -196,6 +198,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (widget.initialProject != null) {
       fileName = widget.initialProject!.name;
       shapes = widget.initialProject!.shapes.map((s) => s.copyWith()).toList();
@@ -203,6 +206,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
     } else {
       _loadSampleDemoShapes();
     }
+    _decodeShapeImages();
     _saveHistorySnapshot();
 
     // Initialize persisted workspace settings from Riverpod
@@ -223,7 +227,32 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden) {
+      _persistCurrentProject();
+    }
+  }
+
+  void _decodeShapeImages() {
+    for (final shape in shapes) {
+      if (shape.type == ShapeType.image &&
+          shape.decodedImage == null &&
+          shape.imageBytes != null &&
+          shape.imageBytes!.isNotEmpty) {
+        shape.ensureImageDecoded(onDecoded: () {
+          if (mounted) setState(() {});
+        });
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _workspaceFocusNode.dispose();
     _transformationController.dispose();
     super.dispose();
@@ -328,6 +357,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         shapes = previous;
         selectedShapeIds.clear();
       });
+      _decodeShapeImages();
       _persistCurrentProject();
     }
   }
@@ -340,6 +370,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
         shapes = next;
         selectedShapeIds.clear();
       });
+      _decodeShapeImages();
       _persistCurrentProject();
     }
   }
@@ -2991,24 +3022,48 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace> {
   }
 
   void _onPropertiesShapeChanged(VectorShape updated) {
-    setState(() {
-      final index = shapes.indexWhere((s) => s.id == updated.id);
-      if (index != -1) {
-        shapes = List.of(shapes);
-        shapes[index] = updated;
-      }
-    });
+    if (!mounted) return;
+    void applyUpdate() {
+      if (!mounted) return;
+      setState(() {
+        final index = shapes.indexWhere((s) => s.id == updated.id);
+        if (index != -1) {
+          shapes = List.of(shapes);
+          shapes[index] = updated;
+        }
+      });
+    }
+
+    if (WidgetsBinding.instance.buildOwner?.debugBuilding == true ||
+        SchedulerBinding.instance.schedulerPhase ==
+            SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => applyUpdate());
+    } else {
+      applyUpdate();
+    }
   }
 
   void _onPropertiesShapeChangeEnd(VectorShape updated) {
-    setState(() {
-      final index = shapes.indexWhere((s) => s.id == updated.id);
-      if (index != -1) {
-        shapes = List.of(shapes);
-        shapes[index] = updated;
-      }
-    });
-    _saveHistorySnapshot();
+    if (!mounted) return;
+    void applyUpdate() {
+      if (!mounted) return;
+      setState(() {
+        final index = shapes.indexWhere((s) => s.id == updated.id);
+        if (index != -1) {
+          shapes = List.of(shapes);
+          shapes[index] = updated;
+        }
+      });
+      _saveHistorySnapshot();
+    }
+
+    if (WidgetsBinding.instance.buildOwner?.debugBuilding == true ||
+        SchedulerBinding.instance.schedulerPhase ==
+            SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => applyUpdate());
+    } else {
+      applyUpdate();
+    }
   }
 
   /// Selects a shape by ID and ensures the properties panel is visible.

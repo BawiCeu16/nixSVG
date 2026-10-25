@@ -141,12 +141,48 @@ class FileImportService {
 
       // 3. Process Raster Bitmap (PNG, JPG, WebP, GIF)
       // Preserves exact original dimensions and natural aspect ratio.
-      final codec = await ui.instantiateImageCodec(bytes);
-      final frame = await codec.getNextFrame();
-      final decodedImage = frame.image;
+      final rawCodec = await ui.instantiateImageCodec(bytes);
+      final rawFrame = await rawCodec.getNextFrame();
+      final rawImage = rawFrame.image;
 
-      final double width = decodedImage.width.toDouble();
-      final double height = decodedImage.height.toDouble();
+      final double originalWidth = rawImage.width.toDouble();
+      final double originalHeight = rawImage.height.toDouble();
+
+      ui.Image decodedImage = rawImage;
+      Uint8List effectiveBytes = bytes;
+
+      // Constrain oversized images (>2048px or >2MB) to prevent storage quota exhaustion
+      const double maxDimension = 2048.0;
+      if (originalWidth > maxDimension ||
+          originalHeight > maxDimension ||
+          bytes.lengthInBytes > 2 * 1024 * 1024) {
+        int targetW = originalWidth.toInt();
+        int targetH = originalHeight.toInt();
+        if (targetW >= targetH && targetW > maxDimension) {
+          targetH = (targetH * (maxDimension / targetW)).round();
+          targetW = maxDimension.toInt();
+        } else if (targetH > maxDimension) {
+          targetW = (targetW * (maxDimension / targetH)).round();
+          targetH = maxDimension.toInt();
+        }
+        try {
+          final scaledCodec = await ui.instantiateImageCodec(
+            bytes,
+            targetWidth: targetW,
+            targetHeight: targetH,
+          );
+          final scaledFrame = await scaledCodec.getNextFrame();
+          decodedImage = scaledFrame.image;
+          final byteData =
+              await decodedImage.toByteData(format: ui.ImageByteFormat.png);
+          if (byteData != null) {
+            effectiveBytes = byteData.buffer.asUint8List();
+          }
+        } catch (_) {}
+      }
+
+      final double width = originalWidth;
+      final double height = originalHeight;
 
       final origin = targetCanvasPoint != null
           ? Offset(targetCanvasPoint.dx - width / 2, targetCanvasPoint.dy - height / 2)
@@ -157,7 +193,7 @@ class FileImportService {
         name: 'Image $fileName',
         type: ShapeType.image,
         rect: Rect.fromLTWH(origin.dx, origin.dy, width, height),
-        imageBytes: bytes,
+        imageBytes: effectiveBytes,
         decodedImage: decodedImage,
       );
 

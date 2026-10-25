@@ -2277,50 +2277,15 @@ class PropertiesSidebar extends StatelessWidget {
                                               ?.copyWith(
                                                 color: colorScheme
                                                     .onSurfaceVariant,
+                                                fontSize: 11,
                                               ),
                                         ),
                                         const SizedBox(height: 4),
-                                        _buildM3EStyledDropdown<LineCapStyle>(
-                                          key: ValueKey(
-                                            'start_cap_${selectedShape!.id}_${selectedShape!.startCap}',
-                                          ),
-                                          hintText: 'Start Cap',
-                                          items: [
-                                            M3EDropdownItem<LineCapStyle>(
-                                              value: LineCapStyle.none,
-                                              label: 'None',
-                                              selected:
-                                                  selectedShape!.startCap ==
-                                                  LineCapStyle.none,
-                                            ),
-                                            M3EDropdownItem<LineCapStyle>(
-                                              value: LineCapStyle.arrow,
-                                              label: 'Arrow',
-                                              selected:
-                                                  selectedShape!.startCap ==
-                                                  LineCapStyle.arrow,
-                                            ),
-                                            M3EDropdownItem<LineCapStyle>(
-                                              value: LineCapStyle.circle,
-                                              label: 'Circle',
-                                              selected:
-                                                  selectedShape!.startCap ==
-                                                  LineCapStyle.circle,
-                                            ),
-                                            M3EDropdownItem<LineCapStyle>(
-                                              value: LineCapStyle.square,
-                                              label: 'Square',
-                                              selected:
-                                                  selectedShape!.startCap ==
-                                                  LineCapStyle.square,
-                                            ),
-                                          ],
-                                          onSelected: (val) {
-                                            final updated = selectedShape!
-                                                .copyWith(startCap: val);
-                                            onShapeChanged(updated);
-                                            onShapeChangeEnd?.call(updated);
-                                          },
+                                        _LineCapDropdown(
+                                          selectedShape: selectedShape!,
+                                          isStart: true,
+                                          onShapeChanged: onShapeChanged,
+                                          onShapeChangeEnd: onShapeChangeEnd,
                                         ),
                                       ],
                                     ),
@@ -2337,49 +2302,162 @@ class PropertiesSidebar extends StatelessWidget {
                                               ?.copyWith(
                                                 color: colorScheme
                                                     .onSurfaceVariant,
+                                                fontSize: 11,
                                               ),
                                         ),
                                         const SizedBox(height: 4),
-                                        _buildM3EStyledDropdown<LineCapStyle>(
-                                          key: ValueKey(
-                                            'end_cap_${selectedShape!.id}_${selectedShape!.endCap}',
-                                          ),
-                                          hintText: 'End Cap',
-                                          items: [
-                                            M3EDropdownItem<LineCapStyle>(
-                                              value: LineCapStyle.none,
-                                              label: 'None',
-                                              selected:
-                                                  selectedShape!.endCap ==
-                                                  LineCapStyle.none,
+                                        _LineCapDropdown(
+                                          selectedShape: selectedShape!,
+                                          isStart: false,
+                                          onShapeChanged: onShapeChanged,
+                                          onShapeChangeEnd: onShapeChangeEnd,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+
+                    // Curve / Bend properties (If line shape selected)
+                    if (selectedShape!.type == ShapeType.line)
+                      _buildSectionCard(
+                        context,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  'CURVE / BEND',
+                                  style: _getSectionHeaderStyle(theme),
+                                ),
+                                const Spacer(),
+                                Switch(
+                                  value: selectedShape!.isCurved,
+                                  activeTrackColor: colorScheme.primary,
+                                  onChanged: (val) {
+                                    FocusManager.instance.primaryFocus
+                                        ?.unfocus();
+                                    final updated = selectedShape!.copyWith(
+                                      isCurved: val,
+                                      curvature: val
+                                          ? (selectedShape!.curvature == 0.0
+                                                ? 30.0
+                                                : selectedShape!.curvature)
+                                          : 0.0,
+                                    );
+                                    onShapeChanged(updated);
+                                    onShapeChangeEnd?.call(updated);
+                                  },
+                                ),
+                              ],
+                            ),
+                            if (selectedShape!.isCurved ||
+                                selectedShape!.curvature != 0.0) ...[
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  const Icon(LucideIcons.spline, size: 16),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                'Bend: ${selectedShape!.curvature.round()} px',
+                                                overflow: TextOverflow.ellipsis,
+                                                style: theme
+                                                    .textTheme
+                                                    .labelSmall
+                                                    ?.copyWith(
+                                                      color: colorScheme
+                                                          .onSurfaceVariant,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                              ),
                                             ),
-                                            M3EDropdownItem<LineCapStyle>(
-                                              value: LineCapStyle.arrow,
-                                              label: 'Arrow',
-                                              selected:
-                                                  selectedShape!.endCap ==
-                                                  LineCapStyle.arrow,
-                                            ),
-                                            M3EDropdownItem<LineCapStyle>(
-                                              value: LineCapStyle.circle,
-                                              label: 'Circle',
-                                              selected:
-                                                  selectedShape!.endCap ==
-                                                  LineCapStyle.circle,
-                                            ),
-                                            M3EDropdownItem<LineCapStyle>(
-                                              value: LineCapStyle.square,
-                                              label: 'Square',
-                                              selected:
-                                                  selectedShape!.endCap ==
-                                                  LineCapStyle.square,
-                                            ),
+                                            if (selectedShape!.curvature != 0.0)
+                                              InkWell(
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
+                                                onTap: () {
+                                                  final updated = selectedShape!
+                                                      .copyWith(curvature: 0.0);
+                                                  onShapeChanged(updated);
+                                                  onShapeChangeEnd?.call(
+                                                    updated,
+                                                  );
+                                                },
+                                                child: Padding(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 4,
+                                                        vertical: 2,
+                                                      ),
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        LucideIcons.rotateCcw,
+                                                        size: 11,
+                                                        color:
+                                                            colorScheme.primary,
+                                                      ),
+                                                      const SizedBox(width: 3),
+                                                      Text(
+                                                        'Reset',
+                                                        style: theme
+                                                            .textTheme
+                                                            .labelSmall
+                                                            ?.copyWith(
+                                                              fontSize: 10,
+                                                              color: colorScheme
+                                                                  .primary,
+                                                            ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
                                           ],
-                                          onSelected: (val) {
-                                            final updated = selectedShape!
-                                                .copyWith(endCap: val);
-                                            onShapeChanged(updated);
-                                            onShapeChangeEnd?.call(updated);
+                                        ),
+                                        NixSlider(
+                                          value: selectedShape!.curvature.clamp(
+                                            -150.0,
+                                            150.0,
+                                          ),
+                                          min: -150.0,
+                                          max: 150.0,
+                                          onChangeStart: (_) => FocusManager
+                                              .instance
+                                              .primaryFocus
+                                              ?.unfocus(),
+                                          onChanged: (val) {
+                                            onShapeChanged(
+                                              selectedShape!.copyWith(
+                                                curvature: val,
+                                                isCurved: true,
+                                              ),
+                                            );
+                                          },
+                                          onChangeEnd: (val) {
+                                            (onShapeChangeEnd ??
+                                                onShapeChanged)(
+                                              selectedShape!.copyWith(
+                                                curvature: val,
+                                                isCurved: true,
+                                              ),
+                                            );
                                           },
                                         ),
                                       ],
@@ -2387,91 +2465,6 @@ class PropertiesSidebar extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Text(
-                                    'CURVE / BEND',
-                                    style: theme.textTheme.labelSmall?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 0.8,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  Switch(
-                                    value: selectedShape!.isCurved,
-                                    activeTrackColor: colorScheme.primary,
-                                    onChanged: (val) {
-                                      FocusManager.instance.primaryFocus
-                                          ?.unfocus();
-                                      final updated = selectedShape!.copyWith(
-                                        isCurved: val,
-                                        curvature:
-                                            val &&
-                                                selectedShape!.curvature == 0.0
-                                            ? 30.0
-                                            : selectedShape!.curvature,
-                                      );
-                                      onShapeChanged(updated);
-                                      onShapeChangeEnd?.call(updated);
-                                    },
-                                  ),
-                                ],
-                              ),
-                              if (selectedShape!.isCurved ||
-                                  selectedShape!.curvature != 0.0) ...[
-                                const SizedBox(height: 6),
-                                Row(
-                                  children: [
-                                    const Icon(LucideIcons.spline, size: 16),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Bend Offset: ${selectedShape!.curvature.round()} px',
-                                            style: theme.textTheme.labelSmall
-                                                ?.copyWith(
-                                                  color: colorScheme
-                                                      .onSurfaceVariant,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                          ),
-                                          NixSlider(
-                                            value: selectedShape!.curvature,
-                                            min: -150.0,
-                                            max: 150.0,
-                                            onChangeStart: (_) => FocusManager
-                                                .instance
-                                                .primaryFocus
-                                                ?.unfocus(),
-                                            onChanged: (val) {
-                                              onShapeChanged(
-                                                selectedShape!.copyWith(
-                                                  curvature: val,
-                                                  isCurved: val != 0.0,
-                                                ),
-                                              );
-                                            },
-                                            onChangeEnd: (val) {
-                                              (onShapeChangeEnd ??
-                                                  onShapeChanged)(
-                                                selectedShape!.copyWith(
-                                                  curvature: val,
-                                                  isCurved: val != 0.0,
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
                             ],
                           ],
                         ),
@@ -4416,6 +4409,8 @@ Widget _buildM3EStyledDropdown<T>({
   required ValueChanged<T> onSelected,
   bool searchEnabled = false,
   String searchHint = 'Search…',
+  Widget? prefixIcon,
+  M3EDropdownItemBuilder<T>? itemBuilder,
 }) {
   return M3EDropdownMenu<T>(
     key: key,
@@ -4430,8 +4425,12 @@ Widget _buildM3EStyledDropdown<T>({
     closeMotion: M3EMotion.custom(stiffness: 500.0, damping: 0.8),
     fieldStyle: M3EDropdownFieldStyle(
       hintText: hintText,
+      prefixIcon: prefixIcon,
       showClearIcon: false,
-      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 7.0),
+      padding: EdgeInsets.symmetric(
+        horizontal: prefixIcon != null ? 8.0 : 12.0,
+        vertical: 7.0,
+      ),
       margin: EdgeInsets.zero,
       borderRadius: BorderRadius.circular(100.0),
       selectedBorderRadius: 100.0,
@@ -4489,12 +4488,15 @@ Widget _buildM3EStyledDropdown<T>({
       textStyle: TextStyle(fontSize: 12.0),
       selectedTextStyle: TextStyle(fontSize: 12.0, fontWeight: FontWeight.w600),
       pressedScale: 0.98,
-      selectedIcon: Icon(Icons.check_rounded, size: 16.0),
+      selectedIcon: SizedBox.shrink(),
     ),
+    itemBuilder: itemBuilder,
     closeOnBackButton: false,
     onSelectionChanged: (selectedItems) {
       if (selectedItems.isNotEmpty) {
-        onSelected(selectedItems.first.value);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          onSelected(selectedItems.first.value);
+        });
       }
     },
   );
@@ -4597,6 +4599,86 @@ class _FontWeightDropdown extends StatelessWidget {
             fontWeight: newValue,
             isBold: isBold,
           );
+          onShapeChanged(updated);
+          onShapeChangeEnd?.call(updated);
+        }
+      },
+    );
+  }
+}
+
+class _LineCapDropdown extends StatelessWidget {
+  final VectorShape selectedShape;
+  final bool isStart;
+  final ValueChanged<VectorShape> onShapeChanged;
+  final ValueChanged<VectorShape>? onShapeChangeEnd;
+
+  const _LineCapDropdown({
+    required this.selectedShape,
+    required this.isStart,
+    required this.onShapeChanged,
+    this.onShapeChangeEnd,
+  });
+
+  static const _caps = [
+    (LineCapStyle.none, 'None'),
+    (LineCapStyle.round, 'Round'),
+    (LineCapStyle.square, 'Square'),
+    (LineCapStyle.arrow, 'Arrow'),
+    (LineCapStyle.circle, 'Circle'),
+  ];
+
+  IconData _getCapIcon(LineCapStyle style) {
+    switch (style) {
+      case LineCapStyle.none:
+        return LucideIcons.minus;
+      case LineCapStyle.round:
+        return LucideIcons.circleDot;
+      case LineCapStyle.arrow:
+        return isStart ? LucideIcons.arrowLeft : LucideIcons.arrowRight;
+      case LineCapStyle.circle:
+        return LucideIcons.circle;
+      case LineCapStyle.square:
+        return LucideIcons.square;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final currentStyle = isStart
+        ? selectedShape.startCap
+        : selectedShape.endCap;
+    final currentCapName = _caps
+        .firstWhere(
+          (c) => c.$1 == currentStyle,
+          orElse: () => (LineCapStyle.none, 'None'),
+        )
+        .$2;
+
+    return _buildM3EStyledDropdown<LineCapStyle>(
+      key: ValueKey(
+        '${isStart ? "start" : "end"}_cap_${selectedShape.id}_$currentStyle',
+      ),
+      hintText: currentCapName,
+      prefixIcon: Icon(
+        _getCapIcon(currentStyle),
+        size: 14.0,
+        color: colorScheme.primary,
+      ),
+      items: _caps.map((entry) {
+        return M3EDropdownItem<LineCapStyle>(
+          value: entry.$1,
+          label: entry.$2,
+          selected: entry.$1 == currentStyle,
+        );
+      }).toList(),
+      onSelected: (newValue) {
+        if (newValue != currentStyle) {
+          final updated = isStart
+              ? selectedShape.copyWith(startCap: newValue)
+              : selectedShape.copyWith(endCap: newValue);
           onShapeChanged(updated);
           onShapeChangeEnd?.call(updated);
         }

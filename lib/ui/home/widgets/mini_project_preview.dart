@@ -204,10 +204,33 @@ class _MiniCanvasPainter extends CustomPainter {
           break;
 
         case ShapeType.image:
-          canvas.drawRRect(
-            RRect.fromRectAndRadius(shape.rect, const Radius.circular(8)),
-            fillPaint,
-          );
+          if (shape.decodedImage != null) {
+            final srcRect = Rect.fromLTWH(
+              0,
+              0,
+              shape.decodedImage!.width.toDouble(),
+              shape.decodedImage!.height.toDouble(),
+            );
+            canvas.save();
+            canvas.clipRRect(
+              RRect.fromRectAndRadius(shape.rect, const Radius.circular(8)),
+            );
+            canvas.drawImageRect(
+              shape.decodedImage!,
+              srcRect,
+              shape.rect,
+              Paint()..filterQuality = FilterQuality.medium,
+            );
+            canvas.restore();
+          } else {
+            if (shape.imageBytes != null && shape.imageBytes!.isNotEmpty) {
+              shape.ensureImageDecoded();
+            }
+            canvas.drawRRect(
+              RRect.fromRectAndRadius(shape.rect, const Radius.circular(8)),
+              fillPaint,
+            );
+          }
           break;
       }
 
