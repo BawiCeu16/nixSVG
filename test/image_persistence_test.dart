@@ -159,5 +159,52 @@ void main() {
       await Future.delayed(const Duration(milliseconds: 50));
       expect(imageShape.decodedImage, isNotNull);
     });
+
+    test('VectorCanvasPainter triggers onImageDecoded callback and shouldRepaint without zooming',
+        () async {
+      final pngBytes = await createTestPngBytes();
+
+      final imageShape = VectorShape(
+        id: 'canvas-img-callback',
+        name: 'Canvas Image Callback',
+        type: ShapeType.image,
+        rect: const Rect.fromLTWH(0, 0, 100, 100),
+        imageBytes: pngBytes,
+        decodedImage: null,
+      );
+
+      bool callbackFired = false;
+      final initialPainter = VectorCanvasPainter(
+        shapes: [imageShape],
+        selectedShapeIds: {},
+        currentMode: EditorMode.select,
+        colorScheme: const ColorScheme.light(),
+        zoomScale: 1.0,
+        onImageDecoded: () {
+          callbackFired = true;
+        },
+      );
+
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      initialPainter.paint(canvas, const Size(800, 600));
+
+      // Wait for async decode to fire
+      await Future.delayed(const Duration(milliseconds: 50));
+      expect(callbackFired, isTrue);
+      expect(imageShape.decodedImage, isNotNull);
+
+      // Verify shouldRepaint returns true WITHOUT zooming (zoomScale is still 1.0)
+      final newPainter = VectorCanvasPainter(
+        shapes: [imageShape],
+        selectedShapeIds: {},
+        currentMode: EditorMode.select,
+        colorScheme: const ColorScheme.light(),
+        zoomScale: 1.0,
+        onImageDecoded: () {},
+      );
+
+      expect(newPainter.shouldRepaint(initialPainter), isTrue);
+    });
   });
 }

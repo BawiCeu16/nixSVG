@@ -320,7 +320,11 @@ class VectorShape {
     if (imageBytes == null || imageBytes!.isEmpty) return null;
     if (_decodingFuture != null) {
       final img = await _decodingFuture;
-      if (img != null) onDecoded?.call();
+      if (img != null) {
+        decodedImage = img;
+        revision++;
+        onDecoded?.call();
+      }
       return img;
     }
 
@@ -329,6 +333,7 @@ class VectorShape {
         final codec = await ui.instantiateImageCodec(imageBytes!);
         final frame = await codec.getNextFrame();
         decodedImage = frame.image;
+        revision++;
         return decodedImage;
       } catch (e) {
         debugPrint('VectorShape: Error decoding imageBytes: $e');

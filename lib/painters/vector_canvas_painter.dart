@@ -36,6 +36,7 @@ class VectorCanvasPainter extends CustomPainter {
   final int? activeHandleNodeIndex;
   final int? activeHandleType;
   final bool isPathClosed;
+  final VoidCallback? onImageDecoded;
 
   VectorCanvasPainter({
     required this.shapes,
@@ -66,6 +67,8 @@ class VectorCanvasPainter extends CustomPainter {
     this.activeHandleNodeIndex,
     this.activeHandleType,
     this.isPathClosed = false,
+    this.onImageDecoded,
+    super.repaint,
     int? shapesRevision,
   }) : shapesRevision = shapesRevision ?? _computeShapesRevision(shapes);
 
@@ -80,6 +83,9 @@ class VectorCanvasPainter extends CustomPainter {
       shapeState += (s.rect.top * 10).toInt();
       shapeState += (s.rect.width * 10).toInt();
       shapeState += (s.rect.height * 10).toInt();
+      if (s.decodedImage != null) {
+        shapeState += (s.decodedImage.hashCode & 0x7fff) + 23;
+      }
       hash = 0x1fffffff & (hash * 31 + shapeState + s.id.hashCode);
     }
     return hash;
@@ -944,7 +950,7 @@ class VectorCanvasPainter extends CustomPainter {
           }
         } else {
           if (shape.imageBytes != null && shape.imageBytes!.isNotEmpty) {
-            shape.ensureImageDecoded();
+            shape.ensureImageDecoded(onDecoded: onImageDecoded);
           }
           final placeholderPaint = Paint()
             ..color = const Color(0xFF64748B).withValues(alpha: 0.12)
@@ -1464,6 +1470,7 @@ class VectorCanvasPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant VectorCanvasPainter oldDelegate) {
+    if (oldDelegate.onImageDecoded != onImageDecoded) return true;
     if (oldDelegate.currentMode != currentMode) return true;
     if (oldDelegate.isResizing != isResizing) return true;
     if (oldDelegate.activeResizeHandle != activeResizeHandle) return true;
@@ -1497,7 +1504,8 @@ class VectorCanvasPainter extends CustomPainter {
 
     for (int i = 0; i < shapes.length; i++) {
       if (!identical(oldDelegate.shapes[i], shapes[i]) ||
-          oldDelegate.shapes[i].revision != shapes[i].revision) {
+          oldDelegate.shapes[i].revision != shapes[i].revision ||
+          oldDelegate.shapes[i].decodedImage != shapes[i].decodedImage) {
         return true;
       }
     }

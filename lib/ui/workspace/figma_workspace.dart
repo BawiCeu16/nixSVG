@@ -237,14 +237,40 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
     }
   }
 
+  @override
+  void didUpdateWidget(covariant FigmaWorkspace oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialProject != null &&
+        widget.initialProject?.id != oldWidget.initialProject?.id) {
+      setState(() {
+        fileName = widget.initialProject!.name;
+        shapes = widget.initialProject!.shapes.map((s) => s.copyWith()).toList();
+        canvasSize = widget.initialProject!.canvasSize;
+      });
+      _decodeShapeImages();
+    }
+  }
+
   void _decodeShapeImages() {
-    for (final shape in shapes) {
+    for (int i = 0; i < shapes.length; i++) {
+      final shape = shapes[i];
       if (shape.type == ShapeType.image &&
           shape.decodedImage == null &&
           shape.imageBytes != null &&
           shape.imageBytes!.isNotEmpty) {
         shape.ensureImageDecoded(onDecoded: () {
-          if (mounted) setState(() {});
+          if (mounted) {
+            setState(() {
+              final idx = shapes.indexWhere((s) => s.id == shape.id);
+              if (idx >= 0) {
+                shapes[idx] = shapes[idx].copyWith(
+                  decodedImage: shape.decodedImage,
+                  revision: shapes[idx].revision + 1,
+                );
+              }
+              shapes = List<VectorShape>.from(shapes);
+            });
+          }
         });
       }
     }
@@ -3748,6 +3774,13 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
                               children: [
                               InteractiveCanvas(
                                 key: _canvasKey,
+                                onImageDecoded: () {
+                                  if (mounted) {
+                                    setState(() {
+                                      shapes = List<VectorShape>.from(shapes);
+                                    });
+                                  }
+                                },
                                 transformationController:
                                     _transformationController,
                                 shapes: shapes,

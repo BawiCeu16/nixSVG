@@ -6,16 +6,48 @@ import 'package:remixicon/remixicon.dart';
 
 /// Lightweight custom painter widget rendering a miniature visual preview of shapes
 /// for recent project cards.
-class MiniProjectPreview extends StatelessWidget {
+class MiniProjectPreview extends StatefulWidget {
   final List<VectorShape> shapes;
 
   const MiniProjectPreview({super.key, required this.shapes});
 
   @override
+  State<MiniProjectPreview> createState() => _MiniProjectPreviewState();
+}
+
+class _MiniProjectPreviewState extends State<MiniProjectPreview> {
+  @override
+  void initState() {
+    super.initState();
+    _decodeImages();
+  }
+
+  @override
+  void didUpdateWidget(covariant MiniProjectPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.shapes != widget.shapes) {
+      _decodeImages();
+    }
+  }
+
+  void _decodeImages() {
+    for (final shape in widget.shapes) {
+      if (shape.type == ShapeType.image &&
+          shape.decodedImage == null &&
+          shape.imageBytes != null &&
+          shape.imageBytes!.isNotEmpty) {
+        shape.ensureImageDecoded(onDecoded: () {
+          if (mounted) setState(() {});
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    if (shapes.isEmpty) {
+    if (widget.shapes.isEmpty) {
       return Center(
         child: Icon(
           RemixIcons.artboard_line,
@@ -27,7 +59,13 @@ class MiniProjectPreview extends StatelessWidget {
 
     return ClipRect(
       child: CustomPaint(
-        painter: _MiniCanvasPainter(shapes: shapes, colorScheme: colorScheme),
+        painter: _MiniCanvasPainter(
+          shapes: widget.shapes,
+          colorScheme: colorScheme,
+          onImageDecoded: () {
+            if (mounted) setState(() {});
+          },
+        ),
       ),
     );
   }
@@ -36,8 +74,13 @@ class MiniProjectPreview extends StatelessWidget {
 class _MiniCanvasPainter extends CustomPainter {
   final List<VectorShape> shapes;
   final ColorScheme colorScheme;
+  final VoidCallback? onImageDecoded;
 
-  _MiniCanvasPainter({required this.shapes, required this.colorScheme});
+  _MiniCanvasPainter({
+    required this.shapes,
+    required this.colorScheme,
+    this.onImageDecoded,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -224,7 +267,7 @@ class _MiniCanvasPainter extends CustomPainter {
             canvas.restore();
           } else {
             if (shape.imageBytes != null && shape.imageBytes!.isNotEmpty) {
-              shape.ensureImageDecoded();
+              shape.ensureImageDecoded(onDecoded: onImageDecoded);
             }
             canvas.drawRRect(
               RRect.fromRectAndRadius(shape.rect, const Radius.circular(8)),
@@ -242,6 +285,13 @@ class _MiniCanvasPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _MiniCanvasPainter oldDelegate) {
+    if (oldDelegate.shapes.length != shapes.length) return true;
+    for (int i = 0; i < shapes.length; i++) {
+      if (oldDelegate.shapes[i].decodedImage != shapes[i].decodedImage ||
+          oldDelegate.shapes[i].revision != shapes[i].revision) {
+        return true;
+      }
+    }
     return oldDelegate.shapes != shapes;
   }
 }

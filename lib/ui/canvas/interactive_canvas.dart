@@ -11,6 +11,10 @@ import 'package:nixsvg/painters/grid_painter.dart';
 import 'package:nixsvg/painters/vector_canvas_painter.dart';
 import 'package:nixsvg/ui/canvas/canvas_inline_text_editor.dart';
 
+class _RepaintNotifier extends ChangeNotifier {
+  void notify() => notifyListeners();
+}
+
 /// The interactive center canvas workspace hosting the vector graphics painters,
 /// grid background, interactive viewer, and pointer gesture listeners.
 class InteractiveCanvas extends StatefulWidget {
@@ -63,6 +67,7 @@ class InteractiveCanvas extends StatefulWidget {
   final int? activeHandleType;
   final bool isPathClosed;
   final ValueChanged<Offset>? onPointerHover;
+  final VoidCallback? onImageDecoded;
 
   const InteractiveCanvas({
     super.key,
@@ -116,6 +121,7 @@ class InteractiveCanvas extends StatefulWidget {
     this.onCanvasHoverChanged,
     this.onPointerHover,
     this.onSecondaryTap,
+    this.onImageDecoded,
   });
 
   final void Function(Offset globalPos, Offset canvasPos)? onSecondaryTap;
@@ -125,10 +131,17 @@ class InteractiveCanvas extends StatefulWidget {
 }
 
 class _InteractiveCanvasState extends State<InteractiveCanvas> {
+  final _RepaintNotifier _repaintNotifier = _RepaintNotifier();
   double _lastTrackpadScale = 1.0;
   int _lastTrackpadTime = 0;
   bool _innerHit = false;
   bool _outerDragActive = false;
+
+  @override
+  void dispose() {
+    _repaintNotifier.dispose();
+    super.dispose();
+  }
 
   Offset _toCanvasCoordinates(Offset globalPos) {
     final RenderBox? box = context.findRenderObject() as RenderBox?;
@@ -588,6 +601,11 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
                     child: CustomPaint(
                       size: widget.canvasSize,
                       painter: VectorCanvasPainter(
+                        repaint: _repaintNotifier,
+                        onImageDecoded: () {
+                          _repaintNotifier.notify();
+                          widget.onImageDecoded?.call();
+                        },
                         shapes: widget.shapes,
                       selectedShapeIds: widget.selectedShapeIds,
                       draftStartPoint: widget.panStartOffset,
