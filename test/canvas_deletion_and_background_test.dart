@@ -120,8 +120,8 @@ void main() {
       expect(find.text('PAGE / CANVAS'), findsOneWidget);
       expect(find.text('TOOL & NAVIGATION'), findsOneWidget);
       expect(find.text('ZOOM CONTROLS'), findsOneWidget);
-      expect(find.text('CANVAS BACKGROUND'), findsOneWidget);
-      expect(find.text('GRID & SNAPPING'), findsOneWidget);
+      expect(find.text('Canvas Background'), findsOneWidget);
+      expect(find.text('Grid & Snapping'), findsOneWidget);
       expect(find.text('CANVAS ACTIONS'), findsNothing);
       expect(find.text('Select (V)'), findsOneWidget);
       expect(find.text('Move (H)'), findsOneWidget);

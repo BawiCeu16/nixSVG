@@ -207,9 +207,10 @@ class PropertiesSidebar extends StatelessWidget {
                       ),
                     ),
 
-                    // Alignment Card
-                    _buildSectionCard(
-                      context,
+                    // Layout Section (Alignment, Boolean Groups, Transform)
+                    _CollapsibleSection(
+                      title: 'Layout',
+                      icon: RemixIcons.layout_masonry_line,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -378,17 +379,11 @@ class PropertiesSidebar extends StatelessWidget {
                               ),
                             ],
                           ),
-                        ],
-                      ),
-                    ),
 
-                    // Boolean Operations Card (Union, Subtract, Intersect, Exclude)
-                    if (selectedShapesCount >= 2 && onBooleanOperation != null)
-                      _buildSectionCard(
-                        context,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                          // Boolean Operations Card (Union, Subtract, Intersect, Exclude)
+                          if (selectedShapesCount >= 2 &&
+                              onBooleanOperation != null) ...[
+                            const SizedBox(height: 8),
                             Text(
                               'BOOLEAN GROUPS',
                               style: _getSectionHeaderStyle(theme),
@@ -463,20 +458,22 @@ class PropertiesSidebar extends StatelessWidget {
                               ],
                             ),
                           ],
-                        ),
-                      ),
 
-                    // Transform Card
-                    _buildSectionCard(
-                      context,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                          const SizedBox(height: 8),
+                          Divider(
+                            height: 1,
+                            thickness: 0.8,
+                            color: colorScheme.outlineVariant.withValues(
+                              alpha: isDark ? 0.25 : 0.35,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+
                           Text(
                             'TRANSFORM',
                             style: _getSectionHeaderStyle(theme),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 6),
 
                           Row(
                             children: [
@@ -1306,10 +1303,11 @@ class PropertiesSidebar extends StatelessWidget {
                       ),
                     ),
 
-                    // Star Geometry Card (Sharp Points Count & Ratio)
+                    // Star Geometry Section (Sharp Points Count & Ratio)
                     if (selectedShape!.type == ShapeType.star)
-                      _buildSectionCard(
-                        context,
+                      _CollapsibleSection(
+                        title: 'Star Geometry',
+                        icon: RemixIcons.star_line,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -1456,10 +1454,11 @@ class PropertiesSidebar extends StatelessWidget {
                         ),
                       ),
 
-                    // Polygon Geometry Card (Sides & Corner Radius)
+                    // Polygon Geometry Section (Sides & Corner Radius)
                     if (selectedShape!.type == ShapeType.polygon)
-                      _buildSectionCard(
-                        context,
+                      _CollapsibleSection(
+                        title: 'Polygon Geometry',
+                        icon: RemixIcons.shape_line,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -1539,34 +1538,35 @@ class PropertiesSidebar extends StatelessWidget {
                     // Fill Color, Gradient & Opacity
                     if (selectedShape!.type != ShapeType.line &&
                         selectedShape!.type != ShapeType.image)
-                      _buildSectionCard(
-                        context,
+                      _CollapsibleSection(
+                        title: selectedShape!.type == ShapeType.text
+                            ? 'Text Color'
+                            : 'Fill',
+                        icon: RemixIcons.paint_fill,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                Text(
-                                  selectedShape!.type == ShapeType.text
-                                      ? 'TEXT COLOR'
-                                      : 'FILL',
-                                  style: _getSectionHeaderStyle(theme),
-                                ),
-                                const Spacer(),
-                                Switch(
-                                  value: selectedShape!.isFilled,
-                                  activeTrackColor: colorScheme.primary,
-                                  onChanged: (val) {
-                                    FocusManager.instance.primaryFocus
-                                        ?.unfocus();
-                                    final updated = selectedShape!.copyWith(
-                                      isFilled: val,
-                                    );
-                                    onShapeChanged(updated);
-                                    onShapeChangeEnd?.call(updated);
-                                  },
-                                ),
-                              ],
+                            _TileSwitch(
+                              icon: selectedShape!.type == ShapeType.text
+                                  ? RemixIcons.font_color
+                                  : RemixIcons.paint_fill,
+                              title: selectedShape!.type == ShapeType.text
+                                  ? 'Text Color'
+                                  : 'Fill Layer',
+                              subtitle: selectedShape!.isFilled
+                                  ? (selectedShape!.fillGradient != null
+                                        ? 'Gradient'
+                                        : _colorToHex(selectedShape!.fillColor))
+                                  : 'Hidden',
+                              value: selectedShape!.isFilled,
+                              onChanged: (val) {
+                                FocusManager.instance.primaryFocus?.unfocus();
+                                final updated = selectedShape!.copyWith(
+                                  isFilled: val,
+                                );
+                                onShapeChanged(updated);
+                                onShapeChangeEnd?.call(updated);
+                              },
                             ),
                             if (selectedShape!.isFilled) ...[
                               const SizedBox(height: 8),
@@ -1620,50 +1620,94 @@ class PropertiesSidebar extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
-                                    child: InkWell(
-                                      onTapUp: (details) {
-                                        FocusManager.instance.primaryFocus
-                                            ?.unfocus();
-                                        onOpenColorPickerFill(
-                                          Rect.fromCenter(
-                                            center: details.globalPosition,
-                                            width: 60,
-                                            height: 24,
-                                          ),
-                                        );
-                                      },
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 4,
-                                        ),
-                                        child: Text(
-                                          selectedShape!.fillType ==
-                                                  PaintFillType.solid
-                                              ? _colorToHex(
-                                                  selectedShape!.fillColor,
-                                                )
-                                              : (selectedShape!.fillType ==
-                                                        PaintFillType
-                                                            .linearGradient
-                                                    ? 'Linear'
-                                                    : 'Radial'),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: theme.textTheme.bodySmall
-                                              ?.copyWith(
-                                                fontFamily:
-                                                    selectedShape!.fillType ==
-                                                        PaintFillType.solid
-                                                    ? 'monospace'
-                                                    : null,
-                                                fontWeight: FontWeight.bold,
-                                                color: colorScheme.onSurface,
+                                    child:
+                                        selectedShape!.fillType ==
+                                            PaintFillType.solid
+                                        ? _HexColorInputField(
+                                            key: ValueKey(
+                                              'fill-hex-${selectedShape!.id}',
+                                            ),
+                                            color: selectedShape!.fillColor,
+                                            onColorChanged: (newColor) {
+                                              final updated = selectedShape!
+                                                  .copyWith(
+                                                    fillColor: newColor,
+                                                  );
+                                              onShapeChanged(updated);
+                                            },
+                                            onColorChangeEnd: (newColor) {
+                                              final updated = selectedShape!
+                                                  .copyWith(
+                                                    fillColor: newColor,
+                                                  );
+                                              (onShapeChangeEnd ??
+                                                  onShapeChanged)(updated);
+                                            },
+                                          )
+                                        : InkWell(
+                                            onTapUp: (details) {
+                                              FocusManager.instance.primaryFocus
+                                                  ?.unfocus();
+                                              onOpenColorPickerFill(
+                                                Rect.fromCenter(
+                                                  center:
+                                                      details.globalPosition,
+                                                  width: 60,
+                                                  height: 24,
+                                                ),
+                                              );
+                                            },
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                            child: Container(
+                                              height: 28,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                  ),
+                                              alignment: Alignment.centerLeft,
+                                              decoration: BoxDecoration(
+                                                color: colorScheme
+                                                    .surfaceContainerHighest,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color: colorScheme
+                                                      .outlineVariant
+                                                      .withValues(alpha: 0.3),
+                                                  width: 1.0,
+                                                ),
                                               ),
-                                        ),
-                                      ),
-                                    ),
+                                              child: Row(
+                                                children: [
+                                                  Icon(
+                                                    RemixIcons.gradienter_line,
+                                                    size: 13,
+                                                    color: colorScheme.primary,
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    selectedShape!.fillType ==
+                                                            PaintFillType
+                                                                .linearGradient
+                                                        ? 'Linear'
+                                                        : 'Radial',
+                                                    style: theme
+                                                        .textTheme
+                                                        .labelSmall
+                                                        ?.copyWith(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 11,
+                                                          color: colorScheme
+                                                              .onSurface,
+                                                        ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
@@ -1738,35 +1782,30 @@ class PropertiesSidebar extends StatelessWidget {
                     // Stroke Color, Gradient, Opacity & Styles
                     if (selectedShape!.type != ShapeType.image &&
                         selectedShape!.type != ShapeType.text)
-                      _buildSectionCard(
-                        context,
+                      _CollapsibleSection(
+                        title: 'Stroke',
+                        icon: RemixIcons.pen_nib_line,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                Text(
-                                  'STROKE',
-                                  style: _getSectionHeaderStyle(theme),
-                                ),
-                                const Spacer(),
-                                Switch(
-                                  value: selectedShape!.isStroked,
-                                  activeTrackColor: colorScheme.primary,
-                                  onChanged: (val) {
-                                    FocusManager.instance.primaryFocus
-                                        ?.unfocus();
-                                    final updated = selectedShape!.copyWith(
-                                      isStroked: val,
-                                    );
-                                    onShapeChanged(updated);
-                                    onShapeChangeEnd?.call(updated);
-                                  },
-                                ),
-                              ],
+                            _TileSwitch(
+                              icon: RemixIcons.pen_nib_line,
+                              title: 'Stroke Outline',
+                              subtitle: selectedShape!.isStroked
+                                  ? '${selectedShape!.strokeWidth.toStringAsFixed(1)}px • ${_colorToHex(selectedShape!.strokeColor)}'
+                                  : 'None',
+                              value: selectedShape!.isStroked,
+                              onChanged: (val) {
+                                FocusManager.instance.primaryFocus?.unfocus();
+                                final updated = selectedShape!.copyWith(
+                                  isStroked: val,
+                                );
+                                onShapeChanged(updated);
+                                onShapeChangeEnd?.call(updated);
+                              },
                             ),
                             if (selectedShape!.isStroked) ...[
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 5),
                               Row(
                                 children: [
                                   GestureDetector(
@@ -1817,50 +1856,94 @@ class PropertiesSidebar extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
-                                    child: InkWell(
-                                      onTapUp: (details) {
-                                        FocusManager.instance.primaryFocus
-                                            ?.unfocus();
-                                        onOpenColorPickerStroke(
-                                          Rect.fromCenter(
-                                            center: details.globalPosition,
-                                            width: 60,
-                                            height: 24,
-                                          ),
-                                        );
-                                      },
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 4,
-                                        ),
-                                        child: Text(
-                                          selectedShape!.strokeType ==
-                                                  PaintFillType.solid
-                                              ? _colorToHex(
-                                                  selectedShape!.strokeColor,
-                                                )
-                                              : (selectedShape!.strokeType ==
-                                                        PaintFillType
-                                                            .linearGradient
-                                                    ? 'Linear'
-                                                    : 'Radial'),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: theme.textTheme.bodySmall
-                                              ?.copyWith(
-                                                fontFamily:
-                                                    selectedShape!.strokeType ==
-                                                        PaintFillType.solid
-                                                    ? 'monospace'
-                                                    : null,
-                                                fontWeight: FontWeight.bold,
-                                                color: colorScheme.onSurface,
+                                    child:
+                                        selectedShape!.strokeType ==
+                                            PaintFillType.solid
+                                        ? _HexColorInputField(
+                                            key: ValueKey(
+                                              'stroke-hex-${selectedShape!.id}',
+                                            ),
+                                            color: selectedShape!.strokeColor,
+                                            onColorChanged: (newColor) {
+                                              final updated = selectedShape!
+                                                  .copyWith(
+                                                    strokeColor: newColor,
+                                                  );
+                                              onShapeChanged(updated);
+                                            },
+                                            onColorChangeEnd: (newColor) {
+                                              final updated = selectedShape!
+                                                  .copyWith(
+                                                    strokeColor: newColor,
+                                                  );
+                                              (onShapeChangeEnd ??
+                                                  onShapeChanged)(updated);
+                                            },
+                                          )
+                                        : InkWell(
+                                            onTapUp: (details) {
+                                              FocusManager.instance.primaryFocus
+                                                  ?.unfocus();
+                                              onOpenColorPickerStroke(
+                                                Rect.fromCenter(
+                                                  center:
+                                                      details.globalPosition,
+                                                  width: 60,
+                                                  height: 24,
+                                                ),
+                                              );
+                                            },
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                            child: Container(
+                                              height: 28,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                  ),
+                                              alignment: Alignment.centerLeft,
+                                              decoration: BoxDecoration(
+                                                color: colorScheme
+                                                    .surfaceContainerHighest,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color: colorScheme
+                                                      .outlineVariant
+                                                      .withValues(alpha: 0.3),
+                                                  width: 1.0,
+                                                ),
                                               ),
-                                        ),
-                                      ),
-                                    ),
+                                              child: Row(
+                                                children: [
+                                                  Icon(
+                                                    RemixIcons.gradienter_line,
+                                                    size: 13,
+                                                    color: colorScheme.primary,
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    selectedShape!.strokeType ==
+                                                            PaintFillType
+                                                                .linearGradient
+                                                        ? 'Linear'
+                                                        : 'Radial',
+                                                    style: theme
+                                                        .textTheme
+                                                        .labelSmall
+                                                        ?.copyWith(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 11,
+                                                          color: colorScheme
+                                                              .onSurface,
+                                                        ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
@@ -2189,7 +2272,7 @@ class PropertiesSidebar extends StatelessWidget {
                             ],
 
                             if (selectedShape!.type == ShapeType.line) ...[
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 8),
                               Text(
                                 'CAP STYLE',
                                 style: theme.textTheme.labelSmall?.copyWith(
@@ -2198,7 +2281,7 @@ class PropertiesSidebar extends StatelessWidget {
                                   letterSpacing: 0.8,
                                 ),
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 4),
                               _buildToggleGroup(
                                 selectedIndex:
                                     switch (selectedShape!.strokeCap) {
@@ -2254,7 +2337,7 @@ class PropertiesSidebar extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 8),
                               Text(
                                 'START & END POINTS',
                                 style: theme.textTheme.labelSmall?.copyWith(
@@ -2263,7 +2346,7 @@ class PropertiesSidebar extends StatelessWidget {
                                   letterSpacing: 0.8,
                                 ),
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 4),
                               Row(
                                 children: [
                                   Expanded(
@@ -2324,41 +2407,36 @@ class PropertiesSidebar extends StatelessWidget {
 
                     // Curve / Bend properties (If line shape selected)
                     if (selectedShape!.type == ShapeType.line)
-                      _buildSectionCard(
-                        context,
+                      _CollapsibleSection(
+                        title: 'Line Curve / Bend',
+                        icon: LucideIcons.spline,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                Text(
-                                  'CURVE / BEND',
-                                  style: _getSectionHeaderStyle(theme),
-                                ),
-                                const Spacer(),
-                                Switch(
-                                  value: selectedShape!.isCurved,
-                                  activeTrackColor: colorScheme.primary,
-                                  onChanged: (val) {
-                                    FocusManager.instance.primaryFocus
-                                        ?.unfocus();
-                                    final updated = selectedShape!.copyWith(
-                                      isCurved: val,
-                                      curvature: val
-                                          ? (selectedShape!.curvature == 0.0
-                                                ? 30.0
-                                                : selectedShape!.curvature)
-                                          : 0.0,
-                                    );
-                                    onShapeChanged(updated);
-                                    onShapeChangeEnd?.call(updated);
-                                  },
-                                ),
-                              ],
+                            _TileSwitch(
+                              icon: LucideIcons.spline,
+                              title: 'CURVE / BEND',
+                              subtitle: selectedShape!.isCurved
+                                  ? 'Curvature: ${selectedShape!.curvature.round()}px'
+                                  : 'Straight line',
+                              value: selectedShape!.isCurved,
+                              onChanged: (val) {
+                                FocusManager.instance.primaryFocus?.unfocus();
+                                final updated = selectedShape!.copyWith(
+                                  isCurved: val,
+                                  curvature: val
+                                      ? (selectedShape!.curvature == 0.0
+                                            ? 30.0
+                                            : selectedShape!.curvature)
+                                      : 0.0,
+                                );
+                                onShapeChanged(updated);
+                                onShapeChangeEnd?.call(updated);
+                              },
                             ),
                             if (selectedShape!.isCurved ||
                                 selectedShape!.curvature != 0.0) ...[
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 5),
                               Row(
                                 children: [
                                   const Icon(LucideIcons.spline, size: 16),
@@ -2472,8 +2550,9 @@ class PropertiesSidebar extends StatelessWidget {
 
                     // Text properties (If text shape selected)
                     if (selectedShape!.type == ShapeType.text)
-                      _buildSectionCard(
-                        context,
+                      _CollapsibleSection(
+                        title: 'Typography',
+                        icon: RemixIcons.text,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -2499,13 +2578,6 @@ class PropertiesSidebar extends StatelessWidget {
                               },
                             ),
                             const SizedBox(height: 12),
-                            const SizedBox(height: 14),
-                            // Typography Header
-                            Text(
-                              'TYPOGRAPHY',
-                              style: _getSectionHeaderStyle(theme),
-                            ),
-                            const SizedBox(height: 8),
                             Row(
                               children: [
                                 Expanded(
@@ -2529,114 +2601,53 @@ class PropertiesSidebar extends StatelessWidget {
                             ),
                             const SizedBox(height: 10),
 
-                            // Font Styles (Bold, Italic, Underline, Strikethrough)
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Tooltip(
-                                    message: 'Bold',
-                                    child: M3EButton(
-                                      onPressed: () {
-                                        FocusManager.instance.primaryFocus
-                                            ?.unfocus();
-                                        final isNowBold =
-                                            !selectedShape!.isBold;
-                                        final updated = selectedShape!.copyWith(
-                                          isBold: isNowBold,
-                                          fontWeight: isNowBold
-                                              ? FontWeight.bold
-                                              : FontWeight.normal,
-                                        );
-                                        onShapeChanged(updated);
-                                        onShapeChangeEnd?.call(updated);
-                                      },
-                                      style: selectedShape!.isBold
-                                          ? M3EButtonStyle.filled
-                                          : M3EButtonStyle.tonal,
-                                      size: M3EButtonSize.sm,
-                                      child: const Icon(
-                                        RemixIcons.bold,
-                                        size: 16,
-                                      ),
-                                    ),
-                                  ),
+                            // Font Styles (Bold, Italic, Underline, Strikethrough) - Figma-Style Connected Multi-Select Toggle Group
+                            _buildMultiToggleGroup(
+                              selectedIndices: {
+                                if (selectedShape!.isBold) 0,
+                                if (selectedShape!.isItalic) 1,
+                                if (selectedShape!.isUnderline) 2,
+                                if (selectedShape!.isStrikethrough) 3,
+                              },
+                              onChanged: (newIndices) {
+                                FocusManager.instance.primaryFocus?.unfocus();
+                                final isNowBold = newIndices.contains(0);
+                                final isNowItalic = newIndices.contains(1);
+                                final isNowUnderline = newIndices.contains(2);
+                                final isNowStrikethrough = newIndices.contains(
+                                  3,
+                                );
+                                final updated = selectedShape!.copyWith(
+                                  isBold: isNowBold,
+                                  fontWeight: isNowBold
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  isItalic: isNowItalic,
+                                  isUnderline: isNowUnderline,
+                                  isStrikethrough: isNowStrikethrough,
+                                );
+                                onShapeChanged(updated);
+                                onShapeChangeEnd?.call(updated);
+                              },
+                              actions: const [
+                                M3EToggleButtonGroupAction(
+                                  icon: Icon(RemixIcons.bold, size: 16),
+                                  tooltip: 'Bold',
                                 ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Tooltip(
-                                    message: 'Italic',
-                                    child: M3EButton(
-                                      onPressed: () {
-                                        FocusManager.instance.primaryFocus
-                                            ?.unfocus();
-                                        final updated = selectedShape!.copyWith(
-                                          isItalic: !selectedShape!.isItalic,
-                                        );
-                                        onShapeChanged(updated);
-                                        onShapeChangeEnd?.call(updated);
-                                      },
-                                      style: selectedShape!.isItalic
-                                          ? M3EButtonStyle.filled
-                                          : M3EButtonStyle.tonal,
-                                      size: M3EButtonSize.sm,
-                                      child: const Icon(
-                                        RemixIcons.italic,
-                                        size: 16,
-                                      ),
-                                    ),
-                                  ),
+                                M3EToggleButtonGroupAction(
+                                  icon: Icon(RemixIcons.italic, size: 16),
+                                  tooltip: 'Italic',
                                 ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Tooltip(
-                                    message: 'Underline',
-                                    child: M3EButton(
-                                      onPressed: () {
-                                        FocusManager.instance.primaryFocus
-                                            ?.unfocus();
-                                        final updated = selectedShape!.copyWith(
-                                          isUnderline:
-                                              !selectedShape!.isUnderline,
-                                        );
-                                        onShapeChanged(updated);
-                                        onShapeChangeEnd?.call(updated);
-                                      },
-                                      style: selectedShape!.isUnderline
-                                          ? M3EButtonStyle.filled
-                                          : M3EButtonStyle.tonal,
-                                      size: M3EButtonSize.sm,
-                                      child: const Icon(
-                                        RemixIcons.underline,
-                                        size: 16,
-                                      ),
-                                    ),
-                                  ),
+                                M3EToggleButtonGroupAction(
+                                  icon: Icon(RemixIcons.underline, size: 16),
+                                  tooltip: 'Underline',
                                 ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Tooltip(
-                                    message: 'Strikethrough',
-                                    child: M3EButton(
-                                      onPressed: () {
-                                        FocusManager.instance.primaryFocus
-                                            ?.unfocus();
-                                        final updated = selectedShape!.copyWith(
-                                          isStrikethrough:
-                                              !selectedShape!.isStrikethrough,
-                                        );
-                                        onShapeChanged(updated);
-                                        onShapeChangeEnd?.call(updated);
-                                      },
-                                      style: selectedShape!.isStrikethrough
-                                          ? M3EButtonStyle.filled
-                                          : M3EButtonStyle.tonal,
-                                      size: M3EButtonSize.sm,
-                                      child: const Icon(
-                                        RemixIcons.strikethrough,
-                                        size: 16,
-                                      ),
-                                    ),
+                                M3EToggleButtonGroupAction(
+                                  icon: Icon(
+                                    RemixIcons.strikethrough,
+                                    size: 16,
                                   ),
+                                  tooltip: 'Strikethrough',
                                 ),
                               ],
                             ),
@@ -2966,8 +2977,9 @@ class PropertiesSidebar extends StatelessWidget {
                       ),
 
                     // Section: Export Selection (Figma-Exact Inspector Section)
-                    _buildSectionCard(
-                      context,
+                    _CollapsibleSection(
+                      title: 'Export',
+                      icon: RemixIcons.download_2_line,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -3079,15 +3091,16 @@ class PropertiesSidebar extends StatelessWidget {
 
   TextStyle _getSectionHeaderStyle(ThemeData theme) {
     return theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.primary,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 1.2,
-          fontSize: 10.0,
+          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.85),
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8,
+          fontSize: 9.5,
         ) ??
-        const TextStyle(
-          fontWeight: FontWeight.w900,
-          letterSpacing: 1.2,
-          fontSize: 10.0,
+        TextStyle(
+          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.85),
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8,
+          fontSize: 9.5,
         );
   }
 
@@ -3337,6 +3350,136 @@ class PropertiesSidebar extends StatelessWidget {
     );
   }
 
+  Widget _buildMultiToggleGroup({
+    required Set<int> selectedIndices,
+    required ValueChanged<Set<int>> onChanged,
+    required List<M3EToggleButtonGroupAction> actions,
+    M3EButtonStyle style = M3EButtonStyle.filled,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final theme = Theme.of(context);
+        final colorScheme = theme.colorScheme;
+        final isDark = theme.brightness == Brightness.dark;
+
+        final count = actions.length;
+        final totalGaps = (count - 1) * 2.0;
+        final itemWidth = ((constraints.maxWidth - totalGaps) / count)
+            .floorToDouble();
+        final size = M3EButtonSize.fromBase(
+          M3EButtonSize.xs,
+          hPadding: 2,
+          width: itemWidth,
+        );
+
+        final groupDecoration = M3EToggleButtonDecoration(
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return colorScheme.primary;
+            }
+            if (states.contains(WidgetState.hovered)) {
+              return isDark
+                  ? colorScheme.surfaceContainerHighest
+                  : colorScheme.surfaceContainer;
+            }
+            return isDark
+                ? colorScheme.surfaceContainerHigh
+                : colorScheme.surfaceContainerLow;
+          }),
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return colorScheme.onPrimary;
+            }
+            return colorScheme.onSurfaceVariant;
+          }),
+          side: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return BorderSide(color: colorScheme.primary, width: 1);
+            }
+            return BorderSide(
+              color: colorScheme.outlineVariant.withValues(
+                alpha: isDark ? 0.4 : 0.25,
+              ),
+              width: 1,
+            );
+          }),
+        );
+
+        final mappedActions = actions.asMap().entries.map((entry) {
+          final action = entry.value;
+
+          Widget? uncheckedLabel = action.label;
+          Widget? checkedLabel = action.checkedLabel;
+          if (uncheckedLabel is Text) {
+            final textStr = uncheckedLabel.data ?? '';
+            final originalStyle =
+                uncheckedLabel.style ??
+                theme.textTheme.labelSmall ??
+                const TextStyle();
+            uncheckedLabel = Text(
+              textStr,
+              style: originalStyle.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            );
+            checkedLabel ??= Text(
+              textStr,
+              style: originalStyle.copyWith(
+                color: colorScheme.onPrimary,
+                fontWeight: FontWeight.bold,
+              ),
+            );
+          }
+
+          Widget? uncheckedIcon = action.icon;
+          Widget? checkedIcon = action.checkedIcon;
+          if (uncheckedIcon is Icon) {
+            checkedIcon ??= Icon(
+              uncheckedIcon.icon,
+              size: uncheckedIcon.size ?? 16,
+              color: colorScheme.onPrimary,
+            );
+            uncheckedIcon = Icon(
+              uncheckedIcon.icon,
+              size: uncheckedIcon.size ?? 16,
+              color: colorScheme.onSurfaceVariant,
+            );
+          }
+
+          return M3EToggleButtonGroupAction(
+            icon: uncheckedIcon,
+            checkedIcon: checkedIcon,
+            label: uncheckedLabel,
+            checkedLabel: checkedLabel,
+            enabled: action.enabled,
+            decoration: action.decoration ?? groupDecoration,
+            width: action.width,
+            focusNode: action.focusNode,
+            autofocus: action.autofocus,
+            onFocusChange: action.onFocusChange,
+            semanticLabel: action.semanticLabel,
+            tooltip: action.tooltip,
+            enableFeedback: action.enableFeedback,
+          );
+        }).toList();
+
+        return M3EToggleButtonGroup(
+          type: M3EButtonGroupType.connected,
+          style: style,
+          size: size,
+          shape: M3EButtonShape.round,
+          density: M3EButtonGroupDensity.compact,
+          overflow: M3EButtonGroupOverflow.none,
+          selectedIndices: selectedIndices,
+          decoration: groupDecoration,
+          onSelectedIndicesChanged: onChanged,
+          actions: mappedActions,
+        );
+      },
+    );
+  }
+
   Widget _buildNumberField(
     BuildContext context,
     String label,
@@ -3479,9 +3622,10 @@ class PropertiesSidebar extends StatelessWidget {
           ),
         ),
 
-        // Section: Navigation & Tools
-        _buildSectionCard(
-          context,
+        // Section: Viewport & Navigation
+        _CollapsibleSection(
+          title: 'Viewport & Navigation',
+          icon: RemixIcons.navigation_line,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -3628,16 +3772,17 @@ class PropertiesSidebar extends StatelessWidget {
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
 
-        // Section: Zoom Controls
-        _buildSectionCard(
-          context,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+              const SizedBox(height: 12),
+              Divider(
+                height: 1,
+                thickness: 0.8,
+                color: colorScheme.outlineVariant.withValues(
+                  alpha: isDark ? 0.25 : 0.35,
+                ),
+              ),
+              const SizedBox(height: 10),
+
               Text('ZOOM CONTROLS', style: _getSectionHeaderStyle(theme)),
               const SizedBox(height: 10),
 
@@ -3820,14 +3965,12 @@ class PropertiesSidebar extends StatelessWidget {
         ),
 
         // Section: Canvas Background
-        _buildSectionCard(
-          context,
+        _CollapsibleSection(
+          title: 'Canvas Background',
+          icon: RemixIcons.palette_line,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('CANVAS BACKGROUND', style: _getSectionHeaderStyle(theme)),
-              const SizedBox(height: 10),
-
               // Color Chip + Hex Field + Opacity
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -3945,29 +4088,20 @@ class PropertiesSidebar extends StatelessWidget {
         ),
 
         // Section: Grid & Snapping
-        _buildSectionCard(
-          context,
+        _CollapsibleSection(
+          title: 'Grid & Snapping',
+          icon: RemixIcons.grid_line,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('GRID & SNAPPING', style: _getSectionHeaderStyle(theme)),
-              const SizedBox(height: 10),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Snap to Grid',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurface,
-                      ),
-                    ),
-                  ),
-                  Switch.adaptive(
-                    value: snapToGrid ?? true,
-                    onChanged: onToggleSnapToGrid,
-                  ),
-                ],
+              _TileSwitch(
+                icon: RemixIcons.grid_line,
+                title: 'Snap to Grid',
+                subtitle: (snapToGrid ?? true)
+                    ? 'Snapping to ${gridSpacing?.round() ?? 20}px'
+                    : 'Free movement',
+                value: snapToGrid ?? true,
+                onChanged: onToggleSnapToGrid,
               ),
 
               if (gridSpacing != null) ...[
@@ -4021,13 +4155,12 @@ class PropertiesSidebar extends StatelessWidget {
         ),
 
         // Section: Artboard Dimensions (Figma Style)
-        _buildSectionCard(
-          context,
+        _CollapsibleSection(
+          title: 'Artboard Dimensions',
+          icon: RemixIcons.artboard_line,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('ARTBOARD DIMENSIONS', style: _getSectionHeaderStyle(theme)),
-              const SizedBox(height: 10),
               Row(
                 children: [
                   Expanded(
@@ -4107,35 +4240,33 @@ class PropertiesSidebar extends StatelessWidget {
         ),
 
         // Section: Export Canvas (Figma-Exact Inspector Section)
-        _buildSectionCard(
-          context,
+        _CollapsibleSection(
+          title: 'Export Canvas',
+          icon: RemixIcons.download_2_line,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Text('EXPORT CANVAS', style: _getSectionHeaderStyle(theme)),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      'SVG',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.primary,
-                      ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'SVG',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.primary,
                     ),
                   ),
-                ],
+                ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Icon(
@@ -4272,6 +4403,176 @@ class PropertiesSidebar extends StatelessWidget {
             color: isSelected
                 ? colorScheme.primary
                 : colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Editable Hex input field for Fill, Stroke, Text and Shape colors
+class _HexColorInputField extends StatefulWidget {
+  final Color color;
+  final ValueChanged<Color> onColorChanged;
+  final ValueChanged<Color>? onColorChangeEnd;
+
+  const _HexColorInputField({
+    super.key,
+    required this.color,
+    required this.onColorChanged,
+    this.onColorChangeEnd,
+  });
+
+  @override
+  State<_HexColorInputField> createState() => _HexColorInputFieldState();
+}
+
+class _HexColorInputFieldState extends State<_HexColorInputField> {
+  late TextEditingController _controller;
+  late FocusNode _focusNode;
+  bool _isHovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: _formatHex(widget.color));
+    _focusNode = FocusNode();
+    _focusNode.addListener(() {
+      if (!_focusNode.hasFocus) {
+        _commitHex(_controller.text);
+      }
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _HexColorInputField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_focusNode.hasFocus &&
+        (oldWidget.color.toARGB32() & 0x00FFFFFF) !=
+            (widget.color.toARGB32() & 0x00FFFFFF)) {
+      _controller.text = _formatHex(widget.color);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  String _formatHex(Color col) {
+    return col
+        .toARGB32()
+        .toRadixString(16)
+        .padLeft(8, '0')
+        .substring(2)
+        .toUpperCase();
+  }
+
+  void _commitHex(String text) {
+    var raw = text.trim().replaceAll('#', '');
+    if (raw.length == 3) {
+      raw = raw.split('').map((c) => '$c$c').join();
+    }
+    if (raw.length == 6) {
+      final value = int.tryParse(raw, radix: 16);
+      if (value != null) {
+        final existingAlpha = widget.color.a;
+        final newColor = Color(0xFF000000 | value)
+            .withValues(alpha: existingAlpha);
+        widget.onColorChanged(newColor);
+        widget.onColorChangeEnd?.call(newColor);
+        _controller.text = _formatHex(newColor);
+        return;
+      }
+    } else if (raw.length == 8) {
+      final value = int.tryParse(raw, radix: 16);
+      if (value != null) {
+        final newColor = Color(value);
+        widget.onColorChanged(newColor);
+        widget.onColorChangeEnd?.call(newColor);
+        _controller.text = _formatHex(newColor);
+        return;
+      }
+    }
+    _controller.text = _formatHex(widget.color);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          _focusNode.requestFocus();
+          _controller.selection = TextSelection(
+            baseOffset: 0,
+            extentOffset: _controller.text.length,
+          );
+        },
+        child: Container(
+          height: 28,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: _focusNode.hasFocus
+                  ? colorScheme.primary
+                  : (_isHovered
+                        ? colorScheme.outlineVariant.withValues(alpha: 0.6)
+                        : colorScheme.outlineVariant.withValues(alpha: 0.3)),
+              width: _focusNode.hasFocus ? 1.5 : 1.0,
+            ),
+          ),
+          child: Row(
+            children: [
+              Text(
+                '#',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.bold,
+                  color: _focusNode.hasFocus
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  focusNode: _focusNode,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontFamily: 'monospace',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                    color: colorScheme.onSurface,
+                    letterSpacing: 0.5,
+                  ),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9a-fA-F]')),
+                    LengthLimitingTextInputFormatter(8),
+                  ],
+                  onSubmitted: (val) {
+                    _commitHex(val);
+                    _focusNode.unfocus();
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -5286,6 +5587,260 @@ class _TextContentInputFieldState extends State<_TextContentInputField> {
           widget.onCommit?.call();
           _focusNode.unfocus();
         },
+      ),
+    );
+  }
+}
+
+class _CollapsibleSection extends StatefulWidget {
+  final String title;
+  final IconData? icon;
+  final Widget child;
+
+  const _CollapsibleSection({
+    required this.title,
+    this.icon,
+    required this.child,
+  });
+
+  @override
+  State<_CollapsibleSection> createState() => _CollapsibleSectionState();
+}
+
+class _CollapsibleSectionState extends State<_CollapsibleSection> {
+  bool _isExpanded = true;
+
+  String _toTitleCase(String text) {
+    if (text.isEmpty) return text;
+    return text
+        .split(' ')
+        .map((word) {
+          if (word.isEmpty) return word;
+          if (word == '&' || word == '/') return word;
+          if (word.contains('/')) {
+            return word
+                .split('/')
+                .map((part) {
+                  if (part.isEmpty) return part;
+                  return part[0].toUpperCase() +
+                      part.substring(1).toLowerCase();
+                })
+                .join(' / ');
+          }
+          return word[0].toUpperCase() + word.substring(1).toLowerCase();
+        })
+        .join(' ');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 6),
+      color: colorScheme.surfaceContainerHighest.withValues(
+        alpha: isDark ? 0.35 : 0.45,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withValues(
+            alpha: isDark ? 0.25 : 0.35,
+          ),
+          width: 0.8,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Collapsible Header Row
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                setState(() => _isExpanded = !_isExpanded);
+              },
+              hoverColor: colorScheme.surfaceContainerHighest.withValues(
+                alpha: isDark ? 0.4 : 0.6,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 7,
+                ),
+                child: Row(
+                  children: [
+                    if (widget.icon != null) ...[
+                      Icon(widget.icon, size: 14, color: colorScheme.primary),
+                      const SizedBox(width: 6),
+                    ],
+                    Expanded(
+                      child: Text(
+                        _toTitleCase(widget.title),
+                        style:
+                            theme.textTheme.labelMedium?.copyWith(
+                              color: colorScheme.onSurface,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
+                              fontSize: 11.5,
+                            ) ??
+                            TextStyle(
+                              color: colorScheme.onSurface,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
+                              fontSize: 11.5,
+                            ),
+                      ),
+                    ),
+                    AnimatedRotation(
+                      turns: _isExpanded ? 0.0 : -0.25,
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOutCubic,
+                      child: Icon(
+                        RemixIcons.arrow_down_s_line,
+                        size: 15,
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.7,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          AnimatedCrossFade(
+            firstChild: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 4, 10, 8),
+              child: widget.child,
+            ),
+            secondChild: const SizedBox.shrink(),
+            crossFadeState: _isExpanded
+                ? CrossFadeState.showFirst
+                : CrossFadeState.showSecond,
+            duration: const Duration(milliseconds: 200),
+            sizeCurve: Curves.easeOutCubic,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TileSwitch extends StatelessWidget {
+  final IconData? icon;
+  final String title;
+  final String? subtitle;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  const _TileSwitch({
+    this.icon,
+    required this.title,
+    this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 1.0),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(
+          alpha: value ? (isDark ? 0.5 : 0.65) : (isDark ? 0.2 : 0.3),
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onChanged != null ? () => onChanged!(!value) : null,
+          borderRadius: BorderRadius.circular(8),
+          hoverColor: colorScheme.surfaceContainerHighest.withValues(
+            alpha: isDark ? 0.4 : 0.5,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+            child: Row(
+              children: [
+                if (icon != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: value
+                          ? colorScheme.primary.withValues(alpha: 0.14)
+                          : colorScheme.surfaceContainerHigh.withValues(
+                              alpha: 0.5,
+                            ),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(
+                      icon,
+                      size: 13,
+                      color: value
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: value
+                              ? colorScheme.onSurface
+                              : colorScheme.onSurfaceVariant,
+                          letterSpacing: 0.2,
+                          fontSize: 11.0,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (subtitle != null && subtitle!.isNotEmpty) ...[
+                        const SizedBox(height: 1),
+                        Text(
+                          subtitle!,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontSize: 9.5,
+                            color: value
+                                ? colorScheme.primary
+                                : colorScheme.onSurfaceVariant.withValues(
+                                    alpha: 0.6,
+                                  ),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Switch(
+                  value: value,
+                  activeTrackColor: colorScheme.primary,
+                  activeThumbColor: colorScheme.onPrimary,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  onChanged: onChanged,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -390,36 +390,78 @@ class _LayersSidebarState extends State<LayersSidebar> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Tooltip(
-                        message:
-                            '${items.length} total layers • Click to Select All',
-                        child: InkWell(
-                          onTap: items.isNotEmpty
-                              ? () => _selectAllLayers(items)
-                              : null,
-                          borderRadius: BorderRadius.circular(6),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 5,
-                              vertical: 1.5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: colorScheme.secondaryContainer.withValues(
-                                alpha: 0.7,
+                      if (!isVeryNarrow || widget.selectedShapeIds.isEmpty)
+                        Tooltip(
+                          message:
+                              '${items.length} total layers • Click to Select All',
+                          child: InkWell(
+                            onTap: items.isNotEmpty
+                                ? () => _selectAllLayers(items)
+                                : null,
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 1.5,
                               ),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              '${items.length}',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: colorScheme.onSecondaryContainer,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 10.0,
+                              decoration: BoxDecoration(
+                                color: colorScheme.secondaryContainer
+                                    .withValues(alpha: 0.7),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '${items.length}',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: colorScheme.onSecondaryContainer,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10.0,
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
+                      if (widget.selectedShapeIds.isNotEmpty) ...[
+                        const SizedBox(width: 4),
+                        Tooltip(
+                          message:
+                              '${widget.selectedShapeIds.length} selected • Click to clear',
+                          child: InkWell(
+                            onTap: _deselectAllLayers,
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 1.5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colorScheme.primaryContainer.withValues(
+                                  alpha: 0.75,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '${widget.selectedShapeIds.length} sel',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: colorScheme.onPrimaryContainer,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 10.0,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Icon(
+                                    RemixIcons.close_line,
+                                    size: 10,
+                                    color: colorScheme.onPrimaryContainer,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                       const Spacer(),
 
                       // Selection Tool Quick Actions (Select All, Clear, Bring Forward, Send Backward)
@@ -585,8 +627,8 @@ class _LayersSidebarState extends State<LayersSidebar> {
 
             // --- Material 3 Expressive Sidebar Footer ---
             Container(
-              height: 34,
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              height: 42,
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainer,
                 border: Border(
@@ -598,66 +640,14 @@ class _LayersSidebarState extends State<LayersSidebar> {
                   ),
                 ),
               ),
-              child: Row(
-                children: [
-                  // Settings & Preferences
-                  _M3EIconButton(
-                    icon: RemixIcons.settings_3_line,
-                    tooltip: 'Settings & Preferences (Ctrl+,)',
-                    enabled: true,
-                    onTap: () {
-                      if (widget.onOpenSettings != null) {
-                        widget.onOpenSettings!();
-                      } else {
-                        showAppSettingsDialog(context);
-                      }
-                    },
-                  ),
-                  const Spacer(),
-                  if (widget.selectedShapeIds.isNotEmpty) ...[
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: InkWell(
-                        onTap: _deselectAllLayers,
-                        borderRadius: BorderRadius.circular(6),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 5,
-                            vertical: 1.5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: colorScheme.primaryContainer.withValues(
-                              alpha: 0.6,
-                            ),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  '${widget.selectedShapeIds.length} sel',
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: colorScheme.onPrimaryContainer,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 3),
-                              Icon(
-                                RemixIcons.close_line,
-                                size: 11,
-                                color: colorScheme.onPrimaryContainer,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
+              child: _M3ESettingsTile(
+                onTap: () {
+                  if (widget.onOpenSettings != null) {
+                    widget.onOpenSettings!();
+                  } else {
+                    showAppSettingsDialog(context);
+                  }
+                },
               ),
             ),
           ],
@@ -918,44 +908,78 @@ class _M3ELayerActionBtn extends StatelessWidget {
   }
 }
 
-/// Material 3 Expressive Icon Button with spring physics.
-class _M3EIconButton extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final bool enabled;
+/// Material 3 Expressive Settings List Tile with tactile feedback.
+class _M3ESettingsTile extends StatelessWidget {
   final VoidCallback onTap;
 
-  const _M3EIconButton({
-    required this.icon,
-    required this.tooltip,
-    required this.enabled,
-    required this.onTap,
-  });
+  const _M3ESettingsTile({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
-    return M3PhysicsPressable(
-      tooltip: tooltip,
-      onTap: enabled ? onTap : null,
-      enableHoverHighlight: true,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        width: 26,
-        height: 26,
-        decoration: const BoxDecoration(
+    return Tooltip(
+      message: 'Settings & Preferences (Ctrl+,)',
+      waitDuration: const Duration(milliseconds: 500),
+      child: M3ESegmentedList(
+        itemCount: 1,
+        onTap: (_) => onTap(),
+        padding: EdgeInsets.zero,
+        margin: EdgeInsets.zero,
+        outerRadius: 6.0,
+        innerRadius: 6.0,
+        gap: 0.0,
+        color: Colors.transparent,
+        hoverColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+        pressedScale: 0.98,
+        decoration: M3ESegmentedListDecoration(
+          outerRadius: 6.0,
+          innerRadius: 6.0,
+          gap: 0.0,
+          padding: EdgeInsets.zero,
+          margin: EdgeInsets.zero,
           color: Colors.transparent,
-          shape: BoxShape.circle,
+          hoverColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+          pressedRadius: 6.0,
+          pressedScale: 0.98,
+          border: BorderSide.none,
+          elevation: 0.0,
         ),
-        alignment: Alignment.center,
-        child: Icon(
-          icon,
-          size: 15,
-          color: enabled
-              ? colorScheme.onSurface
-              : colorScheme.onSurface.withValues(alpha: 0.35),
-        ),
+        itemBuilder: (context, index) {
+          return M3EListItem(
+            minHeight: 34,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 1,
+            ),
+            leadingSpacing: 8,
+            headlineStyle: theme.textTheme.labelMedium?.copyWith(
+              color: colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+              fontSize: 11.0,
+              height: 1.1,
+            ),
+            leading: Icon(
+              RemixIcons.settings_3_line,
+              size: 15,
+              color: colorScheme.onSurfaceVariant,
+            ),
+            headline: const Text(
+              'Settings & Preferences',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: Text(
+              '⌘,',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                fontFamily: 'monospace',
+                fontSize: 10,
+              ),
+            ),
+          );
+        },
       ),
     );
   }

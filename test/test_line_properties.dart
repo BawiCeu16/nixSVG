@@ -33,7 +33,7 @@ void main() {
             builder: (context, setState) {
               return SizedBox(
                 width: 320,
-                height: 1000,
+                height: 1200,
                 child: PropertiesSidebar(
                   selectedShape: currentShape,
                   onShapeChanged: (updated) {
@@ -65,17 +65,23 @@ void main() {
     expect(find.text('Reset'), findsOneWidget);
 
     // Tap reset button
+    await tester.ensureVisible(find.text('Reset'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Reset'));
     await tester.pumpAndSettle();
     expect(currentShape.curvature, 0.0);
     expect(find.text('Bend: 0 px'), findsOneWidget);
 
     // Toggle switch off
+    await tester.ensureVisible(find.byType(Switch).last);
+    await tester.pumpAndSettle();
     await tester.tap(find.byType(Switch).last);
     await tester.pumpAndSettle();
     expect(currentShape.isCurved, isFalse);
 
     // Toggle switch back on
+    await tester.ensureVisible(find.byType(Switch).last);
+    await tester.pumpAndSettle();
     await tester.tap(find.byType(Switch).last);
     await tester.pumpAndSettle();
     expect(currentShape.isCurved, isTrue);

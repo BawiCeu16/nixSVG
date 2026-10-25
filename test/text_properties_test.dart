@@ -150,7 +150,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify Typography headers are displayed
-      expect(find.text('TYPOGRAPHY'), findsOneWidget);
+      expect(find.text('Typography'), findsOneWidget);
       expect(find.text('TEXT ALIGNMENT'), findsOneWidget);
       expect(find.text('VERTICAL ALIGNMENT'), findsOneWidget);
       expect(find.text('TEXT CASE'), findsOneWidget);
