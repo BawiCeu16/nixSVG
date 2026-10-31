@@ -604,32 +604,6 @@ class TopNavigationBar extends ConsumerWidget {
                           ),
                         ),
                       ),
-
-                      const SizedBox(width: 5),
-
-                      // --- Primary Action: Export SVG ---
-                      Tooltip(
-                        message: 'Export project to SVG',
-                        waitDuration: const Duration(milliseconds: 500),
-                        child: M3EButton.icon(
-                          onPressed: onExportSvg,
-                          style: M3EButtonStyle.filled,
-                          size: M3EButtonSize.sm,
-                          icon: Icon(
-                            RemixIcons.download_line,
-                            size: 15,
-                            color: colorScheme.onPrimary,
-                          ),
-                          label: Text(
-                            'Export SVG',
-                            style: textTheme.labelMedium?.copyWith(
-                              color: colorScheme.onPrimary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 11.0,
-                            ),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ],
@@ -882,7 +856,7 @@ class TopNavigationBar extends ConsumerWidget {
                       onOpenSettings?.call();
                       break;
                     case 'shortcuts':
-                      onShowShortcuts?.call();
+                      onShowShortcuts();
                       break;
                   }
                 },
@@ -976,21 +950,20 @@ class TopNavigationBar extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  if (onShowShortcuts != null)
-                    PopupMenuItem(
-                      value: 'shortcuts',
-                      child: Row(
-                        children: [
-                          Icon(
-                            RemixIcons.keyboard_line,
-                            size: 16,
-                            color: colorScheme.onSurface,
-                          ),
-                          const SizedBox(width: 10),
-                          const Text('Shortcuts'),
-                        ],
-                      ),
+                  PopupMenuItem(
+                    value: 'shortcuts',
+                    child: Row(
+                      children: [
+                        Icon(
+                          RemixIcons.keyboard_line,
+                          size: 16,
+                          color: colorScheme.onSurface,
+                        ),
+                        const SizedBox(width: 10),
+                        const Text('Shortcuts'),
+                      ],
                     ),
+                  ),
                   if (onOpenSettings != null)
                     PopupMenuItem(
                       value: 'settings',
@@ -1059,14 +1032,12 @@ class _M3EIconButton extends StatelessWidget {
   final String tooltip;
   final bool enabled;
   final VoidCallback onTap;
-  final Color? color;
 
   const _M3EIconButton({
     required this.icon,
     required this.tooltip,
     required this.enabled,
     required this.onTap,
-    this.color,
   });
 
   @override
@@ -1074,7 +1045,7 @@ class _M3EIconButton extends StatelessWidget {
     return IconButton(
       tooltip: tooltip,
       onPressed: enabled ? onTap : null,
-      icon: Icon(icon, size: 18, color: color),
+      icon: Icon(icon, size: 18),
       style: IconButton.styleFrom(
         minimumSize: const Size(31, 31),
         padding: EdgeInsets.zero,
@@ -1309,7 +1280,16 @@ class _M3EDocumentCapsuleState extends State<_M3EDocumentCapsule> {
     final colorScheme = theme.colorScheme;
 
     return GestureDetector(
-      behavior: HitTestBehavior.translucent,
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (!_focusNode.hasFocus) {
+          _focusNode.requestFocus();
+          _controller.selection = TextSelection(
+            baseOffset: 0,
+            extentOffset: _controller.text.length,
+          );
+        }
+      },
       onSecondaryTapDown: (details) =>
           _showDocumentContextMenu(details.globalPosition),
       child: AnimatedContainer(
@@ -1320,43 +1300,51 @@ class _M3EDocumentCapsuleState extends State<_M3EDocumentCapsule> {
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(100.0),
+          border: Border.all(
+            color: _focusNode.hasFocus
+                ? colorScheme.primary.withValues(alpha: 0.6)
+                : Colors.transparent,
+            width: 1.2,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Icon(
               RemixIcons.file_edit_line,
               size: widget.isCompact ? 14 : 16,
-              color: colorScheme.primary,
+              color: _focusNode.hasFocus ? colorScheme.primary : colorScheme.onSurfaceVariant,
             ),
             SizedBox(width: widget.isCompact ? 4 : 7),
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                minWidth: widget.isCompact ? 30 : 75,
-                maxWidth: widget.isCompact ? 68 : 180,
-              ),
-              child: IntrinsicWidth(
-                child: TextField(
-                  controller: _controller,
-                  focusNode: _focusNode,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (val) {
-                    if (val.trim().isNotEmpty) {
-                      widget.onFileNameChanged(val.trim());
-                    }
-                    _focusNode.unfocus();
-                  },
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurface,
-                    fontWeight: FontWeight.w600,
-                    fontSize: widget.isCompact ? 11.5 : 12.5,
-                  ),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                    hintText: 'Untitled',
-                  ),
+            SizedBox(
+              width: widget.isCompact ? 80 : 140,
+              child: TextField(
+                controller: _controller,
+                focusNode: _focusNode,
+                maxLines: 1,
+                textInputAction: TextInputAction.done,
+                onChanged: (val) {
+                  if (val.trim().isNotEmpty) {
+                    widget.onFileNameChanged(val.trim());
+                  }
+                },
+                onSubmitted: (val) {
+                  if (val.trim().isNotEmpty) {
+                    widget.onFileNameChanged(val.trim());
+                  }
+                  _focusNode.unfocus();
+                },
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                  fontSize: widget.isCompact ? 11.5 : 12.5,
+                ),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  hintText: 'Untitled',
                 ),
               ),
             ),

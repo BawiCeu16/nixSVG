@@ -5,6 +5,7 @@ import 'package:nixsvg/services/safe_file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,6 +35,8 @@ import 'package:nixsvg/widgets/export_dialog.dart';
 import 'package:nixsvg/widgets/floating_tool_bar.dart';
 import 'package:nixsvg/widgets/layers_sidebar.dart';
 import 'package:nixsvg/widgets/properties_sidebar.dart';
+import 'package:nixsvg/services/file_saver/safe_file_saver.dart';
+import 'package:nixsvg/services/vector_export_service.dart';
 import 'package:nixsvg/widgets/settings_dialog.dart';
 import 'package:nixsvg/widgets/shortcuts_dialog.dart';
 import 'package:nixsvg/widgets/top_navigation_bar.dart';
@@ -205,7 +208,12 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
     if (widget.initialProject != null) {
       fileName = widget.initialProject!.name;
       shapes = widget.initialProject!.shapes.map((s) => s.copyWith()).toList();
-      canvasSize = widget.initialProject!.canvasSize;
+      final pSize = widget.initialProject!.canvasSize;
+      if (pSize.width < 1600 || pSize.height < 1200) {
+        canvasSize = const Size(3200, 2400);
+      } else {
+        canvasSize = pSize;
+      }
     } else {
       _loadSampleDemoShapes();
     }
@@ -226,6 +234,11 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
         }
       });
       _persistCurrentProject();
+      if (shapes.isNotEmpty) {
+        _zoomToFit();
+      } else {
+        _centerCanvas();
+      }
     });
   }
 
@@ -247,8 +260,15 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
         widget.initialProject?.id != oldWidget.initialProject?.id) {
       setState(() {
         fileName = widget.initialProject!.name;
-        shapes = widget.initialProject!.shapes.map((s) => s.copyWith()).toList();
-        canvasSize = widget.initialProject!.canvasSize;
+        shapes = widget.initialProject!.shapes
+            .map((s) => s.copyWith())
+            .toList();
+        final pSize = widget.initialProject!.canvasSize;
+        if (pSize.width < 1600 || pSize.height < 1200) {
+          canvasSize = const Size(3200, 2400);
+        } else {
+          canvasSize = pSize;
+        }
       });
       _decodeShapeImages();
     }
@@ -261,20 +281,22 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
           shape.decodedImage == null &&
           shape.imageBytes != null &&
           shape.imageBytes!.isNotEmpty) {
-        shape.ensureImageDecoded(onDecoded: () {
-          if (mounted) {
-            setState(() {
-              final idx = shapes.indexWhere((s) => s.id == shape.id);
-              if (idx >= 0) {
-                shapes[idx] = shapes[idx].copyWith(
-                  decodedImage: shape.decodedImage,
-                  revision: shapes[idx].revision + 1,
-                );
-              }
-              shapes = List<VectorShape>.from(shapes);
-            });
-          }
-        });
+        shape.ensureImageDecoded(
+          onDecoded: () {
+            if (mounted) {
+              setState(() {
+                final idx = shapes.indexWhere((s) => s.id == shape.id);
+                if (idx >= 0) {
+                  shapes[idx] = shapes[idx].copyWith(
+                    decodedImage: shape.decodedImage,
+                    revision: shapes[idx].revision + 1,
+                  );
+                }
+                shapes = List<VectorShape>.from(shapes);
+              });
+            }
+          },
+        );
       }
     }
   }
@@ -1044,7 +1066,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
 
           Offset targetPos = localPos;
           if (isShift) {
-            targetPos = CanvasGeometry.calculateHandleSnapAngle(center, localPos);
+            targetPos = CanvasGeometry.calculateHandleSnapAngle(
+              center,
+              localPos,
+            );
           }
 
           if (_activeHandleType == 2) {
@@ -1072,11 +1097,16 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
         final delta = localPos - _nodeDragStartPos!;
         for (final idx in _selectedPathNodeIndices) {
           if (idx < _editingPathNodes!.length) {
-            final initNode = _initialDraggingNodes?[idx] ?? _editingPathNodes![idx];
+            final initNode =
+                _initialDraggingNodes?[idx] ?? _editingPathNodes![idx];
             _editingPathNodes![idx] = initNode.copyWith(
               position: initNode.position + delta,
-              handleIn: initNode.handleIn != null ? initNode.handleIn! + delta : null,
-              handleOut: initNode.handleOut != null ? initNode.handleOut! + delta : null,
+              handleIn: initNode.handleIn != null
+                  ? initNode.handleIn! + delta
+                  : null,
+              handleOut: initNode.handleOut != null
+                  ? initNode.handleOut! + delta
+                  : null,
             );
           }
         }
@@ -1456,11 +1486,17 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
               s.rect = initR.shift(delta);
               if (_initialShapeNodes?[s.id] != null) {
                 s.pathNodes = _initialShapeNodes![s.id]!
-                    .map((n) => n.copyWith(
-                          position: n.position + delta,
-                          handleIn: n.handleIn != null ? n.handleIn! + delta : null,
-                          handleOut: n.handleOut != null ? n.handleOut! + delta : null,
-                        ))
+                    .map(
+                      (n) => n.copyWith(
+                        position: n.position + delta,
+                        handleIn: n.handleIn != null
+                            ? n.handleIn! + delta
+                            : null,
+                        handleOut: n.handleOut != null
+                            ? n.handleOut! + delta
+                            : null,
+                      ),
+                    )
                     .toList();
                 s.customPath = CanvasGeometry.nodesToPath(
                   s.pathNodes!,
@@ -2850,12 +2886,98 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
         shapes: shapes,
         selectedShapeIds: selectedShapeIds,
         canvasSize: canvasSize,
-        fileName: '$fileName.svg',
+        fileName: fileName,
         initialIncludeXml: settings.svgIncludeXml,
         initialPrettyPrint: settings.svgPrettyPrint,
         initialExportScale: settings.exportScale,
       ),
     );
+  }
+
+  Future<void> _handleDirectQuickExport({
+    required ExportFormat format,
+    bool isSelection = false,
+  }) async {
+    try {
+      final exportShapes = isSelection && selectedShapeIds.isNotEmpty
+          ? shapes.where((s) => selectedShapeIds.contains(s.id)).toList()
+          : shapes;
+
+      final shapeName = isSelection && selectedShapeIds.length == 1
+          ? shapes.firstWhere((s) => s.id == selectedShapeIds.first).name
+          : fileName;
+
+      var baseName = shapeName.trim();
+      baseName = baseName.replaceAll(
+        RegExp(r'\.(svg|png|jpeg|jpg|pdf)$', caseSensitive: false),
+        '',
+      );
+      if (baseName.isEmpty) baseName = 'artwork';
+      final fullFileName = '$baseName.${format.extension}';
+
+      final settings = ref.read(appSettingsProvider);
+      final colorScheme = Theme.of(context).colorScheme;
+
+      final bytes = await VectorExportService.exportToBytes(
+        shapes: isSelection ? exportShapes : shapes,
+        format: format,
+        canvasSize: canvasSize,
+        selectedShapeIds: isSelection ? selectedShapeIds : null,
+        scope: isSelection ? SvgExportScope.selection : SvgExportScope.canvas,
+        exportScale: settings.exportScale,
+        transparentBackground: true,
+        backgroundColor: Colors.white,
+        jpegQuality: 0.90,
+        includeXmlHeader: settings.svgIncludeXml,
+        prettyPrint: settings.svgPrettyPrint,
+        colorScheme: colorScheme,
+      );
+
+      final savedPath = await saveFileToDisk(
+        fileName: fullFileName,
+        bytes: bytes,
+        mimeType: format.mimeType,
+      );
+
+      if (!mounted) return;
+
+      if (savedPath != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: colorScheme.inverseSurface,
+            content: Row(
+              children: [
+                const Icon(
+                  RemixIcons.checkbox_circle_fill,
+                  color: Color(0xFF10B981),
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Exported $fullFileName successfully',
+                    style: TextStyle(
+                      color: colorScheme.onInverseSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to export: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
   }
 
   void _openShortcutsDialog() {
@@ -3203,10 +3325,13 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
 
   bool _isTextInputFocused() {
     final focus = FocusManager.instance.primaryFocus;
-    if (focus == null || focus.context == null) return false;
-    final ctx = focus.context!;
-    if (!ctx.mounted) return false;
+    if (focus == null) return false;
+    if (focus.debugLabel?.contains('EditableText') == true) return true;
+    final ctx = focus.context;
+    if (ctx == null || !ctx.mounted) return false;
     try {
+      final renderObj = ctx.findRenderObject();
+      if (renderObj is RenderEditable) return true;
       if (ctx.widget is EditableText ||
           ctx.widget is TextField ||
           ctx.widget is TextFormField) {
@@ -3224,6 +3349,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (_isTextInputFocused()) {
+      return KeyEventResult.ignored;
+    }
+
     if (_editingTextShapeId != null) {
       if (event is KeyDownEvent &&
           event.logicalKey == LogicalKeyboardKey.escape) {
@@ -3256,7 +3385,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
             event.logicalKey == LogicalKeyboardKey.backspace) {
           if (_selectedPathNodeIndices.isNotEmpty &&
               _editingPathNodes != null &&
-              _editingPathNodes!.length - _selectedPathNodeIndices.length >= 2) {
+              _editingPathNodes!.length - _selectedPathNodeIndices.length >=
+                  2) {
             final sorted = _selectedPathNodeIndices.toList()
               ..sort((a, b) => b.compareTo(a));
             for (final idx in sorted) {
@@ -3318,11 +3448,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
     }
 
     if (event.logicalKey == LogicalKeyboardKey.space) {
-      if (_isMouseOverCanvas || !_isTextInputFocused()) {
-        if (_isTextInputFocused()) {
-          FocusManager.instance.primaryFocus?.unfocus();
-          _workspaceFocusNode.requestFocus();
-        }
+      if (!_isTextInputFocused()) {
         if (event is KeyDownEvent && !_isSpacePressed) {
           setState(() => _isSpacePressed = true);
         } else if (event is KeyUpEvent && _isSpacePressed) {
@@ -3659,7 +3785,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
       child: MouseRegion(
         onHover: (event) => _lastGlobalMousePosition = event.position,
         child: Scaffold(
-          backgroundColor: effectiveCanvasBg,
+          backgroundColor: colorScheme.surface,
           body: Column(
             children: [
               // Dynamic Top Navigation Bar adhering to cross-platform tokens
@@ -3744,12 +3870,32 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
                           screenWidth: constraints.maxWidth,
                         );
 
-                    return Row(
-                      children: [
-                        // Left Layers Sidebar (Docked when wide & enabled)
-                        if (!isCompact && showLayers) ...[
-                          RepaintBoundary(
-                            child: LayersSidebar(
+                    return Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        isCompact ? 4.0 : 8.0,
+                        6.0,
+                        isCompact ? 4.0 : 8.0,
+                        isCompact ? 4.0 : 8.0,
+                      ),
+                      child: Row(
+                        children: [
+                          // Left Layers Sidebar (Docked when wide & enabled)
+                          if (!isCompact && showLayers) ...[
+                            Container(
+                              width: effectiveLayersWidth,
+                              decoration: BoxDecoration(
+                                color: colorScheme.surfaceContainerLow,
+                                borderRadius: BorderRadius.circular(16.0),
+                                border: Border.all(
+                                  color: colorScheme.outlineVariant.withValues(
+                                    alpha: isDark ? 0.35 : 0.25,
+                                  ),
+                                  width: 1.0,
+                                ),
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: RepaintBoundary(
+                                child: LayersSidebar(
                               width: effectiveLayersWidth,
                               shapes: shapes,
                               selectedShapeIds: selectedShapeIds,
@@ -3809,7 +3955,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
                               },
                             ),
                           ),
-                          SidebarResizeHandle(
+                        ),
+                        SidebarResizeHandle(
                             onDragUpdate: (deltaDx) {
                               final maxWidth =
                                   ResponsiveLayoutTokens.getMaxSidebarWidth(
@@ -3835,576 +3982,638 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
 
                         // Center Workspace Interactive Canvas with Custom Drag & Drop
                         Expanded(
-                          child: NixFileDropZone(
-                            onFilesDropped: _handleFilesDropped,
-                            child: Stack(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: effectiveCanvasBg,
+                              borderRadius: BorderRadius.circular(
+                                isCompact ? 12.0 : 16.0,
+                              ),
+                              border: Border.all(
+                                color: colorScheme.outlineVariant.withValues(
+                                  alpha: isDark ? 0.35 : 0.25,
+                                ),
+                                width: 1.0,
+                              ),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: NixFileDropZone(
+                              onFilesDropped: _handleFilesDropped,
+                              child: Stack(
                               children: [
-                              InteractiveCanvas(
-                                key: _canvasKey,
-                                onImageDecoded: () {
-                                  if (mounted) {
-                                    setState(() {
-                                      shapes = List<VectorShape>.from(shapes);
-                                    });
-                                  }
-                                },
-                                transformationController:
-                                    _transformationController,
-                                shapes: shapes,
-                                selectedShapeIds: selectedShapeIds,
-                                currentMode: currentMode,
-                                canvasSize: canvasSize,
-                                artboardTitle: fileName,
-                                draftShapeType: draftShapeType,
-                                draftIsShiftPressed:
-                                    HardwareKeyboard.instance.logicalKeysPressed
-                                        .contains(
-                                          LogicalKeyboardKey.shiftLeft,
-                                        ) ||
-                                    HardwareKeyboard.instance.logicalKeysPressed
-                                        .contains(
-                                          LogicalKeyboardKey.shiftRight,
-                                        ),
-                                draftIsAltPressed:
-                                    HardwareKeyboard.instance.isAltPressed,
-                                panStartOffset: panStartOffset,
-                                panCurrentOffset: panCurrentOffset,
-                                marqueeRect: marqueeRect,
-                                snapGuidelineX: snapGuidelineX,
-                                snapGuidelineY: snapGuidelineY,
-                                gridSpacing: appSettings.gridSpacing,
-                                gridStyle: appSettings.gridStyle,
-                                invertZoom: appSettings.invertZoom,
-                                isPanningWithMouse: _isPanningWithMouse,
-                                isSpacePressed: _isSpacePressed,
-                                isResizing:
-                                    activeResizeHandle != ResizeHandle.none,
-                                activeResizeHandle: activeResizeHandle,
-                                isRotatingShape: isRotatingShape,
-                                isMovingShapes: isMovingShapes,
-                                editingTextShapeId: _editingTextShapeId,
-                                isEditingNewText: _isEditingNewText,
-                                selectAllText: _selectAllText,
-                                canvasBackgroundColor:
-                                    canvasBackgroundColor ??
-                                    appSettings.defaultCanvasBgColor,
-                                activePenNodes:
-                                    currentMode == EditorMode.drawPen &&
-                                        _penNodes.isNotEmpty
-                                    ? List.unmodifiable(_penNodes)
-                                    : null,
-                                activePenCursor:
-                                    currentMode == EditorMode.drawPen &&
-                                        _penNodes.isNotEmpty
-                                    ? _lastMouseCanvasPosition
-                                    : null,
-                                isPenHoveringStart: _isPenHoveringStart,
-                                editingPathShapeId: _editingPathShapeId,
-                                editingPathNodes: _editingPathNodes,
-                                selectedPathNodeIndices:
-                                    _selectedPathNodeIndices,
-                                hoveredPathNodeIndex: _hoveredPathNodeIndex,
-                                activeHandleNodeIndex: _activeHandleNodeIndex,
-                                activeHandleType: _activeHandleType,
-                                isPathClosed: _isEditingPathClosed,
-                                onInlineTextChanged: (text) {
-                                  final editingId = _editingTextShapeId;
-                                  if (editingId == null) return;
-                                  final index = shapes.indexWhere(
-                                    (s) => s.id == editingId,
-                                  );
-                                  if (index != -1) {
-                                    shapes[index].textContent = text;
-                                    shapes[index].invalidateCache();
-                                    setState(() {});
-                                  }
-                                },
-                                onInlineTextCommit: () =>
-                                    _stopTextEditing(commit: true),
-                                onInlineTextCancel: () =>
-                                    _stopTextEditing(commit: false),
-                                onInlineTextRectChanged: (newRect) {
-                                  final editingId = _editingTextShapeId;
-                                  if (editingId == null) return;
-                                  final index = shapes.indexWhere(
-                                    (s) => s.id == editingId,
-                                  );
-                                  if (index != -1) {
-                                    shapes[index].rect = newRect;
-                                    shapes[index].invalidateCache();
-                                    setState(() {});
-                                  }
-                                },
-                                onPointerDown: _onPointerDown,
-                                onPointerMove: _onPointerMove,
-                                onPointerUp: _onPointerUp,
-                                onPointerCancel: _onPointerCancel,
-                                onMatrixChanged: _handleMatrixChanged,
-                                onCanvasHoverChanged: (hovered) =>
-                                    _isMouseOverCanvas = hovered,
-                                onPointerHover: (pos) =>
-                                    _lastMouseCanvasPosition = pos,
-                                onSecondaryTap: _handleCanvasContextMenu,
-                              ),
-
-                              // Backdrop Scrim for Compact Mobile Drawers
-                              if (isCompact && (showLayers || showProperties))
-                                Positioned.fill(
-                                  child: GestureDetector(
-                                    behavior: HitTestBehavior.opaque,
-                                    onTap: () {
+                                InteractiveCanvas(
+                                  key: _canvasKey,
+                                  onImageDecoded: () {
+                                    if (mounted) {
                                       setState(() {
-                                        if (showLayers) {
-                                          isLayersPanelOpen = false;
-                                          ref
-                                              .read(
-                                                appSettingsProvider.notifier,
-                                              )
-                                              .setShowLayers(false);
-                                        }
-                                        if (showProperties) {
-                                          isPropertiesPanelOpen = false;
-                                          ref
-                                              .read(
-                                                appSettingsProvider.notifier,
-                                              )
-                                              .setShowProperties(false);
-                                        }
+                                        shapes = List<VectorShape>.from(shapes);
                                       });
-                                    },
-                                    child: Container(
-                                      color: Colors.black.withValues(
-                                        alpha:
-                                            Theme.of(context).brightness ==
-                                                Brightness.dark
-                                            ? 0.45
-                                            : 0.25,
-                                      ),
-                                    ),
-                                  ),
+                                    }
+                                  },
+                                  transformationController:
+                                      _transformationController,
+                                  shapes: shapes,
+                                  selectedShapeIds: selectedShapeIds,
+                                  currentMode: currentMode,
+                                  canvasSize: canvasSize,
+                                  artboardTitle: fileName,
+                                  draftShapeType: draftShapeType,
+                                  draftIsShiftPressed:
+                                      HardwareKeyboard
+                                          .instance
+                                          .logicalKeysPressed
+                                          .contains(
+                                            LogicalKeyboardKey.shiftLeft,
+                                          ) ||
+                                      HardwareKeyboard
+                                          .instance
+                                          .logicalKeysPressed
+                                          .contains(
+                                            LogicalKeyboardKey.shiftRight,
+                                          ),
+                                  draftIsAltPressed:
+                                      HardwareKeyboard.instance.isAltPressed,
+                                  panStartOffset: panStartOffset,
+                                  panCurrentOffset: panCurrentOffset,
+                                  marqueeRect: marqueeRect,
+                                  snapGuidelineX: snapGuidelineX,
+                                  snapGuidelineY: snapGuidelineY,
+                                  gridSpacing: appSettings.gridSpacing,
+                                  gridStyle: appSettings.gridStyle,
+                                  invertZoom: appSettings.invertZoom,
+                                  isPanningWithMouse: _isPanningWithMouse,
+                                  isSpacePressed: _isSpacePressed,
+                                  isResizing:
+                                      activeResizeHandle != ResizeHandle.none,
+                                  activeResizeHandle: activeResizeHandle,
+                                  isRotatingShape: isRotatingShape,
+                                  isMovingShapes: isMovingShapes,
+                                  editingTextShapeId: _editingTextShapeId,
+                                  isEditingNewText: _isEditingNewText,
+                                  selectAllText: _selectAllText,
+                                  canvasBackgroundColor:
+                                      canvasBackgroundColor ??
+                                      appSettings.defaultCanvasBgColor,
+                                  activePenNodes:
+                                      currentMode == EditorMode.drawPen &&
+                                          _penNodes.isNotEmpty
+                                      ? List.unmodifiable(_penNodes)
+                                      : null,
+                                  activePenCursor:
+                                      currentMode == EditorMode.drawPen &&
+                                          _penNodes.isNotEmpty
+                                      ? _lastMouseCanvasPosition
+                                      : null,
+                                  isPenHoveringStart: _isPenHoveringStart,
+                                  editingPathShapeId: _editingPathShapeId,
+                                  editingPathNodes: _editingPathNodes,
+                                  selectedPathNodeIndices:
+                                      _selectedPathNodeIndices,
+                                  hoveredPathNodeIndex: _hoveredPathNodeIndex,
+                                  activeHandleNodeIndex: _activeHandleNodeIndex,
+                                  activeHandleType: _activeHandleType,
+                                  isPathClosed: _isEditingPathClosed,
+                                  onInlineTextChanged: (text) {
+                                    final editingId = _editingTextShapeId;
+                                    if (editingId == null) return;
+                                    final index = shapes.indexWhere(
+                                      (s) => s.id == editingId,
+                                    );
+                                    if (index != -1) {
+                                      shapes[index].textContent = text;
+                                      shapes[index].invalidateCache();
+                                      setState(() {});
+                                    }
+                                  },
+                                  onInlineTextCommit: () =>
+                                      _stopTextEditing(commit: true),
+                                  onInlineTextCancel: () =>
+                                      _stopTextEditing(commit: false),
+                                  onInlineTextRectChanged: (newRect) {
+                                    final editingId = _editingTextShapeId;
+                                    if (editingId == null) return;
+                                    final index = shapes.indexWhere(
+                                      (s) => s.id == editingId,
+                                    );
+                                    if (index != -1) {
+                                      shapes[index].rect = newRect;
+                                      shapes[index].invalidateCache();
+                                      setState(() {});
+                                    }
+                                  },
+                                  onPointerDown: _onPointerDown,
+                                  onPointerMove: _onPointerMove,
+                                  onPointerUp: _onPointerUp,
+                                  onPointerCancel: _onPointerCancel,
+                                  onMatrixChanged: _handleMatrixChanged,
+                                  onCanvasHoverChanged: (hovered) =>
+                                      _isMouseOverCanvas = hovered,
+                                  onPointerHover: (pos) =>
+                                      _lastMouseCanvasPosition = pos,
+                                  onSecondaryTap: _handleCanvasContextMenu,
                                 ),
 
-                              // Overlay Drawer for Compact Mobile Screens
-                              if (isCompact && showLayers)
-                                Positioned(
-                                  top: 0,
-                                  bottom: 0,
-                                  left: 0,
-                                  width:
-                                      ResponsiveLayoutTokens.getCompactDrawerWidth(
-                                        constraints.maxWidth,
-                                      ),
-                                  child: TweenAnimationBuilder<double>(
-                                    tween: Tween<double>(begin: -1.0, end: 0.0),
-                                    duration: const Duration(milliseconds: 240),
-                                    curve: M3PhysicsSpring.expressiveCurve,
-                                    builder: (context, slide, child) {
-                                      return FractionalTranslation(
-                                        translation: Offset(slide, 0),
-                                        child: child,
-                                      );
-                                    },
-                                    child: Material(
-                                      elevation: 0,
-                                      shadowColor: Colors.transparent,
-                                      color: colorScheme.surfaceContainer,
-                                      borderRadius:
-                                          const BorderRadius.horizontal(
-                                            right: Radius.circular(16),
-                                          ),
-                                      clipBehavior: Clip.antiAlias,
-                                      child: RepaintBoundary(
-                                        child: LayersSidebar(
-                                          width:
-                                              ResponsiveLayoutTokens.getCompactDrawerWidth(
-                                                constraints.maxWidth,
-                                              ),
-                                          shapes: shapes,
-                                          selectedShapeIds: selectedShapeIds,
-                                          onSelectShape: (id) {
-                                            setState(() {
-                                              selectedShapeIds.clear();
-                                              selectedShapeIds.add(id);
-                                            });
-                                          },
-                                          onToggleVisibility: (id) {
-                                            setState(() {
-                                              final s = shapes.firstWhere(
-                                                (s) => s.id == id,
-                                              );
-                                              s.setVisible(!s.isVisible);
-                                              if (!s.isVisible) {
-                                                selectedShapeIds.remove(id);
-                                              }
-                                            });
-                                            _saveHistorySnapshot();
-                                          },
-                                          onToggleLock: (id) {
-                                            setState(() {
-                                              final s = shapes.firstWhere(
-                                                (s) => s.id == id,
-                                              );
-                                              s.setLocked(!s.isLocked);
-                                            });
-                                            _saveHistorySnapshot();
-                                          },
-                                          onDeleteShape: _deleteShapeById,
-                                          onSelectShapes: _handleSelectShapes,
-                                          onBringToFront: _bringToFront,
-                                          onBringForward: _bringForward,
-                                          onSendBackward: _sendBackward,
-                                          onSendToBack: _sendToBack,
-                                          onDuplicateShape: _duplicateShapeById,
-                                          onCopySvg: _copyShapeAsSvgById,
-                                          onGroupShapes: _groupSelected,
-                                          onUngroupShapes: _ungroupSelected,
-                                          onRenameShape: (id, newName) {
-                                            setState(() {
-                                              shapes
-                                                      .firstWhere(
-                                                        (s) => s.id == id,
-                                                      )
-                                                      .name =
-                                                  newName;
-                                            });
-                                            _saveHistorySnapshot();
-                                          },
-                                          onReorder: (oldIndex, newIndex) {
-                                            setState(() {
-                                              if (newIndex > oldIndex) {
-                                                newIndex--;
-                                              }
-                                              final displayList = shapes
-                                                  .reversed
-                                                  .toList();
-                                              final shape = displayList
-                                                  .removeAt(oldIndex);
-                                              displayList.insert(
-                                                newIndex,
-                                                shape,
-                                              );
-                                              shapes = displayList.reversed
-                                                  .toList();
-                                            });
-                                            _saveHistorySnapshot();
-                                          },
+                                // Backdrop Scrim for Compact Mobile Drawers
+                                if (isCompact && (showLayers || showProperties))
+                                  Positioned.fill(
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: () {
+                                        setState(() {
+                                          if (showLayers) {
+                                            isLayersPanelOpen = false;
+                                            ref
+                                                .read(
+                                                  appSettingsProvider.notifier,
+                                                )
+                                                .setShowLayers(false);
+                                          }
+                                          if (showProperties) {
+                                            isPropertiesPanelOpen = false;
+                                            ref
+                                                .read(
+                                                  appSettingsProvider.notifier,
+                                                )
+                                                .setShowProperties(false);
+                                          }
+                                        });
+                                      },
+                                      child: Container(
+                                        color: Colors.black.withValues(
+                                          alpha:
+                                              Theme.of(context).brightness ==
+                                                  Brightness.dark
+                                              ? 0.45
+                                              : 0.25,
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
 
-                              // Overlay Properties for Compact Mobile Screens
-                              if (isCompact && showProperties)
-                                Positioned(
-                                  top: 0,
-                                  bottom: 0,
-                                  right: 0,
-                                  width:
-                                      ResponsiveLayoutTokens.getCompactDrawerWidth(
-                                        constraints.maxWidth,
+                                // Overlay Drawer for Compact Mobile Screens
+                                if (isCompact && showLayers)
+                                  Positioned(
+                                    top: 0,
+                                    bottom: 0,
+                                    left: 0,
+                                    width:
+                                        ResponsiveLayoutTokens.getCompactDrawerWidth(
+                                          constraints.maxWidth,
+                                        ),
+                                    child: TweenAnimationBuilder<double>(
+                                      tween: Tween<double>(
+                                        begin: -1.0,
+                                        end: 0.0,
                                       ),
-                                  child: TweenAnimationBuilder<double>(
-                                    tween: Tween<double>(begin: 1.0, end: 0.0),
-                                    duration: const Duration(milliseconds: 240),
-                                    curve: M3PhysicsSpring.expressiveCurve,
-                                    builder: (context, slide, child) {
-                                      return FractionalTranslation(
-                                        translation: Offset(slide, 0),
-                                        child: child,
-                                      );
-                                    },
-                                    child: Material(
-                                      elevation: 0,
-                                      shadowColor: Colors.transparent,
-                                      color: colorScheme.surfaceContainer,
-                                      borderRadius:
-                                          const BorderRadius.horizontal(
-                                            left: Radius.circular(16),
-                                          ),
-                                      clipBehavior: Clip.antiAlias,
-                                      child: RepaintBoundary(
-                                        child: PropertiesSidebar(
-                                          width:
-                                              ResponsiveLayoutTokens.getCompactDrawerWidth(
-                                                constraints.maxWidth,
-                                              ),
-                                          selectedShape: selectedShape,
-                                          onShapeChanged:
-                                              _onPropertiesShapeChanged,
-                                          onShapeChangeEnd:
-                                              _onPropertiesShapeChangeEnd,
-                                          onOpenColorPickerFill:
-                                              ([anchorRect]) =>
-                                                  _openColorPicker(
-                                                    true,
-                                                    anchorRect,
-                                                  ),
-                                          onOpenColorPickerStroke:
-                                              ([anchorRect]) =>
-                                                  _openColorPicker(
-                                                    false,
-                                                    anchorRect,
-                                                  ),
-                                          onDuplicateShape: _duplicateSelected,
-                                          onDeleteSelected: _deleteSelected,
-                                          onAlignShape: _alignShapes,
-                                          onDistributeShapes: _distributeShapes,
-                                          onBooleanOperation:
-                                              _executeBooleanOperation,
-                                          selectedShapesCount:
-                                              selectedShapeIds.length,
-                                          onGroupShapes: _groupSelected,
-                                          onUngroupShapes: _ungroupSelected,
-                                          canGroup: selectedShapeIds.isNotEmpty,
-                                          canUngroup: shapes
-                                              .where(
-                                                (s) => selectedShapeIds
-                                                    .contains(s.id),
-                                              )
-                                              .any((s) => s.groupId != null),
-                                          canvasSize: canvasSize,
-                                          onCanvasSizeChanged: (newSize) {
-                                            setState(
-                                              () => canvasSize = newSize,
-                                            );
-                                            _saveHistorySnapshot();
-                                          },
-                                          canvasBackgroundColor:
-                                              canvasBackgroundColor,
-                                          onCanvasBackgroundColorChanged:
-                                              (col) {
-                                                setState(
-                                                  () => canvasBackgroundColor =
-                                                      col,
+                                      duration: const Duration(
+                                        milliseconds: 240,
+                                      ),
+                                      curve: M3PhysicsSpring.expressiveCurve,
+                                      builder: (context, slide, child) {
+                                        return FractionalTranslation(
+                                          translation: Offset(slide, 0),
+                                          child: child,
+                                        );
+                                      },
+                                      child: Material(
+                                        elevation: 0,
+                                        shadowColor: Colors.transparent,
+                                        color: colorScheme.surfaceContainer,
+                                        borderRadius:
+                                            const BorderRadius.horizontal(
+                                              right: Radius.circular(16),
+                                            ),
+                                        clipBehavior: Clip.antiAlias,
+                                        child: RepaintBoundary(
+                                          child: LayersSidebar(
+                                            width:
+                                                ResponsiveLayoutTokens.getCompactDrawerWidth(
+                                                  constraints.maxWidth,
+                                                ),
+                                            shapes: shapes,
+                                            selectedShapeIds: selectedShapeIds,
+                                            onSelectShape: (id) {
+                                              setState(() {
+                                                selectedShapeIds.clear();
+                                                selectedShapeIds.add(id);
+                                              });
+                                            },
+                                            onToggleVisibility: (id) {
+                                              setState(() {
+                                                final s = shapes.firstWhere(
+                                                  (s) => s.id == id,
                                                 );
-                                                _saveHistorySnapshot();
-                                              },
-                                          snapToGrid: appSettings.snapToGrid,
-                                          onToggleSnapToGrid: (val) {
-                                            ref
-                                                .read(
-                                                  appSettingsProvider.notifier,
-                                                )
-                                                .setSnapToGrid(val);
-                                          },
-                                          gridSpacing: appSettings.gridSpacing,
-                                          onGridSpacingChanged: (val) {
-                                            ref
-                                                .read(
-                                                  appSettingsProvider.notifier,
-                                                )
-                                                .setGridSpacing(val);
-                                          },
-                                          totalShapesCount: shapes.length,
-                                          zoomScale: zoomScale,
-                                          onZoomIn: _zoomIn,
-                                          onZoomOut: _zoomOut,
-                                          onSetZoomScale: _setZoomScale,
-                                          isPanMode:
-                                              currentMode == EditorMode.pan,
-                                          onTogglePanMode: _togglePanMode,
-                                          onCenterCanvas: _centerCanvas,
-                                          onResetZoom: _resetZoom,
-                                          onZoomToFit: _zoomToFit,
-                                          onZoomToSelection: _zoomToSelection,
-                                          onSelectAll: _selectAll,
-                                          onExportSvg: _openExportDialog,
-                                          onClearCanvas: _clearCanvas,
-                                          onOpenDevicePresets:
-                                              _openDevicePresetsDialog,
-                                          onInsertDevicePreset:
-                                              _insertDevicePreset,
+                                                s.setVisible(!s.isVisible);
+                                                if (!s.isVisible) {
+                                                  selectedShapeIds.remove(id);
+                                                }
+                                              });
+                                              _saveHistorySnapshot();
+                                            },
+                                            onToggleLock: (id) {
+                                              setState(() {
+                                                final s = shapes.firstWhere(
+                                                  (s) => s.id == id,
+                                                );
+                                                s.setLocked(!s.isLocked);
+                                              });
+                                              _saveHistorySnapshot();
+                                            },
+                                            onDeleteShape: _deleteShapeById,
+                                            onSelectShapes: _handleSelectShapes,
+                                            onBringToFront: _bringToFront,
+                                            onBringForward: _bringForward,
+                                            onSendBackward: _sendBackward,
+                                            onSendToBack: _sendToBack,
+                                            onDuplicateShape:
+                                                _duplicateShapeById,
+                                            onCopySvg: _copyShapeAsSvgById,
+                                            onGroupShapes: _groupSelected,
+                                            onUngroupShapes: _ungroupSelected,
+                                            onRenameShape: (id, newName) {
+                                              setState(() {
+                                                shapes
+                                                        .firstWhere(
+                                                          (s) => s.id == id,
+                                                        )
+                                                        .name =
+                                                    newName;
+                                              });
+                                              _saveHistorySnapshot();
+                                            },
+                                            onReorder: (oldIndex, newIndex) {
+                                              setState(() {
+                                                if (newIndex > oldIndex) {
+                                                  newIndex--;
+                                                }
+                                                final displayList = shapes
+                                                    .reversed
+                                                    .toList();
+                                                final shape = displayList
+                                                    .removeAt(oldIndex);
+                                                displayList.insert(
+                                                  newIndex,
+                                                  shape,
+                                                );
+                                                shapes = displayList.reversed
+                                                    .toList();
+                                              });
+                                              _saveHistorySnapshot();
+                                            },
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
 
-                              // Center Dynamic Floating Tool Bar (Top or Bottom based on App Settings)
-                              Positioned(
-                                top: appSettings.toolbarPosition == 'top'
-                                    ? 16.0
-                                    : null,
-                                bottom: appSettings.toolbarPosition == 'top'
-                                    ? null
-                                    : ResponsiveLayoutTokens.getFloatingToolbarBottomMargin(
-                                        context,
+                                // Overlay Properties for Compact Mobile Screens
+                                if (isCompact && showProperties)
+                                  Positioned(
+                                    top: 0,
+                                    bottom: 0,
+                                    right: 0,
+                                    width:
+                                        ResponsiveLayoutTokens.getCompactDrawerWidth(
+                                          constraints.maxWidth,
+                                        ),
+                                    child: TweenAnimationBuilder<double>(
+                                      tween: Tween<double>(
+                                        begin: 1.0,
+                                        end: 0.0,
                                       ),
-                                left: 0,
-                                right: 0,
-                                child: Center(
-                                  child: RepaintBoundary(
-                                    child: Transform.scale(
-                                      scale:
-                                          ResponsiveLayoutTokens.getFloatingToolbarScale(
-                                            context,
+                                      duration: const Duration(
+                                        milliseconds: 240,
+                                      ),
+                                      curve: M3PhysicsSpring.expressiveCurve,
+                                      builder: (context, slide, child) {
+                                        return FractionalTranslation(
+                                          translation: Offset(slide, 0),
+                                          child: child,
+                                        );
+                                      },
+                                      child: Material(
+                                        elevation: 0,
+                                        shadowColor: Colors.transparent,
+                                        color: colorScheme.surfaceContainer,
+                                        borderRadius:
+                                            const BorderRadius.horizontal(
+                                              left: Radius.circular(16),
+                                            ),
+                                        clipBehavior: Clip.antiAlias,
+                                        child: RepaintBoundary(
+                                          child: PropertiesSidebar(
+                                            width:
+                                                ResponsiveLayoutTokens.getCompactDrawerWidth(
+                                                  constraints.maxWidth,
+                                                ),
+                                            selectedShape: selectedShape,
+                                            shapes: shapes,
+                                            onShapeChanged:
+                                                _onPropertiesShapeChanged,
+                                            onShapeChangeEnd:
+                                                _onPropertiesShapeChangeEnd,
+                                            onOpenColorPickerFill:
+                                                ([anchorRect]) =>
+                                                    _openColorPicker(
+                                                      true,
+                                                      anchorRect,
+                                                    ),
+                                            onOpenColorPickerStroke:
+                                                ([anchorRect]) =>
+                                                    _openColorPicker(
+                                                      false,
+                                                      anchorRect,
+                                                    ),
+                                            onDuplicateShape:
+                                                _duplicateSelected,
+                                            onDeleteSelected: _deleteSelected,
+                                            onAlignShape: _alignShapes,
+                                            onDistributeShapes:
+                                                _distributeShapes,
+                                            onBooleanOperation:
+                                                _executeBooleanOperation,
+                                            selectedShapesCount:
+                                                selectedShapeIds.length,
+                                            onGroupShapes: _groupSelected,
+                                            onUngroupShapes: _ungroupSelected,
+                                            canGroup:
+                                                selectedShapeIds.isNotEmpty,
+                                            canUngroup: shapes
+                                                .where(
+                                                  (s) => selectedShapeIds
+                                                      .contains(s.id),
+                                                )
+                                                .any((s) => s.groupId != null),
+                                            canvasSize: canvasSize,
+                                            onCanvasSizeChanged: (newSize) {
+                                              setState(
+                                                () => canvasSize = newSize,
+                                              );
+                                              _saveHistorySnapshot();
+                                            },
+                                            canvasBackgroundColor:
+                                                canvasBackgroundColor,
+                                            onCanvasBackgroundColorChanged:
+                                                (col) {
+                                                  setState(
+                                                    () =>
+                                                        canvasBackgroundColor =
+                                                            col,
+                                                  );
+                                                  _saveHistorySnapshot();
+                                                },
+                                            snapToGrid: appSettings.snapToGrid,
+                                            onToggleSnapToGrid: (val) {
+                                              ref
+                                                  .read(
+                                                    appSettingsProvider
+                                                        .notifier,
+                                                  )
+                                                  .setSnapToGrid(val);
+                                            },
+                                            gridSpacing:
+                                                appSettings.gridSpacing,
+                                            onGridSpacingChanged: (val) {
+                                              ref
+                                                  .read(
+                                                    appSettingsProvider
+                                                        .notifier,
+                                                  )
+                                                  .setGridSpacing(val);
+                                            },
+                                            totalShapesCount: shapes.length,
+                                            zoomScale: zoomScale,
+                                            onZoomIn: _zoomIn,
+                                            onZoomOut: _zoomOut,
+                                            onSetZoomScale: _setZoomScale,
+                                            isPanMode:
+                                                currentMode == EditorMode.pan,
+                                            onTogglePanMode: _togglePanMode,
+                                            onCenterCanvas: _centerCanvas,
+                                            onResetZoom: _resetZoom,
+                                            onZoomToFit: _zoomToFit,
+                                            onZoomToSelection: _zoomToSelection,
+                                            onSelectAll: _selectAll,
+                                            onExportSvg: _openExportDialog,
+                                            onQuickExport:
+                                                (format, isSelection) =>
+                                                    _handleDirectQuickExport(
+                                                      format: format,
+                                                      isSelection: isSelection,
+                                                    ),
+                                            onClearCanvas: _clearCanvas,
+                                            onOpenDevicePresets:
+                                                _openDevicePresetsDialog,
+                                            onInsertDevicePreset:
+                                                _insertDevicePreset,
                                           ),
-                                      child: FloatingToolBar(
-                                        currentMode: currentMode,
-                                        onModeChanged: (mode) {
-                                          if (_editingPathShapeId != null) {
-                                            _commitPathEdit();
-                                          }
-                                          if (currentMode ==
-                                                  EditorMode.drawPen &&
-                                              _penNodes.length >= 2) {
-                                            _commitPenPath(isClosed: false);
-                                          } else {
-                                            _penNodes.clear();
-                                            _isPenDraggingHandle = false;
-                                            _isClosingNode = false;
-                                          }
-                                          setState(() => currentMode = mode);
-                                        },
-                                        onExportSvg: _openExportDialog,
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ),
 
-                              // Mobile Contextual Floating Selection Bar
-                              if (isCompact && selectedShapeIds.isNotEmpty)
-                                Positioned(
-                                  bottom: (appSettings.toolbarPosition == 'top'
-                                          ? 16.0
-                                          : ResponsiveLayoutTokens.getFloatingToolbarBottomMargin(
-                                              context,
-                                            )) +
-                                      (appSettings.toolbarPosition == 'top'
-                                          ? 0.0
-                                          : 56.0),
-                                  left: 0,
-                                  right: 0,
-                                  child: Center(
-                                    child: _buildMobileSelectionBar(
-                                      context: context,
-                                      colorScheme: colorScheme,
-                                      textTheme: theme.textTheme,
-                                      selectedShape: selectedShape,
-                                      selectedCount: selectedShapeIds.length,
-                                    ),
-                                  ),
-                                ),
-
-                              // Vector Edit Mode Floating Banner
-                              if (_editingPathShapeId != null)
+                                // Center Dynamic Floating Tool Bar (Top or Bottom based on App Settings)
                                 Positioned(
                                   top: appSettings.toolbarPosition == 'top'
-                                      ? 72.0
-                                      : 16.0,
+                                      ? 16.0
+                                      : null,
+                                  bottom: appSettings.toolbarPosition == 'top'
+                                      ? null
+                                      : ResponsiveLayoutTokens.getFloatingToolbarBottomMargin(
+                                          context,
+                                        ),
                                   left: 0,
                                   right: 0,
                                   child: Center(
-                                    child: Material(
-                                      elevation: 0,
-                                      shadowColor: Colors.transparent,
-                                      borderRadius: BorderRadius.circular(28),
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .surfaceContainerHigh,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 8,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          borderRadius:
-                                              BorderRadius.circular(28),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              Icons.timeline_rounded,
-                                              size: 18,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .primary,
+                                    child: RepaintBoundary(
+                                      child: Transform.scale(
+                                        scale:
+                                            ResponsiveLayoutTokens.getFloatingToolbarScale(
+                                              context,
                                             ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              'Vector Edit Mode',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 13,
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .onSurface,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              '• Drag points/handles, double-click to toggle curve, Del to remove',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .onSurfaceVariant,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            FilledButton(
-                                              onPressed: _commitPathEdit,
-                                              style: FilledButton.styleFrom(
-                                                visualDensity:
-                                                    VisualDensity.compact,
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                  horizontal: 14,
-                                                  vertical: 6,
-                                                ),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(16),
-                                                ),
-                                              ),
-                                              child: const Text(
-                                                'Done',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
+                                        child: FloatingToolBar(
+                                          currentMode: currentMode,
+                                          onModeChanged: (mode) {
+                                            if (_editingPathShapeId != null) {
+                                              _commitPathEdit();
+                                            }
+                                            if (currentMode ==
+                                                    EditorMode.drawPen &&
+                                                _penNodes.length >= 2) {
+                                              _commitPenPath(isClosed: false);
+                                            } else {
+                                              _penNodes.clear();
+                                              _isPenDraggingHandle = false;
+                                              _isClosingNode = false;
+                                            }
+                                            setState(() => currentMode = mode);
+                                          },
+                                          onExportSvg: _openExportDialog,
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
-                            ],
+
+                                // Mobile Contextual Floating Selection Bar
+                                if (isCompact && selectedShapeIds.isNotEmpty)
+                                  Positioned(
+                                    bottom:
+                                        (appSettings.toolbarPosition == 'top'
+                                            ? 16.0
+                                            : ResponsiveLayoutTokens.getFloatingToolbarBottomMargin(
+                                                context,
+                                              )) +
+                                        (appSettings.toolbarPosition == 'top'
+                                            ? 0.0
+                                            : 56.0),
+                                    left: 0,
+                                    right: 0,
+                                    child: Center(
+                                      child: _buildMobileSelectionBar(
+                                        context: context,
+                                        colorScheme: colorScheme,
+                                        textTheme: theme.textTheme,
+                                        selectedShape: selectedShape,
+                                        selectedCount: selectedShapeIds.length,
+                                      ),
+                                    ),
+                                  ),
+
+                                // Vector Edit Mode Floating Banner
+                                if (_editingPathShapeId != null)
+                                  Positioned(
+                                    top: appSettings.toolbarPosition == 'top'
+                                        ? 72.0
+                                        : 16.0,
+                                    left: 0,
+                                    right: 0,
+                                    child: Center(
+                                      child: Material(
+                                        elevation: 0,
+                                        shadowColor: Colors.transparent,
+                                        borderRadius: BorderRadius.circular(28),
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .surfaceContainerHigh,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(
+                                              28,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.timeline_rounded,
+                                                size: 18,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                'Vector Edit Mode',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 13,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurface,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                '• Drag points/handles, double-click to toggle curve, Del to remove',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              FilledButton(
+                                                onPressed: _commitPathEdit,
+                                                style: FilledButton.styleFrom(
+                                                  visualDensity:
+                                                      VisualDensity.compact,
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 14,
+                                                        vertical: 6,
+                                                      ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          16,
+                                                        ),
+                                                  ),
+                                                ),
+                                                child: const Text(
+                                                  'Done',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
 
-                        // Right Properties Inspector Sidebar (Docked when wide & enabled)
-                        if (!isCompact && showProperties) ...[
-                          SidebarResizeHandle(
-                            onDragUpdate: (deltaDx) {
-                              final maxWidth =
-                                  ResponsiveLayoutTokens.getMaxSidebarWidth(
-                                    constraints.maxWidth,
-                                  );
-                              final next = (propertiesSidebarWidth - deltaDx)
-                                  .clamp(180.0, maxWidth);
-                              setState(() => propertiesSidebarWidth = next);
-                              ref
-                                  .read(workspaceSettingsProvider.notifier)
-                                  .setPropertiesSidebarWidth(next);
-                            },
-                            onDoubleTapReset: () {
-                              setState(() => propertiesSidebarWidth = 280.0);
-                              ref
-                                  .read(workspaceSettingsProvider.notifier)
-                                  .setPropertiesSidebarWidth(280.0);
-                            },
+                      // Right Properties Inspector Sidebar (Docked when wide & enabled)
+                      if (!isCompact && showProperties) ...[
+                        SidebarResizeHandle(
+                          onDragUpdate: (deltaDx) {
+                            final maxWidth =
+                                ResponsiveLayoutTokens.getMaxSidebarWidth(
+                                  constraints.maxWidth,
+                                );
+                            final next = (propertiesSidebarWidth - deltaDx)
+                                .clamp(180.0, maxWidth);
+                            setState(() => propertiesSidebarWidth = next);
+                            ref
+                                .read(workspaceSettingsProvider.notifier)
+                                .setPropertiesSidebarWidth(next);
+                          },
+                          onDoubleTapReset: () {
+                            setState(() => propertiesSidebarWidth = 280.0);
+                            ref
+                                .read(workspaceSettingsProvider.notifier)
+                                .setPropertiesSidebarWidth(280.0);
+                          },
+                        ),
+                        Container(
+                          width: effectivePropertiesWidth,
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(16.0),
+                            border: Border.all(
+                              color: colorScheme.outlineVariant.withValues(
+                                alpha: isDark ? 0.35 : 0.25,
+                              ),
+                              width: 1.0,
+                            ),
                           ),
-                          RepaintBoundary(
+                          clipBehavior: Clip.antiAlias,
+                          child: RepaintBoundary(
                             child: PropertiesSidebar(
                               width: effectivePropertiesWidth,
                               selectedShape: selectedShape,
+                              shapes: shapes,
                               onShapeChanged: _onPropertiesShapeChanged,
                               onShapeChangeEnd: _onPropertiesShapeChangeEnd,
                               onOpenColorPickerFill: ([anchorRect]) =>
@@ -4458,14 +4667,21 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
                               onZoomToSelection: _zoomToSelection,
                               onSelectAll: _selectAll,
                               onExportSvg: _openExportDialog,
+                              onQuickExport: (format, isSelection) =>
+                                  _handleDirectQuickExport(
+                                    format: format,
+                                    isSelection: isSelection,
+                                  ),
                               onClearCanvas: _clearCanvas,
                               onOpenDevicePresets: _openDevicePresetsDialog,
                               onInsertDevicePreset: _insertDevicePreset,
                             ),
                           ),
-                        ],
+                        ),
                       ],
-                    );
+                    ],
+                  ),
+                );
                   },
                 ),
               ),

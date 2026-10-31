@@ -389,7 +389,8 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
     final isPanActive =
         widget.currentMode == EditorMode.pan || widget.isSpacePressed;
     final effectiveCanvasBg =
-        widget.canvasBackgroundColor ?? colorScheme.surface;
+        widget.canvasBackgroundColor ??
+        (isDark ? const Color(0xFF1E1E1E) : const Color(0xFFE8E8E8));
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -667,7 +668,7 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
                       maxScale: CanvasTransformHelper.maxScale,
                       minScale: CanvasTransformHelper.minScale,
                       boundaryMargin: const EdgeInsets.all(double.infinity),
-                      child: Container(
+                      child: SizedBox(
                         width: widget.canvasSize.width,
                         height: widget.canvasSize.height,
                         child: Stack(
@@ -734,8 +735,9 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
                                       (s) => s?.id == widget.editingTextShapeId,
                                       orElse: () => null,
                                     );
-                                if (editingShape == null)
+                                if (editingShape == null) {
                                   return const SizedBox.shrink();
+                                }
                                 return CanvasInlineTextEditor(
                                   key: ValueKey(
                                     'canvas-text-editor-${editingShape.id}',

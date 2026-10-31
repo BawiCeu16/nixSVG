@@ -100,10 +100,12 @@ class _M3PhysicsPressableState extends State<M3PhysicsPressable>
 
   double get _targetDelta {
     // Zero press shrink / smaller animations
-    if (_isPressed)
+    if (_isPressed) {
       return (widget.pressedScale > 1.0) ? widget.pressedScale - 1.0 : 0.0;
-    if (_isHovered)
+    }
+    if (_isHovered) {
       return (widget.hoverScale > 1.0) ? widget.hoverScale - 1.0 : 0.0;
+    }
     return 0.0;
   }
 

@@ -40,7 +40,7 @@ class _SidebarResizeHandleState extends State<SidebarResizeHandle> {
           message: 'Drag to resize sidebar (double-tap to reset)',
           waitDuration: const Duration(milliseconds: 700),
           child: Container(
-            width: 10,
+            width: 3,
             color: Colors.transparent,
             alignment: Alignment.center,
             child: Stack(
@@ -67,11 +67,11 @@ class _SidebarResizeHandleState extends State<SidebarResizeHandle> {
                   duration: const Duration(milliseconds: 160),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
-                    width: 4,
-                    height: _isDragging ? 36 : 28,
+                    width: 3,
+                    height: _isDragging ? 30 : 22,
                     decoration: BoxDecoration(
                       color: colorScheme.primary,
-                      borderRadius: BorderRadius.circular(2),
+                      borderRadius: BorderRadius.circular(100.0),
                     ),
                   ),
                 ),

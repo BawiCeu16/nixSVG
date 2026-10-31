@@ -73,17 +73,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final result = await DevicePresetsDialog.show(context, isWorkspaceMode: false);
     if (result == null) return;
     final preset = result.preset;
-    final isTemplate = result.action == DevicePresetAction.createProject;
-    final shapes = isTemplate
-        ? preset.generateTemplateShapes(
-            origin: Offset.zero,
-            darkMode: ref.read(themeProvider).isDarkMode,
-          )
-        : <VectorShape>[];
+    final isDark = ref.read(themeProvider).isDarkMode;
+    const standardCanvasSize = Size(3200, 2400);
+    final origin = Offset(
+      (standardCanvasSize.width - preset.width) / 2,
+      (standardCanvasSize.height - preset.height) / 2,
+    );
+    final shapes = preset.generateTemplateShapes(
+      origin: origin,
+      darkMode: isDark,
+      isTemplate: false,
+    );
 
     final project = ProjectModel.createNew(
       name: '${preset.name} UI',
-      size: preset.size,
+      size: standardCanvasSize,
       shapes: shapes,
     );
     _handleOpenProject(project);

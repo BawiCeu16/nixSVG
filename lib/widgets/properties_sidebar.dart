@@ -9,12 +9,15 @@ import 'package:m3e_dropdown_menu/m3e_dropdown_menu.dart';
 import 'package:m3e_segmented_list/m3e_segmented_list.dart';
 import 'package:nixsvg/models/device_preset.dart';
 import 'package:nixsvg/models/vector_shape.dart';
+import 'package:nixsvg/painters/vector_canvas_painter.dart';
 import 'package:nixsvg/widgets/color_picker_dialog.dart';
 import 'package:nixsvg/widgets/nix_slider.dart';
+import 'package:nixsvg/services/vector_export_service.dart';
 import 'package:remixicon/remixicon.dart';
 
 class PropertiesSidebar extends StatelessWidget {
   final VectorShape? selectedShape;
+  final List<VectorShape>? shapes;
   final ValueChanged<VectorShape> onShapeChanged;
   final ValueChanged<VectorShape>? onShapeChangeEnd;
   final void Function([Rect? anchorRect]) onOpenColorPickerFill;
@@ -51,6 +54,7 @@ class PropertiesSidebar extends StatelessWidget {
   final VoidCallback? onZoomToSelection;
   final VoidCallback? onSelectAll;
   final VoidCallback? onExportSvg;
+  final void Function(ExportFormat format, bool isSelection)? onQuickExport;
   final VoidCallback? onClearCanvas;
   final VoidCallback? onOpenDevicePresets;
   final ValueChanged<DevicePreset>? onInsertDevicePreset;
@@ -58,6 +62,7 @@ class PropertiesSidebar extends StatelessWidget {
   const PropertiesSidebar({
     super.key,
     required this.selectedShape,
+    this.shapes,
     required this.onShapeChanged,
     this.onShapeChangeEnd,
     required this.onOpenColorPickerFill,
@@ -94,6 +99,7 @@ class PropertiesSidebar extends StatelessWidget {
     this.onZoomToSelection,
     this.onSelectAll,
     this.onExportSvg,
+    this.onQuickExport,
     this.onClearCanvas,
     this.onOpenDevicePresets,
     this.onInsertDevicePreset,
@@ -2924,89 +2930,18 @@ class PropertiesSidebar extends StatelessWidget {
                         ),
                       ),
 
-                    // Section: Export Selection (Figma-Exact Inspector Section)
+                    // Section: Quick Export (Selection)
                     _CollapsibleSection(
-                      title: 'Export',
+                      title: 'Quick Export',
                       icon: RemixIcons.download_2_line,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                'EXPORT',
-                                style: _getSectionHeaderStyle(theme),
-                              ),
-                              const Spacer(),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: colorScheme.surfaceContainerHighest,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  'SVG',
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: colorScheme.primary,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Icon(
-                                _getShapeIcon(selectedShape!.type),
-                                size: 14,
-                                color: colorScheme.primary,
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  selectedShape!.name,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: colorScheme.onSurface,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                '${selectedShape!.rect.width.round()} × ${selectedShape!.rect.height.round()} px',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  fontFamily: 'monospace',
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          SizedBox(
-                            width: double.infinity,
-                            child: M3EButton.icon(
-                              onPressed: onExportSvg,
-                              style: M3EButtonStyle.tonal,
-                              size: M3EButtonSize.sm,
-                              icon: Icon(
-                                RemixIcons.download_2_line,
-                                size: 14,
-                                color: colorScheme.primary,
-                              ),
-                              label: Text(
-                                'Export SVG (${selectedShape!.name})',
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: colorScheme.primary,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                      child: _QuickExportSection(
+                        shapes: [selectedShape!],
+                        targetBounds: selectedShape!.rect,
+                        label: selectedShape!.name,
+                        icon: _getShapeIcon(selectedShape!.type),
+                        isSelection: true,
+                        onQuickExport: onQuickExport,
+                        onOpenAdvancedDialog: onExportSvg,
                       ),
                     ),
                   ],
@@ -3029,7 +2964,7 @@ class PropertiesSidebar extends StatelessWidget {
       elevation: 0,
       color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(8)),
+        borderRadius: BorderRadius.all(Radius.circular(14)),
         side: BorderSide.none,
       ),
       margin: const EdgeInsets.only(bottom: 6),
@@ -4092,82 +4027,26 @@ class PropertiesSidebar extends StatelessWidget {
           ),
         ),
 
-        // Section: Export Canvas (Figma-Exact Inspector Section)
+        // Section: Quick Export (Canvas)
         _CollapsibleSection(
-          title: 'Export Canvas',
+          title: 'Quick Export',
           icon: RemixIcons.download_2_line,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Align(
-                alignment: Alignment.centerRight,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'SVG',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(
-                    RemixIcons.artboard_line,
-                    size: 14,
-                    color: colorScheme.primary,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Entire Canvas',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colorScheme.onSurface,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '${(canvasSize?.width ?? 3200).round()} × ${(canvasSize?.height ?? 2400).round()} px',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontFamily: 'monospace',
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: M3EButton.icon(
-                  onPressed: onExportSvg,
-                  style: M3EButtonStyle.tonal,
-                  size: M3EButtonSize.sm,
-                  icon: Icon(
-                    RemixIcons.download_2_line,
-                    size: 14,
-                    color: colorScheme.primary,
-                  ),
-                  label: Text(
-                    'Export Canvas SVG',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          child: _QuickExportSection(
+            shapes: shapes ?? const [],
+            targetBounds: Rect.fromLTWH(
+              0,
+              0,
+              canvasSize?.width ?? 3200,
+              canvasSize?.height ?? 2400,
+            ),
+            label: 'Entire Canvas',
+            icon: RemixIcons.artboard_line,
+            dimensionText:
+                '${(canvasSize?.width ?? 3200).round()} × ${(canvasSize?.height ?? 2400).round()} px',
+            isSelection: false,
+            canvasBgColor: canvasBackgroundColor ?? Colors.white,
+            onQuickExport: onQuickExport,
+            onOpenAdvancedDialog: onExportSvg,
           ),
         ),
       ],
@@ -4331,8 +4210,8 @@ class _HexColorInputFieldState extends State<_HexColorInputField> {
             color: _focusNode.hasFocus
                 ? colorScheme.primary.withValues(alpha: 0.14)
                 : (_isHovered
-                    ? colorScheme.primary.withValues(alpha: 0.08)
-                    : colorScheme.surfaceContainerHighest),
+                      ? colorScheme.primary.withValues(alpha: 0.08)
+                      : colorScheme.surfaceContainerHighest),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -5426,7 +5305,7 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
         alpha: isDark ? 0.35 : 0.45,
       ),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(14),
         side: BorderSide(
           color: colorScheme.outlineVariant.withValues(
             alpha: isDark ? 0.25 : 0.35,
@@ -5769,8 +5648,9 @@ class _SidebarFrameModelChooserState extends State<_SidebarFrameModelChooser> {
                         preset.name,
                         style: TextStyle(
                           fontSize: 12.0,
-                          fontWeight:
-                              selected ? FontWeight.w600 : FontWeight.w400,
+                          fontWeight: selected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
                           color: selected
                               ? colorScheme.primary
                               : colorScheme.onSurface,
@@ -5890,8 +5770,8 @@ class _SidebarFrameModelChooserState extends State<_SidebarFrameModelChooser> {
                     _selectedPreset.cutoutType == CutoutType.dynamicIsland
                         ? 'Dynamic Island'
                         : _selectedPreset.cutoutType == CutoutType.notch
-                            ? 'Notch'
-                            : 'Punch Hole',
+                        ? 'Notch'
+                        : 'Punch Hole',
                     style: theme.textTheme.labelSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: colorScheme.onSurface,
@@ -5947,3 +5827,498 @@ class _SidebarFrameModelChooserState extends State<_SidebarFrameModelChooser> {
   }
 }
 
+/// Material 3 Expressive Quick Export section with instant format selector and direct export (no dialog).
+class _QuickExportSection extends StatefulWidget {
+  final List<VectorShape> shapes;
+  final Rect targetBounds;
+  final String label;
+  final String? dimensionText;
+  final IconData? icon;
+  final bool isSelection;
+  final Color? canvasBgColor;
+  final void Function(ExportFormat format, bool isSelection)? onQuickExport;
+  final VoidCallback? onOpenAdvancedDialog;
+
+  const _QuickExportSection({
+    required this.shapes,
+    required this.targetBounds,
+    required this.label,
+    this.dimensionText,
+    this.icon,
+    required this.isSelection,
+    this.canvasBgColor,
+    this.onQuickExport,
+    this.onOpenAdvancedDialog,
+  });
+
+  @override
+  State<_QuickExportSection> createState() => _QuickExportSectionState();
+}
+
+class _QuickExportSectionState extends State<_QuickExportSection> {
+  ExportFormat _selectedFormat = ExportFormat.png;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final formatBadge = _selectedFormat.name.toUpperCase();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'QUICK EXPORT',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.85,
+                ),
+                letterSpacing: 0.5,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: colorScheme.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                formatBadge,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Live Vector Preview Box (Click to export directly in selected format, NO DIALOG)
+        _QuickExportPreviewCard(
+          shapes: widget.shapes,
+          targetBounds: widget.targetBounds,
+          label: widget.label,
+          formatBadge: formatBadge,
+          canvasBgColor: widget.canvasBgColor,
+          onDirectExport: () =>
+              widget.onQuickExport?.call(_selectedFormat, widget.isSelection),
+        ),
+        const SizedBox(height: 8),
+
+        // Info Row: Icon + Name + Dimensions
+        Row(
+          children: [
+            if (widget.icon != null) ...[
+              Icon(widget.icon, size: 14, color: colorScheme.primary),
+              const SizedBox(width: 6),
+            ],
+            Expanded(
+              child: Text(
+                widget.label,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+            ),
+            Text(
+              widget.dimensionText ??
+                  '${widget.targetBounds.width.round()} × ${widget.targetBounds.height.round()} px',
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontFamily: 'monospace',
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+
+        // Format Selector Chips: PNG | JPEG | SVG | PDF
+        Row(
+          children: ExportFormat.values.map((format) {
+            final isSelected = format == _selectedFormat;
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                child: InkWell(
+                  onTap: () => setState(() => _selectedFormat = format),
+                  borderRadius: BorderRadius.circular(8),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? colorScheme.primary
+                          : colorScheme.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isSelected
+                            ? colorScheme.primary
+                            : colorScheme.outlineVariant.withValues(alpha: 0.2),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      format.name.toUpperCase(),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.w600,
+                        fontSize: 10.5,
+                        color: isSelected
+                            ? colorScheme.onPrimary
+                            : colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 10),
+
+        // M3E Split Button (Click to export directly in selected format, NO DIALOG)
+        SizedBox(
+          width: double.infinity,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: M3ESplitButton<String>(
+              style: M3EButtonStyle.filled,
+              size: M3EButtonSize.sm,
+              shape: M3EButtonShape.round,
+              leadingIcon: RemixIcons.download_2_line,
+              label: 'Quick Export ($formatBadge)',
+              selectedValue: _selectedFormat.name,
+              leadingTooltip: 'Quick Export directly as $formatBadge',
+              trailingTooltip: 'Export Formats',
+              decoration: M3ESplitButtonDecoration.styleFrom(
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
+              ),
+              items: const [
+                M3ESplitButtonItem(
+                  value: 'png',
+                  child: Text('Export PNG (.png)'),
+                ),
+                M3ESplitButtonItem(
+                  value: 'jpeg',
+                  child: Text('Export JPEG (.jpeg)'),
+                ),
+                M3ESplitButtonItem(
+                  value: 'svg',
+                  child: Text('Export SVG (.svg)'),
+                ),
+                M3ESplitButtonItem(
+                  value: 'pdf',
+                  child: Text('Export PDF (.pdf)'),
+                ),
+                M3ESplitButtonItem(
+                  value: 'more',
+                  child: Text('More Export Options...'),
+                ),
+              ],
+              onPressed: () {
+                widget.onQuickExport?.call(_selectedFormat, widget.isSelection);
+              },
+              onSelected: (val) {
+                if (val == 'more') {
+                  widget.onOpenAdvancedDialog?.call();
+                } else {
+                  final fmt = switch (val) {
+                    'jpeg' => ExportFormat.jpeg,
+                    'svg' => ExportFormat.svg,
+                    'pdf' => ExportFormat.pdf,
+                    _ => ExportFormat.png,
+                  };
+                  setState(() => _selectedFormat = fmt);
+                  widget.onQuickExport?.call(fmt, widget.isSelection);
+                }
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Material 3 Expressive Live Preview Card rendered directly inside PropertiesSidebar Quick Export expandable.
+class _QuickExportPreviewCard extends StatefulWidget {
+  final List<VectorShape> shapes;
+  final Rect targetBounds;
+  final String label;
+  final String formatBadge;
+  final VoidCallback? onDirectExport;
+  final Color? canvasBgColor;
+
+  const _QuickExportPreviewCard({
+    required this.shapes,
+    required this.targetBounds,
+    required this.label,
+    this.formatBadge = 'PNG',
+    this.onDirectExport,
+    this.canvasBgColor,
+  });
+
+  @override
+  State<_QuickExportPreviewCard> createState() =>
+      _QuickExportPreviewCardState();
+}
+
+class _QuickExportPreviewCardState extends State<_QuickExportPreviewCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    final targetW = widget.targetBounds.width;
+    final targetH = widget.targetBounds.height;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: Tooltip(
+        message:
+            'Quick Export ${widget.label} directly as ${widget.formatBadge}',
+        waitDuration: const Duration(milliseconds: 400),
+        child: GestureDetector(
+          onTap: widget.onDirectExport,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            height: 110,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: _isHovered
+                    ? colorScheme.primary.withValues(alpha: 0.6)
+                    : colorScheme.outlineVariant.withValues(
+                        alpha: isDark ? 0.35 : 0.25,
+                      ),
+                width: _isHovered ? 1.2 : 0.8,
+              ),
+              boxShadow: _isHovered
+                  ? [
+                      BoxShadow(
+                        color: colorScheme.primary.withValues(alpha: 0.12),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(9),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CustomPaint(
+                    painter: _ExportThumbnailPainter(
+                      shapes: widget.shapes,
+                      targetBounds: widget.targetBounds,
+                      colorScheme: colorScheme,
+                      isDark: isDark,
+                      canvasBgColor: widget.canvasBgColor,
+                    ),
+                  ),
+                  // Top-Left: Format Badge
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        widget.formatBadge,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Top-Right: Dimension Badge
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: (isDark ? Colors.black : Colors.white)
+                            .withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: colorScheme.outlineVariant.withValues(
+                            alpha: 0.3,
+                          ),
+                          width: 0.5,
+                        ),
+                      ),
+                      child: Text(
+                        '${targetW.round()} × ${targetH.round()} px',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontFamily: 'monospace',
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Bottom-Right: Hover Export Prompt
+                  if (_isHovered)
+                    Positioned(
+                      bottom: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              RemixIcons.download_2_line,
+                              size: 10,
+                              color: colorScheme.onPrimary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Quick Export',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Custom painter for rendering live vector artwork previews inside the sidebar.
+class _ExportThumbnailPainter extends CustomPainter {
+  final List<VectorShape> shapes;
+  final Rect targetBounds;
+  final ColorScheme colorScheme;
+  final bool isDark;
+  final Color? canvasBgColor;
+
+  _ExportThumbnailPainter({
+    required this.shapes,
+    required this.targetBounds,
+    required this.colorScheme,
+    required this.isDark,
+    this.canvasBgColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0 || targetBounds.isEmpty) return;
+
+    // 1. Draw subtle transparency checkerboard
+    final checker1 = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFEFEFEF);
+    final checker2 = isDark ? const Color(0xFF282828) : const Color(0xFFF9F9F9);
+    const cellSize = 8.0;
+    final bgPaint = Paint()..color = checker1;
+    final altPaint = Paint()..color = checker2;
+    canvas.drawRect(Offset.zero & size, bgPaint);
+    for (double y = 0; y < size.height; y += cellSize) {
+      for (double x = 0; x < size.width; x += cellSize) {
+        if (((x / cellSize).floor() + (y / cellSize).floor()) % 2 == 0) {
+          canvas.drawRect(Rect.fromLTWH(x, y, cellSize, cellSize), altPaint);
+        }
+      }
+    }
+
+    // 2. Compute aspect fit scaling to center targetBounds within size with margin
+    const margin = 10.0;
+    final availW = size.width - margin * 2;
+    final availH = size.height - margin * 2;
+    if (availW <= 0 || availH <= 0) return;
+
+    final scaleX = availW / targetBounds.width;
+    final scaleY = availH / targetBounds.height;
+    final scale = math.min(scaleX, scaleY).clamp(0.0001, 10.0);
+
+    final fittedW = targetBounds.width * scale;
+    final fittedH = targetBounds.height * scale;
+    final dx = (size.width - fittedW) / 2.0 - targetBounds.left * scale;
+    final dy = (size.height - fittedH) / 2.0 - targetBounds.top * scale;
+
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+
+    // If canvas background color provided, draw the canvas artboard bounds
+    if (canvasBgColor != null) {
+      final artboardPaint = Paint()..color = canvasBgColor!;
+      final artboardRect = Rect.fromLTWH(
+        (size.width - fittedW) / 2.0,
+        (size.height - fittedH) / 2.0,
+        fittedW,
+        fittedH,
+      );
+      canvas.drawRect(artboardRect, artboardPaint);
+    }
+
+    canvas.translate(dx, dy);
+    canvas.scale(scale);
+
+    final painter = VectorCanvasPainter(
+      shapes: shapes,
+      selectedShapeIds: const {},
+      currentMode: EditorMode.select,
+      colorScheme: colorScheme,
+      visibleRect: targetBounds.inflate(100.0),
+    );
+    painter.paint(canvas, size);
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _ExportThumbnailPainter oldDelegate) {
+    return oldDelegate.shapes != shapes ||
+        oldDelegate.targetBounds != targetBounds ||
+        oldDelegate.colorScheme != colorScheme ||
+        oldDelegate.isDark != isDark ||
+        oldDelegate.canvasBgColor != canvasBgColor;
+  }
+}

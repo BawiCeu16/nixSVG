@@ -182,15 +182,16 @@ class _NixSliderState extends State<NixSlider> with TickerProviderStateMixin {
 
     final effectiveInactiveColor = isInteractive
         ? (widget.inactiveTrackColor ??
-            colorScheme.surfaceContainerHighest.withValues(alpha: 0.55))
+              colorScheme.surfaceContainerHighest.withValues(alpha: 0.55))
         : colorScheme.surfaceContainerHighest.withValues(alpha: 0.38);
 
     final effectiveThumbColor = isInteractive
         ? (widget.thumbColor ?? colorScheme.onPrimary)
         : colorScheme.onSurface.withValues(alpha: 0.38);
 
-    final effectiveBorderColor =
-        colorScheme.outlineVariant.withValues(alpha: 0.35);
+    final effectiveBorderColor = colorScheme.outlineVariant.withValues(
+      alpha: 0.35,
+    );
 
     final fraction = ((widget.value - widget.min) / (widget.max - widget.min))
         .clamp(0.0, 1.0);
@@ -231,10 +232,7 @@ class _NixSliderState extends State<NixSlider> with TickerProviderStateMixin {
               : null,
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final widgetHeight = math.max(
-                widget.trackHeight,
-                20.0,
-              );
+              final widgetHeight = math.max(widget.trackHeight, 20.0);
 
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
@@ -315,7 +313,8 @@ class _NixSliderState extends State<NixSlider> with TickerProviderStateMixin {
                           inactiveTrackColor: effectiveInactiveColor,
                           thumbColor: effectiveThumbColor,
                           borderColor: effectiveBorderColor,
-                          thumbCornerRadiusFactor: widget.thumbCornerRadiusFactor,
+                          thumbCornerRadiusFactor:
+                              widget.thumbCornerRadiusFactor,
                           isThumbRounded: widget.isThumbRounded,
                           enabled: widget.enabled,
                         ),
@@ -420,7 +419,9 @@ class _NixSliderPainter extends CustomPainter {
 
     if (isThumbRounded && thumbCornerRadiusFactor > 0.0) {
       // 20% rounded thumb (e.g. 1.0px at 5px active, 0.4px at 2px resting)
-      final cornerRadius = Radius.circular(currentWidth * thumbCornerRadiusFactor);
+      final cornerRadius = Radius.circular(
+        currentWidth * thumbCornerRadiusFactor,
+      );
       final thumbRRect = RRect.fromRectAndRadius(
         Rect.fromCenter(
           center: Offset(thumbX, centerY),

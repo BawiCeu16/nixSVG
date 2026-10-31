@@ -1,4 +1,5 @@
 import 'dart:io' as io;
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -34,9 +35,8 @@ class SafeFilePicker {
         return await showDialog<FilePickerResult>(
           context: context,
           barrierDismissible: true,
-          builder: (dialogContext) => ZenityMissingFallbackDialog(
-            allowedExtensions: allowedExtensions,
-          ),
+          builder: (dialogContext) =>
+              ZenityMissingFallbackDialog(allowedExtensions: allowedExtensions),
         );
       }
       rethrow;
@@ -133,8 +133,10 @@ class _ZenityMissingFallbackDialogState
 
     final ext = trimmed.split('.').last.toLowerCase();
     if (!widget.allowedExtensions.contains(ext)) {
-      setState(() => _errorMessage =
-          'Unsupported file extension: .$ext (Allowed: ${widget.allowedExtensions.join(', ')})');
+      setState(
+        () => _errorMessage =
+            'Unsupported file extension: .$ext (Allowed: ${widget.allowedExtensions.join(', ')})',
+      );
       return;
     }
 
@@ -236,7 +238,10 @@ class _ZenityMissingFallbackDialogState
 
               // Install Command Code Box
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: colorScheme.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(12),
@@ -269,15 +274,14 @@ class _ZenityMissingFallbackDialogState
                     FilledButton.tonal(
                       onPressed: () {
                         Clipboard.setData(
-                          const ClipboardData(text: 'sudo apt install -y zenity'),
+                          const ClipboardData(
+                            text: 'sudo apt install -y zenity',
+                          ),
                         );
                         setState(() => _copied = true);
-                        Future.delayed(
-                          const Duration(seconds: 2),
-                          () {
-                            if (mounted) setState(() => _copied = false);
-                          },
-                        );
+                        Future.delayed(const Duration(seconds: 2), () {
+                          if (mounted) setState(() => _copied = false);
+                        });
                       },
                       child: Row(
                         mainAxisSize: MainAxisSize.min,

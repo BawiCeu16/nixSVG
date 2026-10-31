@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nixsvg/calculations/canvas_transform.dart';
 import 'package:nixsvg/models/vector_shape.dart';
 import 'package:nixsvg/ui/workspace/figma_workspace.dart';
+import 'package:nixsvg/ui/widgets/sidebar_resize_handle.dart';
 import 'package:nixsvg/widgets/top_navigation_bar.dart';
 
 void main() {
@@ -131,7 +132,8 @@ void main() {
       workspaceState.selectShape('mobile-rect');
       await tester.pumpAndSettle();
 
-      expect(tester.takeException(), isNull);
+      final caughtException = tester.takeException();
+      expect(caughtException, isNull);
 
       // Verify mobile contextual bar items
       expect(find.text('Card Container'), findsWidgets);
@@ -139,6 +141,32 @@ void main() {
       expect(find.byTooltip('Duplicate'), findsOneWidget);
       expect(find.byTooltip('Delete'), findsOneWidget);
       expect(find.byTooltip('Edit Properties'), findsOneWidget);
+    });
+
+    testWidgets('FigmaWorkspace desktop renders rounded Figma workplace and slim sidebar resizers', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            home: FigmaWorkspace(),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byType(SidebarResizeHandle), findsWidgets);
+      final resizerFinder = find.byType(SidebarResizeHandle).first;
+      final resizerSize = tester.getSize(resizerFinder);
+      expect(resizerSize.width, equals(3.0));
+
+      expect(tester.takeException(), isNull);
     });
   });
 }
