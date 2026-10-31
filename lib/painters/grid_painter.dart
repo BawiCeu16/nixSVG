@@ -14,9 +14,25 @@ class GridPainter extends CustomPainter {
   final bool isDotGrid;
   final String gridStyle;
   final Matrix4? transformMatrix;
+  final double scale;
+  final double tx;
+  final double ty;
 
   // Static vertex buffer cache to eliminate allocations during canvas redraws
   static final Map<String, Float32List> _pointCache = {};
+  static Float32List? _sharedInfiniteBuffer;
+  static final Paint _sharedPaint = Paint();
+
+  static Float32List _ensureInfiniteBuffer(int count) {
+    if (_sharedInfiniteBuffer == null || _sharedInfiniteBuffer!.length < count) {
+      final newCapacity = math.max(
+        count,
+        math.max(2048, (_sharedInfiniteBuffer?.length ?? 0) * 2),
+      );
+      _sharedInfiniteBuffer = Float32List(newCapacity);
+    }
+    return _sharedInfiniteBuffer!;
+  }
 
   GridPainter({
     this.gridSpacing = 40.0,
@@ -24,7 +40,18 @@ class GridPainter extends CustomPainter {
     this.isDotGrid = true,
     this.gridStyle = 'dots',
     this.transformMatrix,
-  });
+  })  : scale = transformMatrix != null
+            ? math.sqrt(
+                transformMatrix.storage[0] * transformMatrix.storage[0] +
+                    transformMatrix.storage[1] * transformMatrix.storage[1],
+              )
+            : 1.0,
+        tx = transformMatrix != null && transformMatrix.storage[12].isFinite
+            ? transformMatrix.storage[12]
+            : 0.0,
+        ty = transformMatrix != null && transformMatrix.storage[13].isFinite
+            ? transformMatrix.storage[13]
+            : 0.0;
 
   static Float32List _getPoints(
     double width,
@@ -107,7 +134,7 @@ class GridPainter extends CustomPainter {
 
     final points = _getPoints(size.width, size.height, spacing, effectiveStyle);
 
-    final paint = Paint()..color = gridColor;
+    final paint = _sharedPaint..color = gridColor;
 
     if (effectiveStyle == 'dots') {
       paint.strokeWidth = 2.4;
@@ -121,16 +148,7 @@ class GridPainter extends CustomPainter {
   }
 
   void _paintInfiniteGrid(Canvas canvas, Size size) {
-    final matrix = transformMatrix!;
-    final m0 = matrix.storage[0];
-    final m1 = matrix.storage[1];
-    final double scale = math.sqrt(m0 * m0 + m1 * m1);
     if (scale <= 0.0 || scale.isNaN || scale.isInfinite) return;
-
-    final double curTx = matrix.storage[12];
-    final double curTy = matrix.storage[13];
-    final double tx = curTx.isFinite ? curTx : 0.0;
-    final double ty = curTy.isFinite ? curTy : 0.0;
 
     final double baseSpacing =
         (gridSpacing.isFinite && gridSpacing >= 4.0) ? gridSpacing : 40.0;
@@ -153,66 +171,74 @@ class GridPainter extends CustomPainter {
     final int jStart = ((-ty) / screenSpacing).floor() - 1;
     final int jEnd = ((height - ty) / screenSpacing).ceil() + 1;
 
-    final paint = Paint()..color = gridColor;
+    final paint = _sharedPaint..color = gridColor;
 
     if (effectiveStyle == 'lines') {
       paint.strokeWidth = 1.0;
       paint.strokeCap = StrokeCap.butt;
       final int vCount = math.max(0, kEnd - kStart + 1);
       final int hCount = math.max(0, jEnd - jStart + 1);
-      final buffer = Float32List((vCount + hCount) * 4);
+      final int count = (vCount + hCount) * 4;
+      final raw = _ensureInfiniteBuffer(count);
       int idx = 0;
       for (int k = kStart; k <= kEnd; k++) {
         final double x = k * screenSpacing + tx;
-        buffer[idx++] = x;
-        buffer[idx++] = 0;
-        buffer[idx++] = x;
-        buffer[idx++] = height;
+        raw[idx++] = x;
+        raw[idx++] = 0;
+        raw[idx++] = x;
+        raw[idx++] = height;
       }
       for (int j = jStart; j <= jEnd; j++) {
         final double y = j * screenSpacing + ty;
-        buffer[idx++] = 0;
-        buffer[idx++] = y;
-        buffer[idx++] = width;
-        buffer[idx++] = y;
+        raw[idx++] = 0;
+        raw[idx++] = y;
+        raw[idx++] = width;
+        raw[idx++] = y;
       }
+      final buffer = Float32List.sublistView(raw, 0, count);
       canvas.drawRawPoints(ui.PointMode.lines, buffer, paint);
     } else if (effectiveStyle == 'crosses') {
       const double arm = 3.5;
-      final int totalPoints = math.max(0, (kEnd - kStart + 1) * (jEnd - jStart + 1));
-      final buffer = Float32List(totalPoints * 8);
+      final int totalPoints =
+          math.max(0, (kEnd - kStart + 1) * (jEnd - jStart + 1));
+      final int count = totalPoints * 8;
+      final raw = _ensureInfiniteBuffer(count);
       int idx = 0;
       for (int k = kStart; k <= kEnd; k++) {
         final double x = k * screenSpacing + tx;
         for (int j = jStart; j <= jEnd; j++) {
           final double y = j * screenSpacing + ty;
-          buffer[idx++] = x - arm;
-          buffer[idx++] = y;
-          buffer[idx++] = x + arm;
-          buffer[idx++] = y;
-          buffer[idx++] = x;
-          buffer[idx++] = y - arm;
-          buffer[idx++] = x;
-          buffer[idx++] = y + arm;
+          raw[idx++] = x - arm;
+          raw[idx++] = y;
+          raw[idx++] = x + arm;
+          raw[idx++] = y;
+          raw[idx++] = x;
+          raw[idx++] = y - arm;
+          raw[idx++] = x;
+          raw[idx++] = y + arm;
         }
       }
       paint.strokeWidth = 1.0;
+      final buffer = Float32List.sublistView(raw, 0, count);
       canvas.drawRawPoints(ui.PointMode.lines, buffer, paint);
     } else {
       // dots
-      final int totalPoints = math.max(0, (kEnd - kStart + 1) * (jEnd - jStart + 1));
-      final buffer = Float32List(totalPoints * 2);
+      final int totalPoints =
+          math.max(0, (kEnd - kStart + 1) * (jEnd - jStart + 1));
+      final int count = totalPoints * 2;
+      final raw = _ensureInfiniteBuffer(count);
       int idx = 0;
       for (int k = kStart; k <= kEnd; k++) {
         final double x = k * screenSpacing + tx;
         for (int j = jStart; j <= jEnd; j++) {
           final double y = j * screenSpacing + ty;
-          buffer[idx++] = x;
-          buffer[idx++] = y;
+          raw[idx++] = x;
+          raw[idx++] = y;
         }
       }
       paint.strokeWidth = 2.4;
       paint.strokeCap = StrokeCap.round;
+      final buffer = Float32List.sublistView(raw, 0, count);
       canvas.drawRawPoints(ui.PointMode.points, buffer, paint);
     }
   }
@@ -223,6 +249,8 @@ class GridPainter extends CustomPainter {
         oldDelegate.gridColor != gridColor ||
         oldDelegate.isDotGrid != isDotGrid ||
         oldDelegate.gridStyle != gridStyle ||
-        oldDelegate.transformMatrix != transformMatrix;
+        oldDelegate.scale != scale ||
+        oldDelegate.tx != tx ||
+        oldDelegate.ty != ty;
   }
 }

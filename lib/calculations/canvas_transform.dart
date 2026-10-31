@@ -13,6 +13,10 @@ class CanvasTransformHelper {
   static double getScale(Matrix4 matrix) {
     final m0 = matrix.storage[0];
     final m1 = matrix.storage[1];
+    if (m1 == 0.0) {
+      final absM0 = m0.abs();
+      return (absM0 <= 0.0 || absM0.isNaN || absM0.isInfinite) ? 1.0 : absM0;
+    }
     final scale = math.sqrt(m0 * m0 + m1 * m1);
     return (scale <= 0.0 || scale.isNaN || scale.isInfinite) ? 1.0 : scale;
   }
@@ -89,11 +93,9 @@ class CanvasTransformHelper {
     final double safeTy = curTy.isFinite ? curTy : 0.0;
 
     final double newTx =
-        safeTx +
-        currentScale * focalCanvasPoint.dx * (1.0 - effectiveFactor);
+        safeTx + currentScale * focalCanvasPoint.dx * (1.0 - effectiveFactor);
     final double newTy =
-        safeTy +
-        currentScale * focalCanvasPoint.dy * (1.0 - effectiveFactor);
+        safeTy + currentScale * focalCanvasPoint.dy * (1.0 - effectiveFactor);
 
     final matrix = currentMatrix.clone();
     matrix.storage[0] = newScale;
@@ -240,15 +242,24 @@ class CanvasTransformHelper {
   /// Calculates the visible canvas bounds in world coordinates for a given [viewportSize].
   static Rect getVisibleRect(Matrix4 matrix, Size viewportSize) {
     if (viewportSize.isEmpty) return const Rect.fromLTWH(0, 0, 3200, 2400);
-    final topLeft = screenToCanvas(matrix, Offset.zero);
-    final bottomRight = screenToCanvas(
-      matrix,
-      Offset(viewportSize.width, viewportSize.height),
-    );
-    final left = math.min(topLeft.dx, bottomRight.dx);
-    final top = math.min(topLeft.dy, bottomRight.dy);
-    final right = math.max(topLeft.dx, bottomRight.dx);
-    final bottom = math.max(topLeft.dy, bottomRight.dy);
+    final double scale = getScale(matrix);
+    if (scale <= 0.0 || scale.isNaN || scale.isInfinite) {
+      return const Rect.fromLTWH(0, 0, 3200, 2400);
+    }
+    final double curTx = matrix.storage[12];
+    final double curTy = matrix.storage[13];
+    final double tx = curTx.isFinite ? curTx : 0.0;
+    final double ty = curTy.isFinite ? curTy : 0.0;
+
+    final x0 = -tx / scale;
+    final y0 = -ty / scale;
+    final x1 = (viewportSize.width - tx) / scale;
+    final y1 = (viewportSize.height - ty) / scale;
+
+    final left = math.min(x0, x1);
+    final top = math.min(y0, y1);
+    final right = math.max(x0, x1);
+    final bottom = math.max(y0, y1);
     return Rect.fromLTRB(left, top, right, bottom);
   }
 }

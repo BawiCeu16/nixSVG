@@ -139,15 +139,18 @@ class _NixSvgAppView extends ConsumerWidget {
       return home!;
     }
 
-    final projectsState = ref.watch(projectsProvider);
-    final activeProject = projectsState.activeProject;
-    final hasActiveSession = projectsState.hasActiveSession;
+    final hasWorkspace = ref.watch(
+      projectsProvider.select(
+        (s) => s.hasActiveSession || s.activeProject != null,
+      ),
+    );
 
     final shouldShowWorkspace = startInWorkspace != null
-        ? (startInWorkspace! || hasActiveSession || activeProject != null)
-        : (hasActiveSession || activeProject != null);
+        ? (startInWorkspace! || hasWorkspace)
+        : hasWorkspace;
 
     if (shouldShowWorkspace) {
+      final activeProject = ref.read(projectsProvider).activeProject;
       return FigmaWorkspace(
         initialProject: activeProject,
         onGoToHome: () {

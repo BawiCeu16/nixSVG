@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
@@ -249,6 +250,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached ||
         state == AppLifecycleState.hidden) {
+      _persistDebounceTimer?.cancel();
       _persistCurrentProject();
     }
   }
@@ -304,6 +306,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    if (_persistDebounceTimer?.isActive ?? false) {
+      _persistDebounceTimer?.cancel();
+      _persistCurrentProject();
+    }
     _workspaceFocusNode.dispose();
     _transformationController.dispose();
     super.dispose();
@@ -373,12 +379,24 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
     _shapeCounter = 7;
   }
 
+  Timer? _persistDebounceTimer;
+
+  void _debouncedPersistCurrentProject() {
+    _persistDebounceTimer?.cancel();
+    _persistDebounceTimer = Timer(const Duration(milliseconds: 350), () {
+      if (mounted) {
+        _persistCurrentProject();
+      }
+    });
+  }
+
   void _saveHistorySnapshot() {
     _undoRedoManager.saveState(shapes);
-    _persistCurrentProject();
+    _debouncedPersistCurrentProject();
   }
 
   void _persistCurrentProject() {
+    _persistDebounceTimer?.cancel();
     final project =
         (widget.initialProject ??
                 ProjectModel.createNew(name: fileName, size: canvasSize))
@@ -392,6 +410,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
   }
 
   void _handleGoToHome() {
+    _persistDebounceTimer?.cancel();
     _persistCurrentProject();
     if (widget.onGoToHome != null) {
       widget.onGoToHome!();
@@ -3767,9 +3786,16 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
     final double zoomScale = CanvasTransformHelper.getScale(
       _transformationController.value,
     );
-    final selectedShape = selectedShapeIds.length == 1
-        ? shapes.firstWhere((s) => s.id == selectedShapeIds.first)
-        : null;
+    VectorShape? selectedShape;
+    if (selectedShapeIds.length == 1) {
+      final selectedId = selectedShapeIds.first;
+      for (final s in shapes) {
+        if (s.id == selectedId) {
+          selectedShape = s;
+          break;
+        }
+      }
+    }
 
     final isCompact = ResponsiveLayoutTokens.isCompact(context);
 

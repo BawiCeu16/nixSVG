@@ -11,162 +11,160 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Mobile Figma UI Editor & Infinite Canvas Tests', () {
-    test('CanvasTransformHelper.getVisibleRect computes accurate world bounds', () {
-      final identityMatrix = Matrix4.identity();
-      final visibleIdentity = CanvasTransformHelper.getVisibleRect(
-        identityMatrix,
-        const Size(400, 800),
-      );
-      expect(visibleIdentity.left, 0.0);
-      expect(visibleIdentity.top, 0.0);
-      expect(visibleIdentity.width, 400.0);
-      expect(visibleIdentity.height, 800.0);
+    test(
+      'CanvasTransformHelper.getVisibleRect computes accurate world bounds',
+      () {
+        final identityMatrix = Matrix4.identity();
+        final visibleIdentity = CanvasTransformHelper.getVisibleRect(
+          identityMatrix,
+          const Size(400, 800),
+        );
+        expect(visibleIdentity.left, 0.0);
+        expect(visibleIdentity.top, 0.0);
+        expect(visibleIdentity.width, 400.0);
+        expect(visibleIdentity.height, 800.0);
 
-      // Panned matrix: translated by (100, 200)
-      final pannedMatrix = Matrix4.identity()..translate(100.0, 200.0);
-      final visiblePanned = CanvasTransformHelper.getVisibleRect(
-        pannedMatrix,
-        const Size(400, 800),
-      );
-      expect(visiblePanned.left, -100.0);
-      expect(visiblePanned.top, -200.0);
-      expect(visiblePanned.width, 400.0);
-      expect(visiblePanned.height, 800.0);
+        // Panned matrix: translated by (100, 200)
+        final pannedMatrix = Matrix4.translationValues(100.0, 200.0, 0.0);
+        final visiblePanned = CanvasTransformHelper.getVisibleRect(
+          pannedMatrix,
+          const Size(400, 800),
+        );
+        expect(visiblePanned.left, -100.0);
+        expect(visiblePanned.top, -200.0);
+        expect(visiblePanned.width, 400.0);
+        expect(visiblePanned.height, 800.0);
 
-      // Zoomed matrix: scaled 2x
-      final zoomedMatrix = Matrix4.identity()..scale(2.0, 2.0);
-      final visibleZoomed = CanvasTransformHelper.getVisibleRect(
-        zoomedMatrix,
-        const Size(400, 800),
-      );
-      expect(visibleZoomed.left, 0.0);
-      expect(visibleZoomed.top, 0.0);
-      expect(visibleZoomed.width, 200.0);
-      expect(visibleZoomed.height, 400.0);
-    });
+        // Zoomed matrix: scaled 2x
+        final zoomedMatrix = Matrix4.diagonal3Values(2.0, 2.0, 1.0);
+        final visibleZoomed = CanvasTransformHelper.getVisibleRect(
+          zoomedMatrix,
+          const Size(400, 800),
+        );
+        expect(visibleZoomed.left, 0.0);
+        expect(visibleZoomed.top, 0.0);
+        expect(visibleZoomed.width, 200.0);
+        expect(visibleZoomed.height, 400.0);
+      },
+    );
 
-    testWidgets('TopNavigationBar renders mobile bar cleanly on 390px mobile viewport', (
-      WidgetTester tester,
-    ) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() => tester.view.resetPhysicalSize());
+    testWidgets(
+      'TopNavigationBar renders mobile bar cleanly on 390px mobile viewport',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
 
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            home: Scaffold(
-              body: TopNavigationBar(
-                fileName: 'Mobile Project',
-                onFileNameChanged: (_) {},
-                zoomScale: 1.0,
-                onZoomIn: () {},
-                onZoomOut: () {},
-                onResetZoom: () {},
-                onUndo: () {},
-                onRedo: () {},
-                canUndo: true,
-                canRedo: true,
-                snapToGrid: true,
-                onSnapToGridChanged: (_) {},
-                onExportSvg: () {},
-                onImportImage: () {},
-                onClearCanvas: () {},
-                onShowShortcuts: () {},
-                showLayers: false,
-                onToggleLayers: (_) {},
-                showProperties: false,
-                onToggleProperties: (_) {},
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              home: Scaffold(
+                body: TopNavigationBar(
+                  fileName: 'Mobile Project',
+                  onFileNameChanged: (_) {},
+                  zoomScale: 1.0,
+                  onZoomIn: () {},
+                  onZoomOut: () {},
+                  onResetZoom: () {},
+                  onUndo: () {},
+                  onRedo: () {},
+                  canUndo: true,
+                  canRedo: true,
+                  snapToGrid: true,
+                  onSnapToGridChanged: (_) {},
+                  onExportSvg: () {},
+                  onImportImage: () {},
+                  onClearCanvas: () {},
+                  onShowShortcuts: () {},
+                  showLayers: false,
+                  onToggleLayers: (_) {},
+                  showProperties: false,
+                  onToggleProperties: (_) {},
+                ),
               ),
             ),
           ),
-        ),
-      );
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      // Ensure no overflow errors occurred
-      expect(tester.takeException(), isNull);
+        // Ensure no overflow errors occurred
+        expect(tester.takeException(), isNull);
 
-      // Verify compact document title is rendered
-      expect(find.text('Mobile Project'), findsOneWidget);
+        // Verify compact document title is rendered
+        expect(find.text('Mobile Project'), findsOneWidget);
 
-      // Verify zoom indicator is present
-      expect(find.text('100%'), findsOneWidget);
+        // Verify zoom indicator is present
+        expect(find.text('100%'), findsOneWidget);
 
-      // Verify more options menu is present
-      expect(find.byTooltip('More Actions'), findsOneWidget);
-    });
+        // Verify more options menu is present
+        expect(find.byTooltip('More Actions'), findsOneWidget);
+      },
+    );
 
-    testWidgets('FigmaWorkspace shows mobile contextual selection bar when shape is selected', (
-      WidgetTester tester,
-    ) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() => tester.view.resetPhysicalSize());
+    testWidgets(
+      'FigmaWorkspace shows mobile contextual selection bar when shape is selected',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
 
-      await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
-            home: FigmaWorkspace(),
-          ),
-        ),
-      );
+        await tester.pumpWidget(
+          const ProviderScope(child: MaterialApp(home: FigmaWorkspace())),
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      final workspaceState = tester.state<FigmaWorkspaceState>(
-        find.byType(FigmaWorkspace),
-      );
+        final workspaceState = tester.state<FigmaWorkspaceState>(
+          find.byType(FigmaWorkspace),
+        );
 
-      // Add a rectangle and select it
-      final rectShape = VectorShape(
-        id: 'mobile-rect',
-        name: 'Card Container',
-        type: ShapeType.rectangle,
-        rect: const Rect.fromLTWH(50, 50, 120, 80),
-        fillColor: Colors.blue,
-      );
+        // Add a rectangle and select it
+        final rectShape = VectorShape(
+          id: 'mobile-rect',
+          name: 'Card Container',
+          type: ShapeType.rectangle,
+          rect: const Rect.fromLTWH(50, 50, 120, 80),
+          fillColor: Colors.blue,
+        );
 
-      workspaceState.shapes.add(rectShape);
-      workspaceState.selectShape('mobile-rect');
-      await tester.pumpAndSettle();
+        workspaceState.shapes.add(rectShape);
+        workspaceState.selectShape('mobile-rect');
+        await tester.pumpAndSettle();
 
-      final caughtException = tester.takeException();
-      expect(caughtException, isNull);
+        final caughtException = tester.takeException();
+        expect(caughtException, isNull);
 
-      // Verify mobile contextual bar items
-      expect(find.text('Card Container'), findsWidgets);
-      expect(find.byTooltip('Fill Color'), findsOneWidget);
-      expect(find.byTooltip('Duplicate'), findsOneWidget);
-      expect(find.byTooltip('Delete'), findsOneWidget);
-      expect(find.byTooltip('Edit Properties'), findsOneWidget);
-    });
+        // Verify mobile contextual bar items
+        expect(find.text('Card Container'), findsWidgets);
+        expect(find.byTooltip('Fill Color'), findsOneWidget);
+        expect(find.byTooltip('Duplicate'), findsOneWidget);
+        expect(find.byTooltip('Delete'), findsOneWidget);
+        expect(find.byTooltip('Edit Properties'), findsOneWidget);
+      },
+    );
 
-    testWidgets('FigmaWorkspace desktop renders rounded Figma workplace and slim sidebar resizers', (
-      WidgetTester tester,
-    ) async {
-      tester.view.physicalSize = const Size(1400, 900);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() => tester.view.resetPhysicalSize());
+    testWidgets(
+      'FigmaWorkspace desktop renders rounded Figma workplace and slim sidebar resizers',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(1400, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
 
-      await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
-            home: FigmaWorkspace(),
-          ),
-        ),
-      );
+        await tester.pumpWidget(
+          const ProviderScope(child: MaterialApp(home: FigmaWorkspace())),
+        );
 
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.byType(SidebarResizeHandle), findsWidgets);
-      final resizerFinder = find.byType(SidebarResizeHandle).first;
-      final resizerSize = tester.getSize(resizerFinder);
-      expect(resizerSize.width, equals(3.0));
+        expect(find.byType(SidebarResizeHandle), findsWidgets);
+        final resizerFinder = find.byType(SidebarResizeHandle).first;
+        final resizerSize = tester.getSize(resizerFinder);
+        expect(resizerSize.width, equals(3.0));
 
-      expect(tester.takeException(), isNull);
-    });
+        expect(tester.takeException(), isNull);
+      },
+    );
   });
 }

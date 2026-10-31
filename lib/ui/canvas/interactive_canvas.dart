@@ -277,11 +277,13 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
     if (widget.activeResizeHandle != ResizeHandle.none) {
       double rot = 0.0;
       if (widget.selectedShapeIds.length == 1) {
-        final s = widget.shapes.cast<VectorShape?>().firstWhere(
-          (shape) => shape?.id == widget.selectedShapeIds.first,
-          orElse: () => null,
-        );
-        if (s != null) rot = s.rotation;
+        final selectedId = widget.selectedShapeIds.first;
+        for (final shape in widget.shapes) {
+          if (shape.id == selectedId) {
+            rot = shape.rotation;
+            break;
+          }
+        }
       }
       return CanvasGeometry.getHandleCursor(widget.activeResizeHandle, rot);
     }
@@ -306,10 +308,14 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
     ResizeHandle targetHandle = ResizeHandle.none;
 
     if (widget.selectedShapeIds.length == 1) {
-      final s = widget.shapes.cast<VectorShape?>().firstWhere(
-        (shape) => shape?.id == widget.selectedShapeIds.first,
-        orElse: () => null,
-      );
+      VectorShape? s;
+      final selectedId = widget.selectedShapeIds.first;
+      for (final shape in widget.shapes) {
+        if (shape.id == selectedId) {
+          s = shape;
+          break;
+        }
+      }
       if (s != null && !s.isLocked && s.isVisible) {
         final handle = CanvasHitTester.hitTestHandle(
           canvasPos,

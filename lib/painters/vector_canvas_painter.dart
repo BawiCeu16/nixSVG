@@ -74,6 +74,23 @@ class VectorCanvasPainter extends CustomPainter {
     int? shapesRevision,
   }) : shapesRevision = shapesRevision ?? _computeShapesRevision(shapes);
 
+  static final Paint _sharedFillPaint = Paint()..style = PaintingStyle.fill;
+  static final Paint _sharedStrokePaint = Paint()..style = PaintingStyle.stroke;
+  static final Paint _sharedAlignedPaint = Paint()..style = PaintingStyle.stroke;
+  static final Paint _sharedMarqueeFill = Paint()..style = PaintingStyle.fill;
+  static final Paint _sharedMarqueeBorder = Paint()..style = PaintingStyle.stroke;
+  static final Paint _sharedSnapPaint = Paint()..style = PaintingStyle.stroke;
+  static final Paint _sharedHandleFill = Paint()..style = PaintingStyle.fill;
+  static final Paint _sharedHandleBorder = Paint()..style = PaintingStyle.stroke;
+  static final Paint _sharedHandleShadow = Paint()
+    ..style = PaintingStyle.fill
+    ..color = const Color(0x2E000000);
+  static final Paint _sharedHandleHighlight = Paint()..style = PaintingStyle.fill;
+  static final Paint _sharedHandleHighlightBorder =
+      Paint()..style = PaintingStyle.stroke;
+  static final Paint _sharedLinePaint = Paint()..style = PaintingStyle.stroke;
+  static final Paint _sharedBoxPaint = Paint()..style = PaintingStyle.stroke;
+
   static int _computeShapesRevision(List<VectorShape> shapes) {
     int hash = shapes.length;
     for (int i = 0; i < shapes.length; i++) {
@@ -161,37 +178,35 @@ class VectorCanvasPainter extends CustomPainter {
         math.max(marqueeRect!.top, marqueeRect!.bottom),
       );
       final s = (1.0 / (zoomScale > 0 ? zoomScale : 1.0)).clamp(0.02, 50.0);
-      final marqueePaint = Paint()
-        ..color = colorScheme.primaryContainer.withValues(alpha: 0.3)
-        ..style = PaintingStyle.fill;
-      final marqueeBorder = Paint()
+      _sharedMarqueeFill.color =
+          colorScheme.primaryContainer.withValues(alpha: 0.3);
+      _sharedMarqueeBorder
         ..color = colorScheme.primary
-        ..style = PaintingStyle.stroke
         ..strokeWidth = 1.2 * s;
-      canvas.drawRect(normalized, marqueePaint);
-      canvas.drawRect(normalized, marqueeBorder);
+      canvas.drawRect(normalized, _sharedMarqueeFill);
+      canvas.drawRect(normalized, _sharedMarqueeBorder);
     }
 
     // 5. Draw snap guidelines
     final s = (1.0 / (zoomScale > 0 ? zoomScale : 1.0)).clamp(0.02, 50.0);
     if (snapGuidelineX != null) {
-      final snapPaint = Paint()
+      _sharedSnapPaint
         ..color = colorScheme.tertiary
         ..strokeWidth = 1.2 * s;
       canvas.drawLine(
         snapGuidelineX!,
         Offset(snapGuidelineX!.dx, size.height),
-        snapPaint,
+        _sharedSnapPaint,
       );
     }
     if (snapGuidelineY != null) {
-      final snapPaint = Paint()
+      _sharedSnapPaint
         ..color = colorScheme.tertiary
         ..strokeWidth = 1.2 * s;
       canvas.drawLine(
         snapGuidelineY!,
         Offset(size.width, snapGuidelineY!.dy),
-        snapPaint,
+        _sharedSnapPaint,
       );
     }
 
@@ -583,7 +598,7 @@ class VectorCanvasPainter extends CustomPainter {
       canvas.translate(-center.dx, -center.dy);
     }
 
-    final fillPaint = Paint()..style = PaintingStyle.fill;
+    final fillPaint = _sharedFillPaint..shader = null;
     if (shape.fillType != PaintFillType.solid && shape.fillGradient != null) {
       fillPaint.shader = _createShader(
         shape.fillGradient!,
@@ -594,10 +609,10 @@ class VectorCanvasPainter extends CustomPainter {
       fillPaint.color = shape.fillColor.withValues(alpha: shape.fillOpacity);
     }
 
-    final strokePaint = Paint()
-      ..style = PaintingStyle.stroke
+    final strokePaint = _sharedStrokePaint
       ..strokeWidth = shape.strokeWidth
-      ..strokeCap = shape.strokeCap;
+      ..strokeCap = shape.strokeCap
+      ..shader = null;
 
     if (shape.strokeType != PaintFillType.solid &&
         shape.strokeGradient != null) {
@@ -652,13 +667,11 @@ class VectorCanvasPainter extends CustomPainter {
         }
 
         // Draw with 2x stroke width because half will be clipped off
-        final alignedPaint = Paint()
-          ..style = PaintingStyle.stroke
+        final alignedPaint = _sharedAlignedPaint
           ..strokeWidth = shape.strokeWidth * 2
-          ..strokeCap = shape.strokeCap;
-        if (strokePaint.shader != null) {
-          alignedPaint.shader = strokePaint.shader;
-        } else {
+          ..strokeCap = shape.strokeCap
+          ..shader = strokePaint.shader;
+        if (strokePaint.shader == null) {
           alignedPaint.color = strokePaint.color;
         }
 
@@ -1008,21 +1021,15 @@ class VectorCanvasPainter extends CustomPainter {
 
     final s = (1.0 / (zoomScale > 0 ? zoomScale : 1.0)).clamp(0.02, 50.0);
 
-    final handleFill = Paint()
-      ..color = colorScheme.surface
-      ..style = PaintingStyle.fill;
-    final handleBorder = Paint()
-      ..color = colorScheme.primary
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5 * s;
+    _sharedHandleFill.color = colorScheme.surface;
+    _sharedHandleBorder.color = colorScheme.primary;
 
     if (shape.type == ShapeType.line) {
       final startPt = shape.rect.topLeft;
       final endPt = shape.rect.bottomRight;
 
-      final linePaint = Paint()
+      _sharedLinePaint
         ..color = colorScheme.primary
-        ..style = PaintingStyle.stroke
         ..strokeWidth = 1.6 * s;
 
       if (shape.isCurved || shape.curvature != 0.0) {
@@ -1039,25 +1046,21 @@ class VectorCanvasPainter extends CustomPainter {
         final path = Path()
           ..moveTo(startPt.dx, startPt.dy)
           ..quadraticBezierTo(controlPt.dx, controlPt.dy, endPt.dx, endPt.dy);
-        canvas.drawPath(path, linePaint);
+        canvas.drawPath(path, _sharedLinePaint);
 
         // Guide dash line
-        final guidePaint = Paint()
+        _sharedSnapPaint
           ..color = colorScheme.primary.withValues(alpha: 0.4)
-          ..style = PaintingStyle.stroke
           ..strokeWidth = 1.0 * s;
-        canvas.drawLine(startPt, controlPt, guidePaint);
-        canvas.drawLine(endPt, controlPt, guidePaint);
+        canvas.drawLine(startPt, controlPt, _sharedSnapPaint);
+        canvas.drawLine(endPt, controlPt, _sharedSnapPaint);
 
         // Circular Bend Handle
-        canvas.drawCircle(controlPt, 6 * s, handleFill);
-        canvas.drawCircle(
-          controlPt,
-          6 * s,
-          handleBorder..strokeWidth = 1.5 * s,
-        );
+        canvas.drawCircle(controlPt, 6 * s, _sharedHandleFill);
+        _sharedHandleBorder.strokeWidth = 1.5 * s;
+        canvas.drawCircle(controlPt, 6 * s, _sharedHandleBorder);
       } else {
-        canvas.drawLine(startPt, endPt, linePaint);
+        canvas.drawLine(startPt, endPt, _sharedLinePaint);
       }
 
       for (final pt in [startPt, endPt]) {
@@ -1066,11 +1069,9 @@ class VectorCanvasPainter extends CustomPainter {
           width: 10 * s,
           height: 10 * s,
         );
-        canvas.drawRect(handleRect, handleFill);
-        canvas.drawRect(
-          handleRect,
-          handleBorder..strokeWidth = 1.5 * s,
-        );
+        _sharedHandleBorder.strokeWidth = 1.5 * s;
+        canvas.drawRect(handleRect, _sharedHandleFill);
+        canvas.drawRect(handleRect, _sharedHandleBorder);
       }
 
       canvas.restore();
@@ -1078,75 +1079,43 @@ class VectorCanvasPainter extends CustomPainter {
     }
 
     final rect = shape.rect;
-    final boxPaint = Paint()
+    _sharedBoxPaint
       ..color = colorScheme.primary
-      ..style = PaintingStyle.stroke
       ..strokeWidth = 1.6 * s;
 
-    canvas.drawRect(rect, boxPaint);
+    canvas.drawRect(rect, _sharedBoxPaint);
 
-    final handlePoints = {
-      ResizeHandle.topLeft: rect.topLeft,
-      ResizeHandle.topRight: rect.topRight,
-      ResizeHandle.bottomLeft: rect.bottomLeft,
-      ResizeHandle.bottomRight: rect.bottomRight,
-      ResizeHandle.topCenter: rect.topCenter,
-      ResizeHandle.bottomCenter: rect.bottomCenter,
-      ResizeHandle.centerLeft: rect.centerLeft,
-      ResizeHandle.centerRight: rect.centerRight,
-    };
-
-    for (final entry in handlePoints.entries) {
-      final pt = entry.value;
-      final isHovered = hoveredHandle == entry.key ||
-          activeResizeHandle == entry.key;
-      final size = (isHovered ? 12.0 : 10.0) * s;
-      final handleRect = Rect.fromCenter(center: pt, width: size, height: size);
-
-      // Subtle shadow for Mac-like polish
-      canvas.drawRect(
-        handleRect.shift(Offset(0, 0.8 * s)),
-        Paint()
-          ..color = Colors.black.withValues(alpha: 0.18)
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 1.2 * s),
-      );
-
-      canvas.drawRect(
-        handleRect,
-        isHovered
-            ? (Paint()..color = colorScheme.primary..style = PaintingStyle.fill)
-            : handleFill,
-      );
-      canvas.drawRect(
-        handleRect,
-        isHovered
-            ? (Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 1.5 * s)
-            : (handleBorder..strokeWidth = 1.5 * s),
-      );
-    }
+    _drawSingleRectHandle(canvas, rect.topLeft, ResizeHandle.topLeft, s);
+    _drawSingleRectHandle(canvas, rect.topRight, ResizeHandle.topRight, s);
+    _drawSingleRectHandle(canvas, rect.bottomLeft, ResizeHandle.bottomLeft, s);
+    _drawSingleRectHandle(canvas, rect.bottomRight, ResizeHandle.bottomRight, s);
+    _drawSingleRectHandle(canvas, rect.topCenter, ResizeHandle.topCenter, s);
+    _drawSingleRectHandle(canvas, rect.bottomCenter, ResizeHandle.bottomCenter, s);
+    _drawSingleRectHandle(canvas, rect.centerLeft, ResizeHandle.centerLeft, s);
+    _drawSingleRectHandle(canvas, rect.centerRight, ResizeHandle.centerRight, s);
 
     // Top rotation handle
     final rotCenter = Offset(rect.topCenter.dx, rect.topCenter.dy - 20 * s);
     final isRotHovered = hoveredHandle == ResizeHandle.rotation ||
         activeResizeHandle == ResizeHandle.rotation;
-    final linePaint = Paint()
+    _sharedLinePaint
       ..color = colorScheme.primary.withValues(alpha: 0.85)
       ..strokeWidth = 1.5 * s;
-    canvas.drawLine(rect.topCenter, rotCenter, linePaint);
-    canvas.drawCircle(
-      rotCenter,
-      (isRotHovered ? 6.5 : 5.0) * s,
-      isRotHovered
-          ? (Paint()..color = colorScheme.primary..style = PaintingStyle.fill)
-          : handleFill,
-    );
-    canvas.drawCircle(
-      rotCenter,
-      (isRotHovered ? 6.5 : 5.0) * s,
-      isRotHovered
-          ? (Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 1.5 * s)
-          : (handleBorder..strokeWidth = 1.5 * s),
-    );
+    canvas.drawLine(rect.topCenter, rotCenter, _sharedLinePaint);
+
+    final rotRadius = (isRotHovered ? 6.5 : 5.0) * s;
+    if (isRotHovered) {
+      _sharedHandleHighlight.color = colorScheme.primary;
+      _sharedHandleHighlightBorder
+        ..color = Colors.white
+        ..strokeWidth = 1.5 * s;
+      canvas.drawCircle(rotCenter, rotRadius, _sharedHandleHighlight);
+      canvas.drawCircle(rotCenter, rotRadius, _sharedHandleHighlightBorder);
+    } else {
+      _sharedHandleBorder.strokeWidth = 1.5 * s;
+      canvas.drawCircle(rotCenter, rotRadius, _sharedHandleFill);
+      canvas.drawCircle(rotCenter, rotRadius, _sharedHandleBorder);
+    }
 
     // Figma-style corner radius handles inside rectangles
     final radiusHandles = CanvasHitTester.getRadiusHandlePositions(
@@ -1228,6 +1197,34 @@ class VectorCanvasPainter extends CustomPainter {
     canvas.restore();
   }
 
+  void _drawSingleRectHandle(
+    Canvas canvas,
+    Offset pt,
+    ResizeHandle handle,
+    double s,
+  ) {
+    final isHovered = hoveredHandle == handle || activeResizeHandle == handle;
+    final size = (isHovered ? 12.0 : 10.0) * s;
+    final handleRect = Rect.fromCenter(center: pt, width: size, height: size);
+
+    // Subtle shadow for Mac-like polish
+    _sharedHandleShadow.maskFilter = MaskFilter.blur(BlurStyle.normal, 1.2 * s);
+    canvas.drawRect(handleRect.shift(Offset(0, 0.8 * s)), _sharedHandleShadow);
+
+    if (isHovered) {
+      _sharedHandleHighlight.color = colorScheme.primary;
+      _sharedHandleHighlightBorder
+        ..color = Colors.white
+        ..strokeWidth = 1.5 * s;
+      canvas.drawRect(handleRect, _sharedHandleHighlight);
+      canvas.drawRect(handleRect, _sharedHandleHighlightBorder);
+    } else {
+      _sharedHandleBorder.strokeWidth = 1.5 * s;
+      canvas.drawRect(handleRect, _sharedHandleFill);
+      canvas.drawRect(handleRect, _sharedHandleBorder);
+    }
+  }
+
   void _drawIndividualSelectionOutline(Canvas canvas, VectorShape shape) {
     canvas.save();
     final center = shape.rect.center;
@@ -1237,93 +1234,84 @@ class VectorCanvasPainter extends CustomPainter {
       canvas.translate(-center.dx, -center.dy);
     }
     final s = (1.0 / (zoomScale > 0 ? zoomScale : 1.0)).clamp(0.02, 50.0);
-    final outlinePaint = Paint()
+    _sharedLinePaint
       ..color = colorScheme.primary.withValues(alpha: 0.6)
-      ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0 * s;
-    canvas.drawRect(shape.rect, outlinePaint);
+    canvas.drawRect(shape.rect, _sharedLinePaint);
     canvas.restore();
   }
 
   void _drawMultiSelectionBoundingBox(Canvas canvas, Rect bounds) {
     final s = (1.0 / (zoomScale > 0 ? zoomScale : 1.0)).clamp(0.02, 50.0);
-    final boxPaint = Paint()
+    _sharedBoxPaint
       ..color = colorScheme.primary
-      ..style = PaintingStyle.stroke
       ..strokeWidth = 1.6 * s;
-    canvas.drawRect(bounds, boxPaint);
+    canvas.drawRect(bounds, _sharedBoxPaint);
 
-    final handleFill = Paint()
-      ..color = colorScheme.surface
-      ..style = PaintingStyle.fill;
-    final handleBorder = Paint()
+    _sharedHandleFill.color = colorScheme.surface;
+    _sharedHandleBorder
       ..color = colorScheme.primary
-      ..style = PaintingStyle.stroke
       ..strokeWidth = 1.6 * s;
 
-    final handlePoints = [
-      bounds.topLeft,
-      bounds.topRight,
-      bounds.bottomLeft,
-      bounds.bottomRight,
-      bounds.topCenter,
-      bounds.bottomCenter,
-      bounds.centerLeft,
-      bounds.centerRight,
-    ];
+    _drawMultiHandle(canvas, bounds.topLeft, s);
+    _drawMultiHandle(canvas, bounds.topRight, s);
+    _drawMultiHandle(canvas, bounds.bottomLeft, s);
+    _drawMultiHandle(canvas, bounds.bottomRight, s);
+    _drawMultiHandle(canvas, bounds.topCenter, s);
+    _drawMultiHandle(canvas, bounds.bottomCenter, s);
+    _drawMultiHandle(canvas, bounds.centerLeft, s);
+    _drawMultiHandle(canvas, bounds.centerRight, s);
+  }
 
-    for (final pt in handlePoints) {
-      final handleRect = Rect.fromCenter(
-        center: pt,
-        width: 9 * s,
-        height: 9 * s,
-      );
-      canvas.drawRect(handleRect, handleFill);
-      canvas.drawRect(handleRect, handleBorder);
-    }
+  void _drawMultiHandle(Canvas canvas, Offset pt, double s) {
+    final handleRect = Rect.fromCenter(
+      center: pt,
+      width: 9 * s,
+      height: 9 * s,
+    );
+    canvas.drawRect(handleRect, _sharedHandleFill);
+    canvas.drawRect(handleRect, _sharedHandleBorder);
   }
 
   void _drawDraftShape(Canvas canvas, Rect rect, ShapeType type) {
-    final fillPaint = Paint()
+    _sharedFillPaint
       ..color = colorScheme.primaryContainer.withValues(alpha: 0.35)
-      ..style = PaintingStyle.fill;
-    final strokePaint = Paint()
+      ..shader = null;
+    _sharedStrokePaint
       ..color = colorScheme.primary
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8;
+      ..strokeWidth = 1.8
+      ..shader = null;
 
     switch (type) {
       case ShapeType.rectangle:
       case ShapeType.text:
       case ShapeType.image:
-        canvas.drawRect(rect, fillPaint);
-        canvas.drawRect(rect, strokePaint);
+        canvas.drawRect(rect, _sharedFillPaint);
+        canvas.drawRect(rect, _sharedStrokePaint);
         break;
       case ShapeType.roundedRectangle:
         final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(12));
-        canvas.drawRRect(rrect, fillPaint);
-        canvas.drawRRect(rrect, strokePaint);
+        canvas.drawRRect(rrect, _sharedFillPaint);
+        canvas.drawRRect(rrect, _sharedStrokePaint);
         break;
       case ShapeType.ellipse:
-        canvas.drawOval(rect, fillPaint);
-        canvas.drawOval(rect, strokePaint);
+        canvas.drawOval(rect, _sharedFillPaint);
+        canvas.drawOval(rect, _sharedStrokePaint);
         break;
       case ShapeType.line:
-        canvas.drawLine(rect.topLeft, rect.bottomRight, strokePaint);
+        canvas.drawLine(rect.topLeft, rect.bottomRight, _sharedStrokePaint);
         break;
       case ShapeType.star:
         final path = _generateStarPath(rect);
-        canvas.drawPath(path, fillPaint);
-        canvas.drawPath(path, strokePaint);
+        canvas.drawPath(path, _sharedFillPaint);
+        canvas.drawPath(path, _sharedStrokePaint);
         break;
       case ShapeType.polygon:
         final path = CanvasGeometry.createPolygonPath(rect, sides: 6);
-        canvas.drawPath(path, fillPaint);
-        canvas.drawPath(path, strokePaint);
+        canvas.drawPath(path, _sharedFillPaint);
+        canvas.drawPath(path, _sharedStrokePaint);
         break;
       case ShapeType.path:
-        canvas.drawRect(rect, fillPaint);
-        canvas.drawRect(rect, strokePaint);
         break;
     }
   }
@@ -1506,6 +1494,8 @@ class VectorCanvasPainter extends CustomPainter {
     if (oldDelegate.shapes.length != shapes.length) return true;
     if (oldDelegate.selectedShapeIds.length != selectedShapeIds.length) return true;
     if (!setEquals(oldDelegate.selectedShapeIds, selectedShapeIds)) return true;
+
+    if (identical(oldDelegate.shapes, shapes)) return false;
 
     for (int i = 0; i < shapes.length; i++) {
       if (!identical(oldDelegate.shapes[i], shapes[i]) ||
