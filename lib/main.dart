@@ -130,7 +130,7 @@ class _NixSvgAppView extends ConsumerWidget {
           ),
         );
       },
-      home: SafeArea(child: _buildResolvedHome(ref)),
+      home: _buildResolvedHome(ref),
     );
   }
 

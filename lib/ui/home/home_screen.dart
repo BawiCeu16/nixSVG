@@ -14,6 +14,7 @@ import 'package:nixsvg/providers/theme_provider.dart';
 import 'package:nixsvg/ui/home/widgets/mini_project_preview.dart';
 import 'package:nixsvg/ui/workspace/figma_workspace.dart';
 import 'package:nixsvg/widgets/settings_dialog.dart';
+import 'package:nixsvg/widgets/device_presets_dialog.dart';
 import 'package:remixicon/remixicon.dart';
 
 /// Material 3 Expressive startup Home Screen for nixSVG.
@@ -66,6 +67,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         .read(projectsProvider.notifier)
         .createNewProject(name: name, size: size, shapes: shapes);
     _handleOpenProject(newProject);
+  }
+
+  Future<void> _openMobilePresetsDialog() async {
+    final result = await DevicePresetsDialog.show(context, isWorkspaceMode: false);
+    if (result == null) return;
+    final preset = result.preset;
+    final isTemplate = result.action == DevicePresetAction.createProject;
+    final shapes = isTemplate
+        ? preset.generateTemplateShapes(
+            origin: Offset.zero,
+            darkMode: ref.read(themeProvider).isDarkMode,
+          )
+        : <VectorShape>[];
+
+    final project = ProjectModel.createNew(
+      name: '${preset.name} UI',
+      size: preset.size,
+      shapes: shapes,
+    );
+    _handleOpenProject(project);
   }
 
   Future<void> _handleOpenFile() async {
@@ -223,11 +244,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       onKeyEvent: _handleKeyEvent,
       child: Scaffold(
         backgroundColor: colorScheme.surface,
-        body: NixFileDropZone(
-          onFilesDropped: _handleFilesDropped,
-          title: 'Drop files to open or start a new project',
-          subtitle:
-              'Drop any SVG, PNG, JPG, WEBP, or JSON project file to begin editing',
+        body: SafeArea(
+          child: NixFileDropZone(
+            onFilesDropped: _handleFilesDropped,
+            title: 'Drop files to open or start a new project',
+            subtitle:
+                'Drop any SVG, PNG, JPG, WEBP, or JSON project file to begin editing',
           child: Column(
           children: [
             // ================= TOP MAC-STYLE HEADER BAR =================
@@ -311,6 +333,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ],
         ),
+      ),
       ),
     ),
     );
@@ -756,12 +779,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               context: context,
               icon: RemixIcons.smartphone_line,
               iconColor: const Color(0xFF8B5CF6),
-              title: 'Mobile Screen',
-              subtitle: '390 × 844 phone screen frame',
-              onTap: () => _handleCreateNew(
-                name: 'Mobile UI',
-                size: const Size(390, 844),
-              ),
+              title: 'Mobile Frames',
+              subtitle: 'iPhone 12–18, Pixel 7–11 & Nothing',
+              onTap: _openMobilePresetsDialog,
             ),
           ],
         ),

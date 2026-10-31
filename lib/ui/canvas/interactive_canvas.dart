@@ -134,8 +134,14 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
   final _RepaintNotifier _repaintNotifier = _RepaintNotifier();
   double _lastTrackpadScale = 1.0;
   int _lastTrackpadTime = 0;
-  bool _innerHit = false;
   bool _outerDragActive = false;
+
+  // Multi-touch gestures for mobile touchscreens (two-finger pan & pinch zoom)
+  final Map<int, Offset> _touchPointers = {};
+  double? _initialPinchDistance;
+  double _lastPinchScale = 1.0;
+  Offset? _lastPinchFocal;
+  bool _isMultiTouchActive = false;
 
   @override
   void dispose() {
@@ -154,8 +160,9 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
 
   Matrix4 _getGlobalToCanvasMatrix() {
     final RenderBox? box = context.findRenderObject() as RenderBox?;
-    final boxOrigin =
-        box != null ? box.localToGlobal(Offset.zero) : Offset.zero;
+    final boxOrigin = box != null
+        ? box.localToGlobal(Offset.zero)
+        : Offset.zero;
     final matrix = widget.transformationController.value;
     final scale = CanvasTransformHelper.getScale(matrix);
     final tx = matrix.storage[12];
@@ -381,284 +388,384 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isPanActive =
         widget.currentMode == EditorMode.pan || widget.isSpacePressed;
-    final effectiveCanvasBg = widget.canvasBackgroundColor ?? colorScheme.surface;
+    final effectiveCanvasBg =
+        widget.canvasBackgroundColor ?? colorScheme.surface;
 
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onSecondaryTapDown: (details) {
-        final canvasPos = _toCanvasCoordinates(details.globalPosition);
-        _triggerSecondaryTap(details.globalPosition, canvasPos);
-      },
-      child: MouseRegion(
-      cursor: _resolveCursor(isPanActive),
-      onEnter: (_) => widget.onCanvasHoverChanged?.call(true),
-      onExit: (_) {
-        if (_hoverCursor != SystemMouseCursors.basic ||
-            _hoveredHandle != ResizeHandle.none) {
-          setState(() {
-            _hoverCursor = SystemMouseCursors.basic;
-            _hoveredHandle = ResizeHandle.none;
-          });
-        }
-        widget.onCanvasHoverChanged?.call(false);
-      },
-      onHover: (event) {
-        final canvasPos = _toCanvasCoordinates(event.position);
-        _updateHoverCursor(canvasPos);
-        widget.onPointerHover?.call(canvasPos);
-      },
-      child: Listener(
-        behavior: HitTestBehavior.opaque,
-        onPointerSignal: _handlePointerSignal,
-        onPointerPanZoomStart: (_) {
-          _lastTrackpadScale = 1.0;
-          _lastTrackpadTime = DateTime.now().millisecondsSinceEpoch;
-          _outerDragActive = false;
-          _innerHit = false;
-        },
-        onPointerPanZoomUpdate: (event) {
-          final now = DateTime.now().millisecondsSinceEpoch;
-          // Reset stale scale if gesture paused or was interrupted (> 250ms gap)
-          if (now - _lastTrackpadTime > 250 ||
-              _lastTrackpadScale <= 0.0 ||
-              !_lastTrackpadScale.isFinite) {
-            _lastTrackpadScale = 1.0;
-          }
-          _lastTrackpadTime = now;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final viewportSize = Size(constraints.maxWidth, constraints.maxHeight);
+        final visibleRect = CanvasTransformHelper.getVisibleRect(
+          widget.transformationController.value,
+          viewportSize,
+        );
 
-          var currentMatrix = widget.transformationController.value;
-
-          // 1. Two-finger trackpad pan translation
-          if (event.panDelta != Offset.zero &&
-              event.panDelta.dx.isFinite &&
-              event.panDelta.dy.isFinite) {
-            currentMatrix = CanvasTransformHelper.panMatrix(
-              currentMatrix,
-              event.panDelta,
-            );
-          }
-
-          // 2. Trackpad pinch-to-zoom scaling
-          if (event.scale > 0.0 && event.scale.isFinite) {
-            final double deltaFactor = event.scale / _lastTrackpadScale;
-            _lastTrackpadScale = event.scale;
-
-            if (deltaFactor.isFinite &&
-                deltaFactor > 0.0 &&
-                (deltaFactor - 1.0).abs() > 0.0001) {
-              final RenderBox? box = context.findRenderObject() as RenderBox?;
-              final viewportPos = box != null
-                  ? box.globalToLocal(event.position)
-                  : event.localPosition;
-              currentMatrix = CanvasTransformHelper.zoomAtScreenPoint(
-                currentMatrix,
-                viewportPos,
-                deltaFactor,
-              );
-              final newCanvasPos = CanvasTransformHelper.screenToCanvas(
-                currentMatrix,
-                viewportPos,
-              );
-              _updateHoverCursor(newCanvasPos);
-              widget.onPointerHover?.call(newCanvasPos);
-            }
-          }
-
-          widget.transformationController.value = currentMatrix;
-          widget.onMatrixChanged();
-        },
-        onPointerPanZoomEnd: (_) {
-          _lastTrackpadScale = 1.0;
-          _lastTrackpadTime = 0;
-        },
-        onPointerDown: (event) {
-          if (_innerHit) {
-            _innerHit = false;
-            return;
-          }
-          if ((event.buttons & kSecondaryMouseButton) != 0) {
-            final canvasPos =
-                event.transformed(_getGlobalToCanvasMatrix()).localPosition;
-            _triggerSecondaryTap(event.position, canvasPos);
-            return;
-          }
-          _outerDragActive = true;
-          if (widget.editingTextShapeId != null) {
-            widget.onInlineTextCommit?.call();
-            FocusManager.instance.primaryFocus?.unfocus();
-          }
-          widget.onPointerDown(event.transformed(_getGlobalToCanvasMatrix()));
-        },
-        onPointerMove: (event) {
-          if (!_outerDragActive) return;
-          widget.onPointerMove(event.transformed(_getGlobalToCanvasMatrix()));
-        },
-        onPointerUp: (event) {
-          if (!_outerDragActive) return;
-          _outerDragActive = false;
-          widget.onPointerUp(event.transformed(_getGlobalToCanvasMatrix()));
-        },
-        onPointerCancel: (event) {
-          if (!_outerDragActive) return;
-          _outerDragActive = false;
-          widget.onPointerCancel(event.transformed(_getGlobalToCanvasMatrix()));
-        },
-        child: InteractiveViewer(
-          transformationController: widget.transformationController,
-          panEnabled: false,
-          scaleEnabled: false,
-          constrained: false,
-          maxScale: CanvasTransformHelper.maxScale,
-          minScale: CanvasTransformHelper.minScale,
-          boundaryMargin: const EdgeInsets.all(double.infinity),
-          child: Listener(
-            behavior: HitTestBehavior.opaque,
-            onPointerDown: (event) {
-              if ((event.buttons & kSecondaryMouseButton) != 0) {
-                _innerHit = true;
-                _triggerSecondaryTap(event.position, event.localPosition);
-                return;
+        return GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onSecondaryTapDown: (details) {
+            final canvasPos = _toCanvasCoordinates(details.globalPosition);
+            _triggerSecondaryTap(details.globalPosition, canvasPos);
+          },
+          child: MouseRegion(
+            cursor: _resolveCursor(isPanActive),
+            onEnter: (_) => widget.onCanvasHoverChanged?.call(true),
+            onExit: (_) {
+              if (_hoverCursor != SystemMouseCursors.basic ||
+                  _hoveredHandle != ResizeHandle.none) {
+                setState(() {
+                  _hoverCursor = SystemMouseCursors.basic;
+                  _hoveredHandle = ResizeHandle.none;
+                });
               }
-              _innerHit = true;
-              _outerDragActive = false;
-              if (widget.editingTextShapeId != null) {
-                final editingShape = widget.shapes
-                    .cast<VectorShape?>()
-                    .firstWhere(
-                      (s) => s?.id == widget.editingTextShapeId,
-                      orElse: () => null,
+              widget.onCanvasHoverChanged?.call(false);
+            },
+            onHover: (event) {
+              final canvasPos = _toCanvasCoordinates(event.position);
+              _updateHoverCursor(canvasPos);
+              widget.onPointerHover?.call(canvasPos);
+            },
+            child: Listener(
+              behavior: HitTestBehavior.opaque,
+              onPointerSignal: _handlePointerSignal,
+              onPointerPanZoomStart: (_) {
+                _lastTrackpadScale = 1.0;
+                _lastTrackpadTime = DateTime.now().millisecondsSinceEpoch;
+                _outerDragActive = false;
+              },
+              onPointerPanZoomUpdate: (event) {
+                final now = DateTime.now().millisecondsSinceEpoch;
+                // Reset stale scale if gesture paused or was interrupted (> 250ms gap)
+                if (now - _lastTrackpadTime > 250 ||
+                    _lastTrackpadScale <= 0.0 ||
+                    !_lastTrackpadScale.isFinite) {
+                  _lastTrackpadScale = 1.0;
+                }
+                _lastTrackpadTime = now;
+
+                var currentMatrix = widget.transformationController.value;
+
+                // 1. Two-finger trackpad pan translation
+                if (event.panDelta != Offset.zero &&
+                    event.panDelta.dx.isFinite &&
+                    event.panDelta.dy.isFinite) {
+                  currentMatrix = CanvasTransformHelper.panMatrix(
+                    currentMatrix,
+                    event.panDelta,
+                  );
+                }
+
+                // 2. Trackpad pinch-to-zoom scaling
+                if (event.scale > 0.0 && event.scale.isFinite) {
+                  final double deltaFactor = event.scale / _lastTrackpadScale;
+                  _lastTrackpadScale = event.scale;
+
+                  if (deltaFactor.isFinite &&
+                      deltaFactor > 0.0 &&
+                      (deltaFactor - 1.0).abs() > 0.0001) {
+                    final RenderBox? box =
+                        context.findRenderObject() as RenderBox?;
+                    final viewportPos = box != null
+                        ? box.globalToLocal(event.position)
+                        : event.localPosition;
+                    currentMatrix = CanvasTransformHelper.zoomAtScreenPoint(
+                      currentMatrix,
+                      viewportPos,
+                      deltaFactor,
                     );
-                if (editingShape != null &&
-                    CanvasHitTester.hitTestShape(
-                      event.localPosition,
-                      editingShape,
-                    )) {
-                  // Tapped inside active text editor to position cursor or select text
+                    final newCanvasPos = CanvasTransformHelper.screenToCanvas(
+                      currentMatrix,
+                      viewportPos,
+                    );
+                    _updateHoverCursor(newCanvasPos);
+                    widget.onPointerHover?.call(newCanvasPos);
+                  }
+                }
+
+                widget.transformationController.value = currentMatrix;
+                widget.onMatrixChanged();
+              },
+              onPointerPanZoomEnd: (_) {
+                _lastTrackpadScale = 1.0;
+                _lastTrackpadTime = 0;
+              },
+              onPointerDown: (event) {
+                // Multi-touch gestures for mobile touchscreens (two-finger pan & pinch-zoom)
+                if (event.kind == PointerDeviceKind.touch) {
+                  _touchPointers[event.pointer] = event.position;
+                  if (_touchPointers.length >= 2) {
+                    _isMultiTouchActive = true;
+                    final points = _touchPointers.values.toList();
+                    _lastPinchFocal = (points[0] + points[1]) / 2;
+                    _initialPinchDistance = (points[0] - points[1]).distance;
+                    _lastPinchScale = 1.0;
+                    if (_outerDragActive) {
+                      _outerDragActive = false;
+                      widget.onPointerCancel(
+                        PointerCancelEvent(
+                          pointer: event.pointer,
+                          kind: event.kind,
+                          device: event.device,
+                          position: event.position,
+                        ),
+                      );
+                    }
+                    return;
+                  }
+                }
+
+                if ((event.buttons & kSecondaryMouseButton) != 0) {
+                  final canvasPos = event
+                      .transformed(_getGlobalToCanvasMatrix())
+                      .localPosition;
+                  _triggerSecondaryTap(event.position, canvasPos);
                   return;
                 }
-                // Tapped outside active text editor (on canvas background) -> commit
-                widget.onInlineTextCommit?.call();
-                FocusManager.instance.primaryFocus?.unfocus();
-              }
-              widget.onPointerDown(event);
-            },
-            onPointerMove: widget.onPointerMove,
-            onPointerUp: widget.onPointerUp,
-            onPointerCancel: widget.onPointerCancel,
-            child: Container(
-              width: widget.canvasSize.width,
-              height: widget.canvasSize.height,
-              decoration: BoxDecoration(
-                color: effectiveCanvasBg,
-              ),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  // Figma-style Artboard Title & Dimensions Tag
-                  Positioned(
-                    top: -22,
-                    left: 2,
-                    child: Text(
-                      '${widget.artboardTitle ?? 'Canvas'} • ${widget.canvasSize.width.toInt()} × ${widget.canvasSize.height.toInt()}',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.2,
-                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.65),
-                      ),
-                    ),
-                  ),
+                _outerDragActive = true;
+                if (widget.editingTextShapeId != null) {
+                  final canvasPos = event
+                      .transformed(_getGlobalToCanvasMatrix())
+                      .localPosition;
+                  final editingShape = widget.shapes
+                      .cast<VectorShape?>()
+                      .firstWhere(
+                        (s) => s?.id == widget.editingTextShapeId,
+                        orElse: () => null,
+                      );
+                  if (editingShape == null ||
+                      !CanvasHitTester.hitTestShape(canvasPos, editingShape)) {
+                    widget.onInlineTextCommit?.call();
+                    FocusManager.instance.primaryFocus?.unfocus();
+                  }
+                }
+                widget.onPointerDown(
+                  event.transformed(_getGlobalToCanvasMatrix()),
+                );
+              },
+              onPointerMove: (event) {
+                if (event.kind == PointerDeviceKind.touch) {
+                  _touchPointers[event.pointer] = event.position;
+                  if (_isMultiTouchActive && _touchPointers.length >= 2) {
+                    final points = _touchPointers.values.toList();
+                    final newFocal = (points[0] + points[1]) / 2;
+                    final newDistance = (points[0] - points[1]).distance;
 
-                  // Grid Background layer with RepaintBoundary
-                  RepaintBoundary(
-                    child: CustomPaint(
-                      size: widget.canvasSize,
-                      painter: GridPainter(
-                        gridSpacing: widget.gridSpacing,
-                        gridColor: colorScheme.onSurface.withValues(
-                          alpha: isDark ? 0.08 : 0.06,
-                        ),
-                        gridStyle: widget.gridStyle,
-                      ),
-                    ),
-                  ),
+                    var currentMatrix = widget.transformationController.value;
 
-                  // Vector Canvas Painter with RepaintBoundary for high 60fps performance
-                  RepaintBoundary(
-                    child: CustomPaint(
-                      size: widget.canvasSize,
-                      painter: VectorCanvasPainter(
-                        repaint: _repaintNotifier,
-                        onImageDecoded: () {
-                          _repaintNotifier.notify();
-                          widget.onImageDecoded?.call();
-                        },
-                        shapes: widget.shapes,
-                      selectedShapeIds: widget.selectedShapeIds,
-                      draftStartPoint: widget.panStartOffset,
-                      draftCurrentPoint: widget.panCurrentOffset,
-                      draftShapeType: widget.draftShapeType,
-                      draftIsShiftPressed: widget.draftIsShiftPressed,
-                      draftIsAltPressed: widget.draftIsAltPressed,
-                      marqueeRect: widget.marqueeRect,
-                      currentMode: widget.currentMode,
-                      isResizing:
-                          widget.isResizing ||
-                          widget.activeResizeHandle != ResizeHandle.none,
-                      activeResizeHandle: widget.activeResizeHandle,
-                      hoveredHandle: _hoveredHandle,
-                      snapGuidelineX: widget.snapGuidelineX,
-                      snapGuidelineY: widget.snapGuidelineY,
-                      colorScheme: colorScheme,
-                      editingShapeId: widget.editingTextShapeId,
-                      zoomScale: CanvasTransformHelper.getScale(
-                        widget.transformationController.value,
-                      ),
-                      activePenPoints: widget.activePenPoints,
-                      activePenNodes: widget.activePenNodes,
-                      activePenCursor: widget.activePenCursor,
-                      isPenHoveringStart: widget.isPenHoveringStart,
-                      editingPathShapeId: widget.editingPathShapeId,
-                      editingPathNodes: widget.editingPathNodes,
-                      selectedPathNodeIndices: widget.selectedPathNodeIndices,
-                      hoveredPathNodeIndex: widget.hoveredPathNodeIndex,
-                      activeHandleNodeIndex: widget.activeHandleNodeIndex,
-                      activeHandleType: widget.activeHandleType,
-                      isPathClosed: widget.isPathClosed,
-                    ),
-                  ),
-                ),
+                    // 1. Two-finger pan translation
+                    if (_lastPinchFocal != null) {
+                      final delta = newFocal - _lastPinchFocal!;
+                      currentMatrix = CanvasTransformHelper.panMatrix(
+                        currentMatrix,
+                        delta,
+                      );
+                    }
 
-                // Canvas Inline Text Editor Overlay
-                if (widget.editingTextShapeId != null) ...[
-                  () {
-                    final editingShape = widget.shapes
-                        .cast<VectorShape?>()
-                        .firstWhere(
-                          (s) => s?.id == widget.editingTextShapeId,
-                          orElse: () => null,
+                    // 2. Two-finger pinch zoom
+                    if (_initialPinchDistance != null &&
+                        _initialPinchDistance! > 10.0 &&
+                        newDistance > 10.0) {
+                      final currentScale = newDistance / _initialPinchDistance!;
+                      final deltaFactor = currentScale / _lastPinchScale;
+                      _lastPinchScale = currentScale;
+
+                      final RenderBox? box =
+                          context.findRenderObject() as RenderBox?;
+                      final viewportFocal = box != null
+                          ? box.globalToLocal(newFocal)
+                          : newFocal;
+
+                      if (deltaFactor.isFinite &&
+                          deltaFactor > 0.0 &&
+                          (deltaFactor - 1.0).abs() > 0.0001) {
+                        currentMatrix = CanvasTransformHelper.zoomAtScreenPoint(
+                          currentMatrix,
+                          viewportFocal,
+                          deltaFactor,
                         );
-                    if (editingShape == null) return const SizedBox.shrink();
-                    return CanvasInlineTextEditor(
-                      key: ValueKey('canvas-text-editor-${editingShape.id}'),
-                      shape: editingShape,
-                      isNew: widget.isEditingNewText,
-                      selectAll: widget.selectAllText,
-                      onTextChanged: (text) =>
-                          widget.onInlineTextChanged?.call(text),
-                      onCommit: () => widget.onInlineTextCommit?.call(),
-                      onCancel: () => widget.onInlineTextCancel?.call(),
-                      onRectChanged: (newRect) =>
-                          widget.onInlineTextRectChanged?.call(newRect),
-                    );
-                  }(),
-                ],
-              ],
+                      }
+                    }
+
+                    _lastPinchFocal = newFocal;
+                    widget.transformationController.value = currentMatrix;
+                    widget.onMatrixChanged();
+                    return;
+                  }
+                }
+
+                if (_isMultiTouchActive) return;
+                if (!_outerDragActive) return;
+                widget.onPointerMove(
+                  event.transformed(_getGlobalToCanvasMatrix()),
+                );
+              },
+              onPointerUp: (event) {
+                if (event.kind == PointerDeviceKind.touch) {
+                  _touchPointers.remove(event.pointer);
+                  if (_touchPointers.length < 2) {
+                    final wasMulti = _isMultiTouchActive;
+                    _isMultiTouchActive = false;
+                    _initialPinchDistance = null;
+                    _lastPinchFocal = null;
+                    _lastPinchScale = 1.0;
+                    if (wasMulti) return;
+                  }
+                }
+
+                if (_isMultiTouchActive) return;
+                if (!_outerDragActive) return;
+                _outerDragActive = false;
+                widget.onPointerUp(
+                  event.transformed(_getGlobalToCanvasMatrix()),
+                );
+              },
+              onPointerCancel: (event) {
+                if (event.kind == PointerDeviceKind.touch) {
+                  _touchPointers.remove(event.pointer);
+                  if (_touchPointers.length < 2) {
+                    _isMultiTouchActive = false;
+                    _initialPinchDistance = null;
+                    _lastPinchFocal = null;
+                    _lastPinchScale = 1.0;
+                  }
+                }
+
+                if (!_outerDragActive) return;
+                _outerDragActive = false;
+                widget.onPointerCancel(
+                  event.transformed(_getGlobalToCanvasMatrix()),
+                );
+              },
+              child: Container(
+                width: double.infinity,
+                height: double.infinity,
+                color: effectiveCanvasBg,
+                child: Stack(
+                  fit: StackFit.expand,
+                  clipBehavior: Clip.none,
+                  children: [
+                    // 1. Full-screen infinite grid layer (spans entire viewport without boundaries)
+                    RepaintBoundary(
+                      child: CustomPaint(
+                        size: viewportSize,
+                        painter: GridPainter(
+                          transformMatrix:
+                              widget.transformationController.value,
+                          gridSpacing: widget.gridSpacing,
+                          gridColor: colorScheme.onSurface.withValues(
+                            alpha: isDark ? 0.08 : 0.06,
+                          ),
+                          gridStyle: widget.gridStyle,
+                        ),
+                      ),
+                    ),
+
+                    // 2. Transformed interactive canvas layer
+                    InteractiveViewer(
+                      transformationController: widget.transformationController,
+                      panEnabled: false,
+                      scaleEnabled: false,
+                      constrained: false,
+                      maxScale: CanvasTransformHelper.maxScale,
+                      minScale: CanvasTransformHelper.minScale,
+                      boundaryMargin: const EdgeInsets.all(double.infinity),
+                      child: Container(
+                        width: widget.canvasSize.width,
+                        height: widget.canvasSize.height,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            // Vector Canvas Painter with visibleRect for infinite canvas rendering
+                            RepaintBoundary(
+                              child: CustomPaint(
+                                size: widget.canvasSize,
+                                painter: VectorCanvasPainter(
+                                  repaint: _repaintNotifier,
+                                  visibleRect: visibleRect,
+                                  onImageDecoded: () {
+                                    _repaintNotifier.notify();
+                                    widget.onImageDecoded?.call();
+                                  },
+                                  shapes: widget.shapes,
+                                  selectedShapeIds: widget.selectedShapeIds,
+                                  draftStartPoint: widget.panStartOffset,
+                                  draftCurrentPoint: widget.panCurrentOffset,
+                                  draftShapeType: widget.draftShapeType,
+                                  draftIsShiftPressed:
+                                      widget.draftIsShiftPressed,
+                                  draftIsAltPressed: widget.draftIsAltPressed,
+                                  marqueeRect: widget.marqueeRect,
+                                  currentMode: widget.currentMode,
+                                  isResizing:
+                                      widget.isResizing ||
+                                      widget.activeResizeHandle !=
+                                          ResizeHandle.none,
+                                  activeResizeHandle: widget.activeResizeHandle,
+                                  hoveredHandle: _hoveredHandle,
+                                  snapGuidelineX: widget.snapGuidelineX,
+                                  snapGuidelineY: widget.snapGuidelineY,
+                                  colorScheme: colorScheme,
+                                  editingShapeId: widget.editingTextShapeId,
+                                  zoomScale: CanvasTransformHelper.getScale(
+                                    widget.transformationController.value,
+                                  ),
+                                  activePenPoints: widget.activePenPoints,
+                                  activePenNodes: widget.activePenNodes,
+                                  activePenCursor: widget.activePenCursor,
+                                  isPenHoveringStart: widget.isPenHoveringStart,
+                                  editingPathShapeId: widget.editingPathShapeId,
+                                  editingPathNodes: widget.editingPathNodes,
+                                  selectedPathNodeIndices:
+                                      widget.selectedPathNodeIndices,
+                                  hoveredPathNodeIndex:
+                                      widget.hoveredPathNodeIndex,
+                                  activeHandleNodeIndex:
+                                      widget.activeHandleNodeIndex,
+                                  activeHandleType: widget.activeHandleType,
+                                  isPathClosed: widget.isPathClosed,
+                                ),
+                              ),
+                            ),
+
+                            // Canvas Inline Text Editor Overlay
+                            if (widget.editingTextShapeId != null) ...[
+                              () {
+                                final editingShape = widget.shapes
+                                    .cast<VectorShape?>()
+                                    .firstWhere(
+                                      (s) => s?.id == widget.editingTextShapeId,
+                                      orElse: () => null,
+                                    );
+                                if (editingShape == null)
+                                  return const SizedBox.shrink();
+                                return CanvasInlineTextEditor(
+                                  key: ValueKey(
+                                    'canvas-text-editor-${editingShape.id}',
+                                  ),
+                                  shape: editingShape,
+                                  isNew: widget.isEditingNewText,
+                                  selectAll: widget.selectAllText,
+                                  onTextChanged: (text) =>
+                                      widget.onInlineTextChanged?.call(text),
+                                  onCommit: () =>
+                                      widget.onInlineTextCommit?.call(),
+                                  onCancel: () =>
+                                      widget.onInlineTextCancel?.call(),
+                                  onRectChanged: (newRect) => widget
+                                      .onInlineTextRectChanged
+                                      ?.call(newRect),
+                                );
+                              }(),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
-      ),
-    ),
-  ),
-);
-}
+        );
+      },
+    );
+  }
 }

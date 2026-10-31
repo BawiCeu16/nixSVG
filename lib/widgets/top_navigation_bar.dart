@@ -79,6 +79,20 @@ class TopNavigationBar extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
     final barHeight = ResponsiveLayoutTokens.getTopBarHeight(context);
+    final isCompact =
+        ResponsiveLayoutTokens.isPhone(context) ||
+        MediaQuery.sizeOf(context).width < 640;
+
+    if (isCompact) {
+      return _buildMobileTopBar(
+        context,
+        ref,
+        colorScheme,
+        textTheme,
+        themeState,
+        barHeight,
+      );
+    }
 
     return Container(
       width: double.infinity,
@@ -627,6 +641,380 @@ class TopNavigationBar extends ConsumerWidget {
     );
   }
 
+  Widget _buildMobileTopBar(
+    BuildContext context,
+    WidgetRef ref,
+    ColorScheme colorScheme,
+    TextTheme textTheme,
+    ThemeState themeState,
+    double barHeight,
+  ) {
+    return Container(
+      width: double.infinity,
+      height: barHeight,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainer,
+        border: Border(
+          bottom: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Left: Home / Brand button + Document Title Capsule
+          Flexible(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (onGoToHome != null)
+                  M3PhysicsPressable(
+                    tooltip: 'Back to Home',
+                    onTap: onGoToHome,
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(100.0),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        RemixIcons.home_4_line,
+                        size: 15,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                if (onGoToHome != null) const SizedBox(width: 3),
+                Flexible(
+                  child: _M3EDocumentCapsule(
+                    fileName: fileName,
+                    onFileNameChanged: onFileNameChanged,
+                    onExportSvg: onExportSvg,
+                    onOpenSettings: onOpenSettings,
+                    isCompact: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Right: Undo/Redo pill, Zoom dropdown, Layers toggle, More menu
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Undo/Redo Pill
+              _M3EPillContainer(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                children: [
+                  _M3EIconButton(
+                    icon: RemixIcons.arrow_go_back_line,
+                    tooltip: 'Undo',
+                    enabled: canUndo,
+                    onTap: onUndo,
+                  ),
+                  _buildInnerDivider(colorScheme),
+                  _M3EIconButton(
+                    icon: RemixIcons.arrow_go_forward_line,
+                    tooltip: 'Redo',
+                    enabled: canRedo,
+                    onTap: onRedo,
+                  ),
+                ],
+              ),
+              const SizedBox(width: 4),
+
+              // Zoom Dropdown
+              PopupMenuButton<String>(
+                tooltip: 'Zoom Presets',
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide.none,
+                ),
+                color: colorScheme.surfaceContainerHigh,
+                elevation: 0,
+                child: Container(
+                  height: 32,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(100.0),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${(zoomScale * 100).round()}%',
+                        style: textTheme.labelMedium?.copyWith(
+                          color: colorScheme.onSurface,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10.5,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      Icon(
+                        RemixIcons.arrow_down_s_line,
+                        size: 12,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ],
+                  ),
+                ),
+                onSelected: (val) {
+                  switch (val) {
+                    case 'reset':
+                      onResetZoom();
+                      break;
+                    case 'fit':
+                      onZoomToFit?.call();
+                      break;
+                    case 'selection':
+                      onZoomToSelection?.call();
+                      break;
+                    case 'in':
+                      onZoomIn();
+                      break;
+                    case 'out':
+                      onZoomOut();
+                      break;
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'reset',
+                    child: Text('Zoom to 100%'),
+                  ),
+                  if (onZoomToFit != null)
+                    const PopupMenuItem(
+                      value: 'fit',
+                      child: Text('Zoom to Fit'),
+                    ),
+                  if (onZoomToSelection != null)
+                    const PopupMenuItem(
+                      value: 'selection',
+                      child: Text('Zoom to Selection'),
+                    ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(value: 'in', child: Text('Zoom In')),
+                  const PopupMenuItem(value: 'out', child: Text('Zoom Out')),
+                ],
+              ),
+              const SizedBox(width: 4),
+
+              // Layers Toggle
+              if (onToggleLayers != null)
+                M3PhysicsPressable(
+                  tooltip: showLayers ? 'Hide Layers' : 'Show Layers',
+                  onTap: () => onToggleLayers!(!showLayers),
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: showLayers
+                          ? colorScheme.primaryContainer
+                          : colorScheme.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(100.0),
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(
+                      RemixIcons.stack_line,
+                      size: 14,
+                      color: showLayers
+                          ? colorScheme.onPrimaryContainer
+                          : colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+
+              const SizedBox(width: 2),
+
+              // More Overflow Menu
+              PopupMenuButton<String>(
+                tooltip: 'More Actions',
+                padding: EdgeInsets.zero,
+                icon: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(100.0),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    RemixIcons.more_2_fill,
+                    size: 15,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide.none,
+                ),
+                color: colorScheme.surfaceContainerHigh,
+                elevation: 0,
+                onSelected: (action) {
+                  switch (action) {
+                    case 'export':
+                      onExportSvg();
+                      break;
+                    case 'import':
+                      onImportImage();
+                      break;
+                    case 'snap':
+                      onSnapToGridChanged(!snapToGrid);
+                      break;
+                    case 'properties':
+                      onToggleProperties?.call(!showProperties);
+                      break;
+                    case 'theme':
+                      ref.read(themeProvider.notifier).toggleThemeMode();
+                      break;
+                    case 'settings':
+                      onOpenSettings?.call();
+                      break;
+                    case 'shortcuts':
+                      onShowShortcuts?.call();
+                      break;
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'export',
+                    child: Row(
+                      children: [
+                        Icon(
+                          RemixIcons.download_line,
+                          size: 16,
+                          color: colorScheme.primary,
+                        ),
+                        const SizedBox(width: 10),
+                        const Text('Export SVG'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'import',
+                    child: Row(
+                      children: [
+                        Icon(
+                          RemixIcons.image_add_line,
+                          size: 16,
+                          color: colorScheme.onSurface,
+                        ),
+                        const SizedBox(width: 10),
+                        const Text('Import Image / SVG'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  PopupMenuItem(
+                    value: 'snap',
+                    child: Row(
+                      children: [
+                        Icon(
+                          snapToGrid
+                              ? RemixIcons.checkbox_circle_fill
+                              : RemixIcons.grid_line,
+                          size: 16,
+                          color: snapToGrid
+                              ? colorScheme.primary
+                              : colorScheme.onSurface,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          snapToGrid
+                              ? 'Snap to Grid (Active)'
+                              : 'Snap to Grid (Off)',
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (onToggleProperties != null)
+                    PopupMenuItem(
+                      value: 'properties',
+                      child: Row(
+                        children: [
+                          Icon(
+                            RemixIcons.equalizer_line,
+                            size: 16,
+                            color: colorScheme.onSurface,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            showProperties
+                                ? 'Hide Properties'
+                                : 'Show Properties',
+                          ),
+                        ],
+                      ),
+                    ),
+                  const PopupMenuDivider(),
+                  PopupMenuItem(
+                    value: 'theme',
+                    child: Row(
+                      children: [
+                        Icon(
+                          themeState.isDarkMode
+                              ? RemixIcons.sun_line
+                              : RemixIcons.moon_line,
+                          size: 16,
+                          color: colorScheme.onSurface,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          themeState.isDarkMode ? 'Light Mode' : 'Dark Mode',
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (onShowShortcuts != null)
+                    PopupMenuItem(
+                      value: 'shortcuts',
+                      child: Row(
+                        children: [
+                          Icon(
+                            RemixIcons.keyboard_line,
+                            size: 16,
+                            color: colorScheme.onSurface,
+                          ),
+                          const SizedBox(width: 10),
+                          const Text('Shortcuts'),
+                        ],
+                      ),
+                    ),
+                  if (onOpenSettings != null)
+                    PopupMenuItem(
+                      value: 'settings',
+                      child: Row(
+                        children: [
+                          Icon(
+                            RemixIcons.settings_3_line,
+                            size: 16,
+                            color: colorScheme.onSurface,
+                          ),
+                          const SizedBox(width: 10),
+                          const Text('Settings'),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   static Widget _buildInnerDivider(ColorScheme colorScheme) {
     return Container(
       width: 1,
@@ -830,12 +1218,14 @@ class _M3EDocumentCapsule extends StatefulWidget {
   final ValueChanged<String> onFileNameChanged;
   final VoidCallback? onExportSvg;
   final VoidCallback? onOpenSettings;
+  final bool isCompact;
 
   const _M3EDocumentCapsule({
     required this.fileName,
     required this.onFileNameChanged,
     this.onExportSvg,
     this.onOpenSettings,
+    this.isCompact = false,
   });
 
   @override
@@ -925,8 +1315,8 @@ class _M3EDocumentCapsuleState extends State<_M3EDocumentCapsule> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.fastOutSlowIn,
-        height: 35,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        height: widget.isCompact ? 32 : 35,
+        padding: EdgeInsets.symmetric(horizontal: widget.isCompact ? 7 : 10),
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(100.0),
@@ -936,12 +1326,15 @@ class _M3EDocumentCapsuleState extends State<_M3EDocumentCapsule> {
           children: [
             Icon(
               RemixIcons.file_edit_line,
-              size: 16,
+              size: widget.isCompact ? 14 : 16,
               color: colorScheme.primary,
             ),
-            const SizedBox(width: 7),
+            SizedBox(width: widget.isCompact ? 4 : 7),
             ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 75, maxWidth: 180),
+              constraints: BoxConstraints(
+                minWidth: widget.isCompact ? 30 : 75,
+                maxWidth: widget.isCompact ? 68 : 180,
+              ),
               child: IntrinsicWidth(
                 child: TextField(
                   controller: _controller,
@@ -956,7 +1349,7 @@ class _M3EDocumentCapsuleState extends State<_M3EDocumentCapsule> {
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurface,
                     fontWeight: FontWeight.w600,
-                    fontSize: 12.5,
+                    fontSize: widget.isCompact ? 11.5 : 12.5,
                   ),
                   decoration: const InputDecoration(
                     isDense: true,
@@ -967,22 +1360,24 @@ class _M3EDocumentCapsuleState extends State<_M3EDocumentCapsule> {
                 ),
               ),
             ),
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '.svg',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onPrimaryContainer,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 10.5,
+            if (!widget.isCompact) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '.svg',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onPrimaryContainer,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10.5,
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),

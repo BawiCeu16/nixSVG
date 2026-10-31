@@ -6,12 +6,13 @@ import 'package:flutter/services.dart';
 import 'package:nixsvg/theme/components/slider_theme.dart';
 import 'package:nixsvg/theme/physics/m3e_physics_spring.dart';
 
-/// Pure Material 3 Expressive Custom Slider for nixSVG.
+/// Pure Material 3 Expressive Custom Slider for nixSVG Element Properties.
 ///
 /// Features:
-/// - Rounded line track styling for both active and inactive segments.
-/// - 20px height × 5px width rounded capsule thumb at rest.
-/// - Fluid spring-animated expansion of thumb height and width on hover and press
+/// - 20px height rounded capsule track.
+/// - Full-height 20px rectangular thumb (not rounded): 2px width at rest,
+///   smoothly expanding to 5px on hover, press, and slide drag.
+/// - Fluid spring-animated expansion of thumb width on hover and press
 ///   powered by Material 3 Expressive responsive spring physics ([M3PhysicsSpring.responsive]).
 /// - Highly optimized 60/120 FPS CustomPainter rendering with zero layout thrashing.
 /// - Supports continuous scrubbing, discrete step divisions, and arrow key navigation.
@@ -32,6 +33,8 @@ class NixSlider extends StatefulWidget {
   final double hoverThumbHeight;
   final double pressedThumbWidth;
   final double pressedThumbHeight;
+  final double thumbCornerRadiusFactor;
+  final bool isThumbRounded;
   final Color? activeTrackColor;
   final Color? inactiveTrackColor;
   final Color? thumbColor;
@@ -47,7 +50,7 @@ class NixSlider extends StatefulWidget {
     this.enabled = true,
     this.onChangeStart,
     this.onChangeEnd,
-    this.padding = const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+    this.padding = const EdgeInsets.symmetric(horizontal: 0.0, vertical: 2.0),
     this.trackHeight = AppSliderTheme.trackHeight,
     this.thumbWidth = AppSliderTheme.thumbWidth,
     this.thumbHeight = AppSliderTheme.thumbHeight,
@@ -55,6 +58,8 @@ class NixSlider extends StatefulWidget {
     this.hoverThumbHeight = AppSliderTheme.hoverThumbHeight,
     this.pressedThumbWidth = AppSliderTheme.pressedThumbWidth,
     this.pressedThumbHeight = AppSliderTheme.pressedThumbHeight,
+    this.thumbCornerRadiusFactor = AppSliderTheme.thumbCornerRadiusFactor,
+    this.isThumbRounded = AppSliderTheme.isThumbRounded,
     this.activeTrackColor,
     this.inactiveTrackColor,
     this.thumbColor,
@@ -138,7 +143,7 @@ class _NixSliderState extends State<NixSlider> with TickerProviderStateMixin {
   void _handleDrag(Offset localPosition, double totalWidth) {
     if (!widget.enabled || widget.onChanged == null) return;
     final maxThumbWidth = widget.pressedThumbWidth;
-    final trackMargin = maxThumbWidth / 2;
+    final trackMargin = (maxThumbWidth / 2) + 1.0;
     final trackWidth = totalWidth - (trackMargin * 2);
     if (trackWidth <= 0) return;
 
@@ -176,12 +181,16 @@ class _NixSliderState extends State<NixSlider> with TickerProviderStateMixin {
         : colorScheme.onSurface.withValues(alpha: 0.38);
 
     final effectiveInactiveColor = isInteractive
-        ? (widget.inactiveTrackColor ?? colorScheme.surfaceContainerHighest)
+        ? (widget.inactiveTrackColor ??
+            colorScheme.surfaceContainerHighest.withValues(alpha: 0.55))
         : colorScheme.surfaceContainerHighest.withValues(alpha: 0.38);
 
     final effectiveThumbColor = isInteractive
-        ? (widget.thumbColor ?? colorScheme.primary)
+        ? (widget.thumbColor ?? colorScheme.onPrimary)
         : colorScheme.onSurface.withValues(alpha: 0.38);
+
+    final effectiveBorderColor =
+        colorScheme.outlineVariant.withValues(alpha: 0.35);
 
     final fraction = ((widget.value - widget.min) / (widget.max - widget.min))
         .clamp(0.0, 1.0);
@@ -223,8 +232,8 @@ class _NixSliderState extends State<NixSlider> with TickerProviderStateMixin {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final widgetHeight = math.max(
-                widget.pressedThumbHeight + 4.0,
-                28.0,
+                widget.trackHeight,
+                20.0,
               );
 
               return GestureDetector(
@@ -305,6 +314,9 @@ class _NixSliderState extends State<NixSlider> with TickerProviderStateMixin {
                           activeTrackColor: effectiveActiveColor,
                           inactiveTrackColor: effectiveInactiveColor,
                           thumbColor: effectiveThumbColor,
+                          borderColor: effectiveBorderColor,
+                          thumbCornerRadiusFactor: widget.thumbCornerRadiusFactor,
+                          isThumbRounded: widget.isThumbRounded,
                           enabled: widget.enabled,
                         ),
                       );
@@ -329,6 +341,9 @@ class _NixSliderPainter extends CustomPainter {
   final Color activeTrackColor;
   final Color inactiveTrackColor;
   final Color thumbColor;
+  final Color borderColor;
+  final double thumbCornerRadiusFactor;
+  final bool isThumbRounded;
   final bool enabled;
 
   _NixSliderPainter({
@@ -340,13 +355,16 @@ class _NixSliderPainter extends CustomPainter {
     required this.activeTrackColor,
     required this.inactiveTrackColor,
     required this.thumbColor,
+    required this.borderColor,
+    required this.thumbCornerRadiusFactor,
+    required this.isThumbRounded,
     required this.enabled,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final centerY = size.height / 2;
-    final trackMargin = maxThumbWidth / 2;
+    final trackMargin = (maxThumbWidth / 2) + 1.0;
     final trackLeft = trackMargin;
     final trackRight = size.width - trackMargin;
     final trackWidth = trackRight - trackLeft;
@@ -358,60 +376,119 @@ class _NixSliderPainter extends CustomPainter {
       trackRight,
     );
 
-    // 1. Inactive Track (Full rounded line)
-    final inactivePaint = Paint()
-      ..color = inactiveTrackColor
-      ..style = PaintingStyle.fill
-      ..isAntiAlias = true;
-
+    // 1. Full 20px rounded capsule track
     final trackRect = RRect.fromRectAndRadius(
       Rect.fromLTRB(
-        trackLeft,
+        0.0,
         centerY - trackHeight / 2,
-        trackRight,
+        size.width,
         centerY + trackHeight / 2,
       ),
       Radius.circular(trackHeight / 2),
     );
+
+    // Draw Inactive Track Background (full capsule)
+    final inactivePaint = Paint()
+      ..color = inactiveTrackColor
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
     canvas.drawRRect(trackRect, inactivePaint);
 
-    // 2. Active Track (From start to thumb position)
-    if (thumbX > trackLeft) {
+    // Clip to capsule track so active track and full-height thumb conform to the 20px rounded bounds
+    canvas.save();
+    canvas.clipRRect(trackRect);
+
+    // 2. Active Track (From start of capsule to thumb center)
+    if (thumbX > 0) {
       final activePaint = Paint()
         ..color = activeTrackColor
         ..style = PaintingStyle.fill
         ..isAntiAlias = true;
 
-      final activeRect = RRect.fromRectAndRadius(
-        Rect.fromLTRB(
-          trackLeft,
-          centerY - trackHeight / 2,
-          thumbX,
-          centerY + trackHeight / 2,
-        ),
-        Radius.circular(trackHeight / 2),
+      final activeRect = Rect.fromLTRB(
+        0.0,
+        centerY - trackHeight / 2,
+        thumbX,
+        centerY + trackHeight / 2,
       );
-      canvas.drawRRect(activeRect, activePaint);
+      canvas.drawRect(activeRect, activePaint);
     }
 
-    // 3. Thumb (Rounded vertical bar/pill: height and width animated with M3 spring)
+    // 3. Thumb: Full height (20px), width (2px at rest, 5px on hover/press/drag), 20% rounded
     final currentWidth = math.max(thumbWidth, 1.0);
     final currentHeight = math.max(thumbHeight, 1.0);
 
-    final thumbPaint = Paint()
-      ..color = thumbColor
-      ..style = PaintingStyle.fill
-      ..isAntiAlias = true;
+    if (isThumbRounded && thumbCornerRadiusFactor > 0.0) {
+      // 20% rounded thumb (e.g. 1.0px at 5px active, 0.4px at 2px resting)
+      final cornerRadius = Radius.circular(currentWidth * thumbCornerRadiusFactor);
+      final thumbRRect = RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset(thumbX, centerY),
+          width: currentWidth,
+          height: currentHeight,
+        ),
+        cornerRadius,
+      );
 
-    final thumbRect = RRect.fromRectAndRadius(
-      Rect.fromCenter(
+      // Subtle physical drop shadow for tactile depth
+      final shadowPaint = Paint()
+        ..color = Colors.black.withValues(alpha: 0.35)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.0);
+      canvas.drawRRect(thumbRRect.shift(const Offset(0, 0.5)), shadowPaint);
+
+      // Thumb bar with 20% rounded corners
+      final thumbPaint = Paint()
+        ..color = thumbColor
+        ..style = PaintingStyle.fill
+        ..isAntiAlias = true;
+      canvas.drawRRect(thumbRRect, thumbPaint);
+
+      // Subtle crisp thumb border
+      final thumbBorderPaint = Paint()
+        ..color = Colors.white.withValues(alpha: 0.45)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.5
+        ..isAntiAlias = true;
+      canvas.drawRRect(thumbRRect, thumbBorderPaint);
+    } else {
+      // Straight rectangular vertical needle/bar (NOT rounded)
+      final thumbRect = Rect.fromCenter(
         center: Offset(thumbX, centerY),
         width: currentWidth,
         height: currentHeight,
-      ),
-      Radius.circular(currentWidth / 2),
-    );
-    canvas.drawRRect(thumbRect, thumbPaint);
+      );
+
+      // Subtle physical drop shadow for tactile depth
+      final shadowPaint = Paint()
+        ..color = Colors.black.withValues(alpha: 0.35)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.0);
+      canvas.drawRect(thumbRect.shift(const Offset(0, 0.5)), shadowPaint);
+
+      // Thumb bar
+      final thumbPaint = Paint()
+        ..color = thumbColor
+        ..style = PaintingStyle.fill
+        ..isAntiAlias = true;
+      canvas.drawRect(thumbRect, thumbPaint);
+
+      // Subtle crisp thumb border
+      final thumbBorderPaint = Paint()
+        ..color = Colors.white.withValues(alpha: 0.45)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.5
+        ..isAntiAlias = true;
+      canvas.drawRect(thumbRect, thumbBorderPaint);
+    }
+
+    canvas.restore();
+
+    // 4. Subtle Outer Border for the 20px rounded track
+    final borderPaint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0
+      ..isAntiAlias = true;
+    canvas.drawRRect(trackRect, borderPaint);
   }
 
   @override
@@ -423,6 +500,9 @@ class _NixSliderPainter extends CustomPainter {
         oldDelegate.activeTrackColor != activeTrackColor ||
         oldDelegate.inactiveTrackColor != inactiveTrackColor ||
         oldDelegate.thumbColor != thumbColor ||
+        oldDelegate.borderColor != borderColor ||
+        oldDelegate.thumbCornerRadiusFactor != thumbCornerRadiusFactor ||
+        oldDelegate.isThumbRounded != isThumbRounded ||
         oldDelegate.enabled != enabled;
   }
 }
@@ -431,3 +511,4 @@ class _NixSliderPainter extends CustomPainter {
 typedef M3EAppSlider = NixSlider;
 typedef M3EAppSeekbar = NixSlider;
 typedef NixCustomSlider = NixSlider;
+typedef M3EPropertySlider = NixSlider;

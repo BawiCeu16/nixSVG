@@ -37,10 +37,12 @@ class VectorCanvasPainter extends CustomPainter {
   final int? activeHandleType;
   final bool isPathClosed;
   final VoidCallback? onImageDecoded;
+  final Rect? visibleRect;
 
   VectorCanvasPainter({
     required this.shapes,
     required this.selectedShapeIds,
+    this.visibleRect,
     this.draftStartPoint,
     this.draftCurrentPoint,
     this.draftShapeType,
@@ -94,7 +96,9 @@ class VectorCanvasPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     // 1. Draw existing vector shapes with viewport AABB culling
-    final canvasBounds = Rect.fromLTWH(0, 0, size.width, size.height);
+    final canvasBounds =
+        (visibleRect ?? Rect.fromLTWH(0, 0, size.width, size.height))
+            .inflate(200.0);
     for (final shape in shapes) {
       if (!shape.isVisible) continue;
       if (!canvasBounds.overlaps(shape.getBoundingBox())) continue;
@@ -1498,6 +1502,7 @@ class VectorCanvasPainter extends CustomPainter {
     if (oldDelegate.activeHandleNodeIndex != activeHandleNodeIndex) return true;
     if (oldDelegate.activeHandleType != activeHandleType) return true;
     if (oldDelegate.isPathClosed != isPathClosed) return true;
+    if (oldDelegate.visibleRect != visibleRect) return true;
     if (oldDelegate.shapes.length != shapes.length) return true;
     if (oldDelegate.selectedShapeIds.length != selectedShapeIds.length) return true;
     if (!setEquals(oldDelegate.selectedShapeIds, selectedShapeIds)) return true;

@@ -44,6 +44,11 @@ class ShortcutsDialog extends StatelessWidget {
                 context,
                 children: [
                   _buildShortcutRow(context, 'V', 'Selection Tool'),
+                  _buildShortcutRow(
+                    context,
+                    'F',
+                    'Mobile Device Frames & Templates (iPhone, Pixel, Nothing)',
+                  ),
                   _buildShortcutRow(context, 'H', 'Hand / Pan Canvas Tool'),
                   _buildShortcutRow(
                     context,

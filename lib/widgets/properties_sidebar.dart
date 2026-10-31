@@ -7,6 +7,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:m3e_buttons/m3e_buttons.dart' hide M3EHapticFeedback, M3EMotion;
 import 'package:m3e_dropdown_menu/m3e_dropdown_menu.dart';
 import 'package:m3e_segmented_list/m3e_segmented_list.dart';
+import 'package:nixsvg/models/device_preset.dart';
 import 'package:nixsvg/models/vector_shape.dart';
 import 'package:nixsvg/widgets/color_picker_dialog.dart';
 import 'package:nixsvg/widgets/nix_slider.dart';
@@ -51,6 +52,8 @@ class PropertiesSidebar extends StatelessWidget {
   final VoidCallback? onSelectAll;
   final VoidCallback? onExportSvg;
   final VoidCallback? onClearCanvas;
+  final VoidCallback? onOpenDevicePresets;
+  final ValueChanged<DevicePreset>? onInsertDevicePreset;
 
   const PropertiesSidebar({
     super.key,
@@ -92,6 +95,8 @@ class PropertiesSidebar extends StatelessWidget {
     this.onSelectAll,
     this.onExportSvg,
     this.onClearCanvas,
+    this.onOpenDevicePresets,
+    this.onInsertDevicePreset,
   });
 
   @override
@@ -4077,88 +4082,13 @@ class PropertiesSidebar extends StatelessWidget {
           ),
         ),
 
-        // Section: Artboard Dimensions (Figma Style)
+        // Section: Frames & Model Chooser (Figma Style)
         _CollapsibleSection(
-          title: 'Artboard Dimensions',
-          icon: RemixIcons.artboard_line,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: _NumberInputField(
-                      key: const ValueKey('canvas-w'),
-                      label: 'W',
-                      value: canvasSize?.width ?? 3200,
-                      min: 100.0,
-                      max: 10000.0,
-                      isInteger: true,
-                      onChanged: (newW) {
-                        final curH = canvasSize?.height ?? 2400.0;
-                        onCanvasSizeChanged?.call(
-                          Size(newW.clamp(100.0, 10000.0), curH),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _NumberInputField(
-                      key: const ValueKey('canvas-h'),
-                      label: 'H',
-                      value: canvasSize?.height ?? 2400,
-                      min: 100.0,
-                      max: 10000.0,
-                      isInteger: true,
-                      onChanged: (newH) {
-                        final curW = canvasSize?.width ?? 3200.0;
-                        onCanvasSizeChanged?.call(
-                          Size(curW, newH.clamp(100.0, 10000.0)),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 4,
-                runSpacing: 4,
-                children: [
-                  _buildArtboardPresetChip(
-                    label: '3200 × 2400',
-                    size: const Size(3200, 2400),
-                    theme: theme,
-                    colorScheme: colorScheme,
-                  ),
-                  _buildArtboardPresetChip(
-                    label: '1920 × 1080',
-                    size: const Size(1920, 1080),
-                    theme: theme,
-                    colorScheme: colorScheme,
-                  ),
-                  _buildArtboardPresetChip(
-                    label: '1440 × 900',
-                    size: const Size(1440, 900),
-                    theme: theme,
-                    colorScheme: colorScheme,
-                  ),
-                  _buildArtboardPresetChip(
-                    label: '512 × 512',
-                    size: const Size(512, 512),
-                    theme: theme,
-                    colorScheme: colorScheme,
-                  ),
-                  _buildArtboardPresetChip(
-                    label: '390 × 844',
-                    size: const Size(390, 844),
-                    theme: theme,
-                    colorScheme: colorScheme,
-                  ),
-                ],
-              ),
-            ],
+          title: 'Frames',
+          icon: RemixIcons.smartphone_line,
+          child: _SidebarFrameModelChooser(
+            onOpenDevicePresets: onOpenDevicePresets,
+            onInsertDevicePreset: onInsertDevicePreset,
           ),
         ),
 
@@ -4280,40 +4210,6 @@ class PropertiesSidebar extends StatelessWidget {
                   ? colorScheme.primary
                   : colorScheme.onSurfaceVariant,
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildArtboardPresetChip({
-    required String label,
-    required Size size,
-    required ThemeData theme,
-    required ColorScheme colorScheme,
-  }) {
-    final cur = canvasSize ?? const Size(3200, 2400);
-    final isSelected =
-        (cur.width - size.width).abs() < 1 &&
-        (cur.height - size.height).abs() < 1;
-    return InkWell(
-      onTap: () => onCanvasSizeChanged?.call(size),
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? colorScheme.primary.withValues(alpha: 0.15)
-              : colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected
-                ? colorScheme.primary
-                : colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -5730,3 +5626,324 @@ class _TileSwitch extends StatelessWidget {
     );
   }
 }
+
+class _SidebarFrameModelChooser extends StatefulWidget {
+  final VoidCallback? onOpenDevicePresets;
+  final ValueChanged<DevicePreset>? onInsertDevicePreset;
+
+  const _SidebarFrameModelChooser({
+    this.onOpenDevicePresets,
+    this.onInsertDevicePreset,
+  });
+
+  @override
+  State<_SidebarFrameModelChooser> createState() =>
+      _SidebarFrameModelChooserState();
+}
+
+class _SidebarFrameModelChooserState extends State<_SidebarFrameModelChooser> {
+  DeviceBrand _selectedBrand = DeviceBrand.apple;
+  late DevicePreset _selectedPreset;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedPreset = DevicePreset.presets.firstWhere(
+      (p) => p.brand == _selectedBrand,
+      orElse: () => DevicePreset.presets.first,
+    );
+  }
+
+  void _onBrandChanged(DeviceBrand brand) {
+    if (_selectedBrand == brand) return;
+    setState(() {
+      _selectedBrand = brand;
+      _selectedPreset = DevicePreset.presets.firstWhere(
+        (p) => p.brand == brand,
+        orElse: () => DevicePreset.presets.first,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final brandPresets = DevicePreset.presets
+        .where((p) => p.brand == _selectedBrand)
+        .toList();
+
+    if (!brandPresets.contains(_selectedPreset)) {
+      _selectedPreset = brandPresets.isNotEmpty
+          ? brandPresets.first
+          : DevicePreset.presets.first;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Brand selector pills
+        Row(
+          children: [
+            for (final brand in DeviceBrand.values) ...[
+              Expanded(
+                child: InkWell(
+                  onTap: () => _onBrandChanged(brand),
+                  borderRadius: BorderRadius.circular(8),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutCubic,
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _selectedBrand == brand
+                          ? colorScheme.primaryContainer
+                          : colorScheme.surfaceContainerHighest.withValues(
+                              alpha: 0.4,
+                            ),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _selectedBrand == brand
+                            ? colorScheme.primary.withValues(alpha: 0.5)
+                            : colorScheme.outlineVariant.withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        brand.label,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: _selectedBrand == brand
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: _selectedBrand == brand
+                              ? colorScheme.onPrimaryContainer
+                              : colorScheme.onSurfaceVariant,
+                          fontSize: 10.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              if (brand != DeviceBrand.values.last) const SizedBox(width: 4),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Model Chooser Material 3 Expressive Dropdown
+        _buildM3EStyledDropdown<DevicePreset>(
+          key: ValueKey(
+            'frame_model_${_selectedBrand.name}_${_selectedPreset.id}',
+          ),
+          hintText: _selectedPreset.name,
+          searchEnabled: true,
+          searchHint: 'Search ${_selectedBrand.label} models…',
+          prefixIcon: Icon(
+            RemixIcons.smartphone_line,
+            size: 14.0,
+            color: colorScheme.primary,
+          ),
+          items: brandPresets.map((preset) {
+            return M3EDropdownItem<DevicePreset>(
+              value: preset,
+              label:
+                  '${preset.name} (${preset.width.toInt()}×${preset.height.toInt()})',
+              selected: preset.id == _selectedPreset.id,
+            );
+          }).toList(),
+          itemBuilder: (item, selected, onTap) {
+            final preset = item.value;
+            return InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10.0,
+                  vertical: 6.0,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        preset.name,
+                        style: TextStyle(
+                          fontSize: 12.0,
+                          fontWeight:
+                              selected ? FontWeight.w600 : FontWeight.w400,
+                          color: selected
+                              ? colorScheme.primary
+                              : colorScheme.onSurface,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${preset.width.toInt()}×${preset.height.toInt()}',
+                      style: TextStyle(
+                        fontSize: 10.0,
+                        color: selected
+                            ? colorScheme.primary.withValues(alpha: 0.8)
+                            : colorScheme.onSurfaceVariant.withValues(
+                                alpha: 0.7,
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+          onSelected: (preset) {
+            setState(() => _selectedPreset = preset);
+          },
+        ),
+        const SizedBox(height: 8),
+
+        // Hardware Specs Card (Blank Canvas Specs)
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.25),
+            ),
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Size',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 10,
+                    ),
+                  ),
+                  Text(
+                    '${_selectedPreset.width.toInt()} × ${_selectedPreset.height.toInt()} pt',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface,
+                      fontSize: 10.5,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Corner Radius',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 10,
+                    ),
+                  ),
+                  Text(
+                    '${_selectedPreset.cornerRadius.toInt()}px',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface,
+                      fontSize: 10.5,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Bezel / Frame',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 10,
+                    ),
+                  ),
+                  Text(
+                    '${_selectedPreset.frameThickness}px',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface,
+                      fontSize: 10.5,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Cutout',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 10,
+                    ),
+                  ),
+                  Text(
+                    _selectedPreset.cutoutType == CutoutType.dynamicIsland
+                        ? 'Dynamic Island'
+                        : _selectedPreset.cutoutType == CutoutType.notch
+                            ? 'Notch'
+                            : 'Punch Hole',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface,
+                      fontSize: 10.5,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Action Buttons: Insert Blank Frame & Browse All
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: () {
+                  widget.onInsertDevicePreset?.call(_selectedPreset);
+                },
+                icon: const Icon(RemixIcons.add_line, size: 14),
+                label: const Text(
+                  'Insert Blank Frame',
+                  style: TextStyle(fontSize: 11),
+                ),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            IconButton.filledTonal(
+              onPressed: widget.onOpenDevicePresets,
+              icon: const Icon(RemixIcons.grid_fill, size: 14),
+              tooltip: 'Browse All 49 Device Models',
+              style: IconButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+

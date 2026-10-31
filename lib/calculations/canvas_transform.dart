@@ -236,4 +236,19 @@ class CanvasTransformHelper {
         ? zoomAtCanvasPoint(currentMatrix, focalPoint, factor)
         : zoomAtScreenPoint(currentMatrix, focalPoint, factor);
   }
+
+  /// Calculates the visible canvas bounds in world coordinates for a given [viewportSize].
+  static Rect getVisibleRect(Matrix4 matrix, Size viewportSize) {
+    if (viewportSize.isEmpty) return const Rect.fromLTWH(0, 0, 3200, 2400);
+    final topLeft = screenToCanvas(matrix, Offset.zero);
+    final bottomRight = screenToCanvas(
+      matrix,
+      Offset(viewportSize.width, viewportSize.height),
+    );
+    final left = math.min(topLeft.dx, bottomRight.dx);
+    final top = math.min(topLeft.dy, bottomRight.dy);
+    final right = math.max(topLeft.dx, bottomRight.dx);
+    final bottom = math.max(topLeft.dy, bottomRight.dy);
+    return Rect.fromLTRB(left, top, right, bottom);
+  }
 }

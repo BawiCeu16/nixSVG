@@ -28,6 +28,8 @@ import 'package:nixsvg/ui/widgets/sidebar_resize_handle.dart';
 import 'package:nixsvg/widgets/nix_file_drop_zone.dart';
 import 'package:nixsvg/widgets/color_picker_dialog.dart';
 import 'package:nixsvg/widgets/context_menu/figma_context_menu.dart';
+import 'package:nixsvg/models/device_preset.dart';
+import 'package:nixsvg/widgets/device_presets_dialog.dart';
 import 'package:nixsvg/widgets/export_dialog.dart';
 import 'package:nixsvg/widgets/floating_tool_bar.dart';
 import 'package:nixsvg/widgets/layers_sidebar.dart';
@@ -35,6 +37,7 @@ import 'package:nixsvg/widgets/properties_sidebar.dart';
 import 'package:nixsvg/widgets/settings_dialog.dart';
 import 'package:nixsvg/widgets/shortcuts_dialog.dart';
 import 'package:nixsvg/widgets/top_navigation_bar.dart';
+import 'package:remixicon/remixicon.dart';
 
 void ensureFilePickerInitialized() {
   try {
@@ -2863,6 +2866,60 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
     showAppSettingsDialog(context);
   }
 
+  Future<void> _openDevicePresetsDialog() async {
+    final result = await DevicePresetsDialog.show(
+      context,
+      isWorkspaceMode: true,
+    );
+
+    if (result == null || !mounted) return;
+    _insertDevicePreset(result.preset);
+  }
+
+  void _insertDevicePreset(DevicePreset preset) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final canvasBox =
+        _canvasKey.currentContext?.findRenderObject() as RenderBox?;
+    final viewportSize = canvasBox?.size ?? MediaQuery.of(context).size;
+    final visibleRect = CanvasTransformHelper.getVisibleRect(
+      _transformationController.value,
+      viewportSize,
+    );
+
+    final origin = Offset(
+      visibleRect.center.dx - (preset.width / 2),
+      visibleRect.center.dy - (preset.height / 2),
+    );
+
+    final newShapes = preset.generateTemplateShapes(
+      origin: origin,
+      darkMode: isDark,
+      isTemplate: false,
+    );
+
+    setState(() {
+      shapes.addAll(newShapes);
+      selectedShapeIds.clear();
+      if (newShapes.isNotEmpty) {
+        selectedShapeIds.add(newShapes.first.id);
+      }
+    });
+    _saveHistorySnapshot();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Inserted ${preset.name} blank device frame (${preset.width.toInt()} × ${preset.height.toInt()} pt)',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   Color _sampleShapeColorAtScreenPoint(Offset screenPos) {
     try {
       final canvasBox =
@@ -3508,6 +3565,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
           });
           _saveHistorySnapshot();
           return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.keyF) {
+          _openDevicePresetsDialog();
+          return KeyEventResult.handled;
         } else if (event.logicalKey == LogicalKeyboardKey.keyV) {
           setState(() => currentMode = EditorMode.select);
           return KeyEventResult.handled;
@@ -3575,7 +3635,9 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
   @override
   Widget build(BuildContext context) {
     final appSettings = ref.watch(appSettingsProvider);
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     final double zoomScale = CanvasTransformHelper.getScale(
       _transformationController.value,
     );
@@ -3585,6 +3647,11 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
 
     final isCompact = ResponsiveLayoutTokens.isCompact(context);
 
+    final effectiveCanvasBg =
+        canvasBackgroundColor ??
+        appSettings.defaultCanvasBgColor ??
+        (isDark ? const Color(0xFF1E1E1E) : const Color(0xFFE8E8E8));
+
     return Focus(
       focusNode: _workspaceFocusNode,
       autofocus: true,
@@ -3592,7 +3659,7 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
       child: MouseRegion(
         onHover: (event) => _lastGlobalMousePosition = event.position,
         child: Scaffold(
-          backgroundColor: colorScheme.surfaceContainerLowest,
+          backgroundColor: effectiveCanvasBg,
           body: Column(
             children: [
               // Dynamic Top Navigation Bar adhering to cross-platform tokens
@@ -4144,6 +4211,10 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
                                           onSelectAll: _selectAll,
                                           onExportSvg: _openExportDialog,
                                           onClearCanvas: _clearCanvas,
+                                          onOpenDevicePresets:
+                                              _openDevicePresetsDialog,
+                                          onInsertDevicePreset:
+                                              _insertDevicePreset,
                                         ),
                                       ),
                                     ),
@@ -4192,6 +4263,30 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
                                   ),
                                 ),
                               ),
+
+                              // Mobile Contextual Floating Selection Bar
+                              if (isCompact && selectedShapeIds.isNotEmpty)
+                                Positioned(
+                                  bottom: (appSettings.toolbarPosition == 'top'
+                                          ? 16.0
+                                          : ResponsiveLayoutTokens.getFloatingToolbarBottomMargin(
+                                              context,
+                                            )) +
+                                      (appSettings.toolbarPosition == 'top'
+                                          ? 0.0
+                                          : 56.0),
+                                  left: 0,
+                                  right: 0,
+                                  child: Center(
+                                    child: _buildMobileSelectionBar(
+                                      context: context,
+                                      colorScheme: colorScheme,
+                                      textTheme: theme.textTheme,
+                                      selectedShape: selectedShape,
+                                      selectedCount: selectedShapeIds.length,
+                                    ),
+                                  ),
+                                ),
 
                               // Vector Edit Mode Floating Banner
                               if (_editingPathShapeId != null)
@@ -4364,6 +4459,8 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
                               onSelectAll: _selectAll,
                               onExportSvg: _openExportDialog,
                               onClearCanvas: _clearCanvas,
+                              onOpenDevicePresets: _openDevicePresetsDialog,
+                              onInsertDevicePreset: _insertDevicePreset,
                             ),
                           ),
                         ],
@@ -4429,5 +4526,162 @@ class FigmaWorkspaceState extends ConsumerState<FigmaWorkspace>
       default:
         return 'Shape';
     }
+  }
+
+  IconData _getShapeIcon(ShapeType type) {
+    switch (type) {
+      case ShapeType.rectangle:
+        return RemixIcons.checkbox_blank_line;
+      case ShapeType.roundedRectangle:
+        return RemixIcons.rectangle_line;
+      case ShapeType.ellipse:
+        return RemixIcons.checkbox_blank_circle_line;
+      case ShapeType.line:
+        return RemixIcons.line_line;
+      case ShapeType.star:
+        return RemixIcons.star_line;
+      case ShapeType.polygon:
+        return RemixIcons.hexagon_line;
+      case ShapeType.path:
+        return RemixIcons.pen_nib_line;
+      case ShapeType.text:
+        return RemixIcons.t_box_line;
+      case ShapeType.image:
+        return RemixIcons.image_line;
+    }
+  }
+
+  Widget _buildMobileSelectionBar({
+    required BuildContext context,
+    required ColorScheme colorScheme,
+    required TextTheme textTheme,
+    required VectorShape? selectedShape,
+    required int selectedCount,
+  }) {
+    return Material(
+      elevation: 4,
+      shadowColor: Colors.black38,
+      borderRadius: BorderRadius.circular(24),
+      color: colorScheme.surfaceContainerHigh,
+      child: Container(
+        height: 42,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+            width: 0.8,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            if (selectedShape != null) ...[
+              Icon(
+                _getShapeIcon(selectedShape.type),
+                size: 16,
+                color: colorScheme.primary,
+              ),
+              const SizedBox(width: 6),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 88),
+                child: Text(
+                  selectedShape.name,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11.5,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // Fill Color Quick Swatch
+              M3PhysicsPressable(
+                tooltip: 'Fill Color',
+                onTap: () => _openColorPicker(true),
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: selectedShape.fillColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: colorScheme.outlineVariant,
+                      width: 1.5,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+            ] else ...[
+              Icon(
+                RemixIcons.checkbox_multiple_line,
+                size: 16,
+                color: colorScheme.primary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '$selectedCount selected',
+                style: textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11.5,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+
+            Container(
+              width: 1,
+              height: 20,
+              color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+            ),
+            const SizedBox(width: 4),
+
+            // Quick Duplicate
+            IconButton(
+              tooltip: 'Duplicate',
+              icon: Icon(RemixIcons.file_copy_line, size: 16),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              onPressed: _duplicateSelected,
+            ),
+
+            // Quick Delete
+            IconButton(
+              tooltip: 'Delete',
+              icon: Icon(
+                RemixIcons.delete_bin_line,
+                size: 16,
+                color: colorScheme.error,
+              ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              onPressed: _deleteSelected,
+            ),
+
+            // Properties / Inspector Toggle
+            IconButton(
+              tooltip: 'Edit Properties',
+              icon: Icon(
+                RemixIcons.equalizer_line,
+                size: 16,
+                color: colorScheme.primary,
+              ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              onPressed: () {
+                setState(() => isPropertiesPanelOpen = true);
+                ref.read(appSettingsProvider.notifier).setShowProperties(true);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

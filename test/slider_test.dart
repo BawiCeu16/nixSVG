@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nixsvg/theme/components/slider_theme.dart';
 
 void main() {
-  testWidgets('NixSlider renders with rounded line track and 20x5px thumb', (
+  testWidgets('NixSlider renders with rounded capsule track and 20x2px 20% rounded thumb', (
     tester,
   ) async {
     double currentValue = 0.50;
@@ -42,6 +42,8 @@ void main() {
     expect(sliderWidget.hoverThumbWidth, equals(AppSliderTheme.hoverThumbWidth));
     expect(sliderWidget.pressedThumbHeight, equals(AppSliderTheme.pressedThumbHeight));
     expect(sliderWidget.pressedThumbWidth, equals(AppSliderTheme.pressedThumbWidth));
+    expect(sliderWidget.thumbCornerRadiusFactor, equals(0.20));
+    expect(sliderWidget.isThumbRounded, isTrue);
 
     final customPaintFinder = find.descendant(
       of: sliderFinder,
@@ -178,4 +180,42 @@ void main() {
 
     expect(sliderFinder, findsOneWidget);
   });
+
+  testWidgets('NixPropertySlider renders with 20px height and full 20px x 5px thumb with 20% rounded corners', (tester) async {
+    double propertyValue = 0.75;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 240,
+              child: NixPropertySlider(
+                label: 'Opacity',
+                value: propertyValue,
+                min: 0.0,
+                max: 1.0,
+                onChanged: (val) => propertyValue = val,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Opacity'), findsOneWidget);
+    expect(find.text('75%'), findsOneWidget);
+
+    final sliderWidget = tester.widget<NixSlider>(find.byType(NixSlider));
+    expect(sliderWidget.trackHeight, equals(20.0));
+    expect(sliderWidget.thumbHeight, equals(20.0));
+    expect(sliderWidget.thumbWidth, equals(2.0));
+    expect(sliderWidget.hoverThumbWidth, equals(5.0));
+    expect(sliderWidget.pressedThumbWidth, equals(5.0));
+    expect(sliderWidget.thumbCornerRadiusFactor, equals(0.20));
+    expect(sliderWidget.isThumbRounded, isTrue);
+  });
 }
+
